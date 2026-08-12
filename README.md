@@ -1,11 +1,35 @@
-<div align="center">
+# أنيس القلوب - الرفيق القرآني (Anis Al-Qulub)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+تطبيق قرآني متكامل ومتقدم، مصمم كـ (Progressive Web App - PWA) للعمل بشكل كامل في وضع عدم الاتصال (Offline) مع إمكانيات البحث المتقدمة، التفسير، والمزامنة السحابية.
 
-  <h1>Built with AI Studio</h2>
+## الميزات الرئيسية
+- **قراءة القرآن**: بالرسم العثماني مع واجهة مستخدم مريحة ووضع ليلي/فاتح.
+- **التفسير**: تفاسير متعددة للآيات، مع القدرة على قراءتها وتصفحها بسلاسة.
+- **محرك بحث متطور**: محلي سريع، وبحث ذكي معتمد على الذكاء الاصطناعي (Gemini).
+- **التلاوات**: استماع لتلاوات القراء مع إمكانية التنزيل والعمل بدون إنترنت.
+- **المزامنة السحابية**: حفظ بياناتك (العلامات المرجعية، التقدم، الملاحظات) محلياً عبر IndexedDB، ومزامنتها عبر Supabase عند توفر الإنترنت.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## التقنيات المستخدمة
+- React, TypeScript, Vite
+- Tailwind CSS, Framer Motion
+- Supabase (Backend/Sync)
+- IndexedDB & Dexie (Local Database)
+- Vite PWA Plugin (Offline Support & Service Workers)
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## التوثيق التقني
+يرجى الاطلاع على الملفات التالية لمزيد من التفاصيل المعمارية والتقنية:
+- `ARCHITECTURE.md`: معمارية المشروع.
+- `DATABASE.md`: بنية قاعدة البيانات المحلية.
+- `SEARCH_ENGINE.md`: محرك البحث الذكي والمحلي.
+- `QURAN_PLATFORM.md`: تفاصيل نظام عرض المصحف.
+- `SYNC_SYSTEM.md`: نظام المزامنة والعمل بدون إنترنت.
+- `PWA_GUIDE.md`: دليل تطبيق الويب التقدمي.
+- `DEPLOYMENT.md`: النشر على بيئات الإنتاج.
+- `APK_MIGRATION_REPORT.md`: جاهزية المشروع للتحويل لتطبيق هاتف.
+- `FINAL_TECHNICAL_REPORT.md`: التقرير الفني الشامل.
 
-</div>
+## البدء
+1. استنساخ المشروع: `git clone ...`
+2. تثبيت الحزم: `npm install`
+3. تشغيل وضع التطوير: `npm run dev`
+4. بناء التطبيق: `npm run build`
