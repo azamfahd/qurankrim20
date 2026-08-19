@@ -62,7 +62,13 @@ self.addEventListener('fetch', (event) => {
         return caches.open(RUNTIME_CACHE).then((cache) => {
           return fetch(event.request).then((response) => {
             if (response && response.status === 200 && response.type !== 'error') {
-              cache.put(event.request, response.clone());
+              const contentType = (response.headers.get('content-type') || '').toLowerCase();
+              const isAudioReq = url.pathname.match(/\.(mp3|wav|ogg)$/) || url.hostname.includes('aladhan.com') || url.hostname.includes('everyayah.com');
+              
+              // Only cache audio if content-type is NOT text/html
+              if (!isAudioReq || (!contentType.includes('text/html') && !contentType.includes('application/xhtml'))) {
+                cache.put(event.request, response.clone());
+              }
             }
             return response;
           }).catch(() => null);
