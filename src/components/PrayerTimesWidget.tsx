@@ -1,50 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, MapPin } from 'lucide-react';
-import { Coordinates, CalculationMethod, PrayerTimes } from 'adhan';
+import { Clock, MapPin, Settings, Sparkles } from 'lucide-react';
 import { UserSettings, UserLocation } from '../types';
+import { calculateAccuratePrayerTimes, AdhanAudioEngine } from '../services/adhanService';
+import { AdhanSettingsModal } from './AdhanSettingsModal';
 
 interface PrayerTimesWidgetProps {
   settings: UserSettings;
   onUpdateSettings: (settings: UserSettings) => void;
+  onOpenAdhanSettings?: () => void;
 }
 
-export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, onUpdateSettings }) => {
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
+export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ 
+  settings, 
+  onUpdateSettings,
+  onOpenAdhanSettings 
+}) => {
+  const [schedule, setSchedule] = useState(() => 
+    calculateAccuratePrayerTimes(settings?.location, new Date(), settings?.adhanSettings?.calculationMethod)
+  );
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [localAdhanModalOpen, setLocalAdhanModalOpen] = useState(false);
 
-  // Use location from settings or fallback to localStorage or default to Makkah
+  const handleOpenAdhan = () => {
+    if (onOpenAdhanSettings) {
+      onOpenAdhanSettings();
+    } else {
+      setLocalAdhanModalOpen(true);
+    }
+  };
+
+  // Re-calculate accurately when location, date, or method changes
   useEffect(() => {
-    let lat = settings?.location?.latitude;
-    let lng = settings?.location?.longitude;
+    AdhanAudioEngine.initServiceWorkerListeners();
 
-    if (!lat || !lng) {
-      try {
-        const savedLocStr = localStorage.getItem('anis_saved_location');
-        if (savedLocStr) {
-          const parsed = JSON.parse(savedLocStr);
-          if (parsed?.latitude && parsed?.longitude) {
-            lat = parsed.latitude;
-            lng = parsed.longitude;
-            // Update parent settings if missing
-            if (!settings?.location) {
-              onUpdateSettings({ ...settings, location: parsed });
+    const calc = () => {
+      let lat = settings?.location?.latitude;
+      let lng = settings?.location?.longitude;
+
+      if (!lat || !lng) {
+        try {
+          const savedLocStr = localStorage.getItem('anis_saved_location');
+          if (savedLocStr) {
+            const parsed = JSON.parse(savedLocStr);
+            if (parsed?.latitude && parsed?.longitude) {
+              lat = parsed.latitude;
+              lng = parsed.longitude;
+              if (!settings?.location) {
+                onUpdateSettings({ ...settings, location: parsed });
+              }
             }
           }
+        } catch (e) {
+          console.error("Error reading saved location from localStorage:", e);
         }
-      } catch (e) {
-        console.error("Error reading saved location from localStorage:", e);
       }
-    }
 
-    const latitude = lat ?? 21.4225;
-    const longitude = lng ?? 39.8262;
-    
-    const coords = new Coordinates(latitude, longitude);
-    const params = CalculationMethod.MuslimWorldLeague();
-    const date = new Date();
-    const times = new PrayerTimes(coords, date, params);
-    setPrayerTimes(times);
-  }, [settings?.location]);
+      const activeLocation = (lat && lng) ? { latitude: lat, longitude: lng, name: settings?.location?.name || 'موقعي' } : null;
+      const res = calculateAccuratePrayerTimes(activeLocation, new Date(), settings?.adhanSettings?.calculationMethod);
+      setSchedule(res);
+
+      // Sync 30-day schedule for offline background notifications & Service Worker
+      AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, settings?.adhanSettings?.calculationMethod);
+    };
+
+    calc();
+    const interval = setInterval(calc, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, [settings?.location, settings?.adhanSettings?.calculationMethod]);
 
   const requestLocation = async () => {
     setIsLoadingLocation(true);
@@ -60,7 +82,6 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, 
           });
         });
 
-        // Try to get the Arabic city name using bigdatacloud's free reverse-geocoding API
         let locationName = 'موقع دقيق عبر GPS';
         try {
           const geoResponse = await fetch(
@@ -83,7 +104,6 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, 
           name: locationName
         };
 
-        // Persist directly to localStorage
         try {
           localStorage.setItem('anis_saved_location', JSON.stringify(newLocation));
         } catch (e) {
@@ -101,7 +121,7 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, 
       }
     }
 
-    // 2. Fallback to IP Geolocation if GPS is not supported or fails
+    // 2. Fallback to IP Geolocation if GPS fails
     try {
       const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
       if (!response.ok) throw new Error('Network response was not ok');
@@ -117,7 +137,6 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, 
         name
       };
 
-      // Persist directly to localStorage
       try {
         localStorage.setItem('anis_saved_location', JSON.stringify(newLocation));
       } catch (e) {
@@ -135,57 +154,94 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ settings, 
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
-  if (!prayerTimes) return null;
-
-  const times = [
-    { name: 'الفجر', time: formatTime(prayerTimes.fajr) },
-    { name: 'الظهر', time: formatTime(prayerTimes.dhuhr) },
-    { name: 'العصر', time: formatTime(prayerTimes.asr) },
-    { name: 'المغرب', time: formatTime(prayerTimes.maghrib) },
-    { name: 'العشاء', time: formatTime(prayerTimes.isha) },
-  ];
-
   const currentLocationName = settings?.location?.name || 'مكة المكرمة';
 
   return (
-    <div className="bg-gradient-to-br from-[var(--color-primary)] via-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-2xl p-4 sm:p-5 text-white shadow-[0_4px_20px_rgba(197,160,89,0.25)] border-2 border-[var(--color-gold)]/60 hover:border-[var(--color-gold)] transition-all duration-300 relative overflow-hidden group">
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-gold)] rounded-full blur-[50px] translate-x-1/2 -translate-y-1/2"></div>
-      </div>
-      
-      {/* Golden subtle top highlight bar */}
-      <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-80"></div>
-
-      <div className="flex justify-between items-center mb-3.5 relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-[var(--color-gold)]/20 rounded-lg backdrop-blur-md border border-[var(--color-gold)]/40 text-[var(--color-gold-light)] shadow-xs">
-            <Clock size={16} />
-          </div>
-          <h3 className="font-bold text-sm sm:text-base text-white">مواقيت الصلاة</h3>
+    <>
+      <div className="bg-gradient-to-br from-[var(--color-primary)] via-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-2xl p-4 sm:p-5 text-white shadow-[0_4px_20px_rgba(197,160,89,0.25)] border-2 border-[var(--color-gold)]/60 hover:border-[var(--color-gold)] transition-all duration-300 relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-gold)] rounded-full blur-[50px] translate-x-1/2 -translate-y-1/2"></div>
         </div>
-        <button 
-          onClick={requestLocation}
-          disabled={isLoadingLocation}
-          className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-black/20 hover:bg-[var(--color-gold)]/20 text-slate-100 px-2.5 py-1 rounded-full border border-[var(--color-gold)]/30 transition-all cursor-pointer disabled:opacity-50"
-          title="تحديث الموقع"
-        >
-          <MapPin size={11} className={`text-[var(--color-gold)] ${isLoadingLocation ? "animate-pulse" : ""}`} />
-          <span>{isLoadingLocation ? 'جاري التحديد...' : currentLocationName}</span>
-        </button>
-      </div>
-      
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2 relative z-10">
-        {times.map((t, idx) => (
-          <div key={idx} className="flex flex-col items-center gap-0.5 bg-black/20 hover:bg-[var(--color-gold)]/20 py-1.5 px-1 rounded-xl transition-all border border-[var(--color-gold)]/20 hover:border-[var(--color-gold)]/50 group/item">
-            <p className="text-[10px] text-slate-200 group-hover/item:text-[var(--color-gold-light)] font-medium transition-colors">{t.name}</p>
-            <p className="font-bold text-xs sm:text-sm text-white">{t.time}</p>
+        
+        {/* Golden subtle top highlight bar */}
+        <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-80"></div>
+
+        <div className="flex justify-between items-center mb-3.5 relative z-10">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-[var(--color-gold)]/20 rounded-lg backdrop-blur-md border border-[var(--color-gold)]/40 text-[var(--color-gold-light)] shadow-xs">
+              <Clock size={16} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-1.5">
+                <span>مواقيت الصلاة</span>
+                {schedule.nextPrayer && (
+                  <span className="text-[10px] text-[var(--color-gold-light)] font-normal hidden sm:inline-block">
+                    (القادمة: {schedule.nextPrayer})
+                  </span>
+                )}
+              </h3>
+            </div>
           </div>
-        ))}
+          
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button 
+              onClick={handleOpenAdhan}
+              className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-black/25 hover:bg-[var(--color-gold)]/25 text-slate-100 px-2.5 py-1 rounded-full border border-[var(--color-gold)]/40 hover:border-[var(--color-gold)] transition-all cursor-pointer shadow-xs active:scale-95"
+              title="إعدادات الأذان والتنبيهات"
+            >
+              <Settings size={12} className="text-[var(--color-gold)]" />
+              <span>إعدادات الأذان</span>
+            </button>
+            <button 
+              onClick={requestLocation}
+              disabled={isLoadingLocation}
+              className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-black/25 hover:bg-[var(--color-gold)]/25 text-slate-100 px-2.5 py-1 rounded-full border border-[var(--color-gold)]/40 hover:border-[var(--color-gold)] transition-all cursor-pointer disabled:opacity-50 shadow-xs active:scale-95 max-w-[140px] sm:max-w-[200px]"
+              title="تحديث الموقع"
+            >
+              <MapPin size={11} className={`text-[var(--color-gold)] shrink-0 ${isLoadingLocation ? "animate-pulse" : ""}`} />
+              <span className="truncate">{isLoadingLocation ? 'جاري التحديد...' : currentLocationName}</span>
+            </button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 relative z-10">
+          {schedule.prayersList.map((p, idx) => {
+            const isNext = p.isNext;
+            return (
+              <div 
+                key={idx} 
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl transition-all border group/item relative ${
+                  isNext 
+                    ? 'bg-[var(--color-gold)]/25 border-[var(--color-gold)] shadow-xs ring-1 ring-[var(--color-gold)]/40' 
+                    : 'bg-black/20 hover:bg-[var(--color-gold)]/20 border-[var(--color-gold)]/20 hover:border-[var(--color-gold)]/50'
+                }`}
+              >
+                {isNext && (
+                  <span className="absolute -top-1.5 right-1/2 translate-x-1/2 bg-[var(--color-gold)] text-slate-900 text-[8px] font-bold px-1 rounded-full leading-tight">
+                    التالية
+                  </span>
+                )}
+                <p className={`text-[10px] font-medium transition-colors ${
+                  isNext ? 'text-[var(--color-gold-light)] font-bold' : 'text-slate-200 group-hover/item:text-[var(--color-gold-light)]'
+                }`}>
+                  {p.name}
+                </p>
+                <p className="font-bold text-xs sm:text-sm text-white">{p.formattedTime}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      {!onOpenAdhanSettings && (
+        <AdhanSettingsModal 
+          isOpen={localAdhanModalOpen} 
+          onClose={() => setLocalAdhanModalOpen(false)} 
+          settings={settings} 
+          onSave={onUpdateSettings} 
+        />
+      )}
+    </>
   );
 };
+

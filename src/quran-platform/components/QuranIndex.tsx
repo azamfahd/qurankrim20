@@ -7,6 +7,7 @@ import { SurahInfoModal } from './SurahInfoModal';
 import { JuzSurahsModal } from './JuzSurahsModal';
 import { getCleanSurahName } from './AyahMarker';
 import { QuranSearchWidget } from '../search/components/QuranSearchWidget';
+import { SURAHS_STATIC_LIST, JUZS_META_STATIC } from '../data/surahsData';
 
 type TypeFilter = 'all' | 'meccan' | 'medinan';
 
@@ -33,9 +34,9 @@ const JUZ_START_PAGES = [
 
 const QuranIndex = () => {
   const { setCurrentView, setCurrentSurah, setCurrentAyah, setCurrentPage, setShowSettingsModal, setPlayingAyahNumber, openSurahSettings } = useQuranContext();
-  const [surahs, setSurahs] = useState<any[]>([]);
-  const [meta, setMeta] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [surahs, setSurahs] = useState<any[]>(SURAHS_STATIC_LIST);
+  const [meta, setMeta] = useState<any>({ juzs: JUZS_META_STATIC });
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'surahs' | 'juzs' | 'bookmarks'>('surahs');
   const [bookmarks, setBookmarks] = useState<{surah: number, ayah: number}[]>([]);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -46,25 +47,23 @@ const QuranIndex = () => {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const [surahsData, metaData] = await Promise.all([
-        QuranDataService.getSurahsList(),
-        QuranDataService.getMeta()
-      ]);
-      setSurahs(surahsData);
-      setMeta(metaData);
-
+    // Silent background sync for dynamic updates/cache checking without blocking UI
+    const fetchBackgroundData = async () => {
       try {
+        const [surahsData, metaData] = await Promise.all([
+          QuranDataService.getSurahsList(),
+          QuranDataService.getMeta()
+        ]);
+        if (surahsData && surahsData.length > 0) setSurahs(surahsData);
+        if (metaData) setMeta(metaData);
+
         const status = await QuranDataService.checkFullCacheStatus();
         setCacheStatus(status);
       } catch (e) {
-        console.error(e);
+        console.warn('Background Quran index check:', e);
       }
-
-      setLoading(false);
     };
-    fetchData();
+    fetchBackgroundData();
 
     // Load bookmarks
     const savedBookmarks = JSON.parse(localStorage.getItem('quran_bookmarks') || '[]');

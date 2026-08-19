@@ -28,19 +28,33 @@ export const InstallPrompt: React.FC = () => {
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 z-50 flex items-center justify-between">
+    <div 
+      className="fixed left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-amber-500/20 p-4 z-50 flex items-center justify-between"
+      style={{ bottom: 'calc(1rem + var(--safe-area-bottom))' }}
+    >
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-[var(--color-primary)] text-white rounded-xl flex items-center justify-center">
+        <div className="w-11 h-11 bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-dark)] text-white rounded-xl flex items-center justify-center shadow-md">
           <Download size={20} />
         </div>
         <div>
-          <h4 className="font-bold text-sm">تثبيت التطبيق</h4>
-          <p className="text-xs text-gray-500">أضف أنيس القلوب لشاشتك الرئيسية</p>
+          <h4 className="font-bold text-sm text-gray-900">تثبيت التطبيق</h4>
+          <p className="text-xs text-gray-500 font-medium">أضف أنيس القلوب لشاشتك الرئيسية</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={handleInstall} className="text-xs font-bold bg-[var(--color-primary)] text-white px-3 py-1.5 rounded-lg">تثبيت</button>
-        <button onClick={() => setShowPrompt(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+        <button 
+          onClick={handleInstall} 
+          className="text-xs font-bold bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-3.5 py-2 rounded-xl transition-all shadow-sm active:scale-95"
+        >
+          تثبيت
+        </button>
+        <button 
+          onClick={() => setShowPrompt(false)} 
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+          aria-label="إغلاق"
+        >
+          <X size={16} />
+        </button>
       </div>
     </div>
   );

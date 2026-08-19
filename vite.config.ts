@@ -22,7 +22,19 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, './src'),
-        }
+        },
+        dedupe: ['react', 'react-dom']
+      },
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          'framer-motion',
+          'lucide-react',
+          '@google/genai',
+          '@supabase/supabase-js',
+          'adhan'
+        ]
       },
       build: {
         outDir: 'dist',

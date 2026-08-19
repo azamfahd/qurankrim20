@@ -14,6 +14,19 @@ export interface UserLocation {
   name: string;
 }
 
+export interface AdhanSettings {
+  enabled: boolean;
+  muezzin: string;
+  fajrEnabled: boolean;
+  dhuhrEnabled: boolean;
+  asrEnabled: boolean;
+  maghribEnabled: boolean;
+  ishaEnabled: boolean;
+  volume: number;
+  calculationMethod?: 'MuslimWorldLeague' | 'UmmAlQura' | 'Egyptian' | 'Karachi' | 'Dubai' | 'NorthAmerica' | string;
+  autoPlayLiveAdhan?: boolean;
+}
+
 export interface UserSettings {
   theme?: 'light' | 'dark' | 'system';
   fontSize?: 'small' | 'medium' | 'large';
@@ -31,6 +44,7 @@ export interface UserSettings {
   bookmarks?: Bookmark[];
   isLoggedIn?: boolean;
   location?: UserLocation;
+  adhanSettings?: AdhanSettings;
   analysisStyle?: 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | string;
 }
 

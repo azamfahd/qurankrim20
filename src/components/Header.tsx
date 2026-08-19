@@ -50,7 +50,7 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg"
+      className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg header-safe-area"
     >
       <div className="flex items-center gap-4">
         <button 
@@ -67,7 +67,7 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-gold-light)] font-semibold mt-0.5 opacity-80 flex-wrap">
             <Calendar size={10} className="text-[var(--color-gold)] shrink-0" />
-            <span>{gregorianDate} ({agriMonth})</span>
+            <span>{gregorianDate}</span>
             <span className="opacity-40">•</span>
             <span>{hijriDate}</span>
             <span className="opacity-40">•</span>

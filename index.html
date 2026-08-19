@@ -30,7 +30,10 @@
     <link rel="manifest" href="/manifest.json" />
     <!-- أيقونة البرنامج -->
     <link rel="icon" type="image/svg+xml" href="/app-icon.svg" />
-    <link rel="apple-touch-icon" href="/app-icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     
     <title>أنيس القلوب - رفيقك القرآني</title>
     
@@ -53,7 +56,29 @@
     </style>
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #022c22 0%, #043d2e 40%, #065f46 75%, #022c22 100%); color: #fdfbf7; font-family: 'Cairo', system-ui, sans-serif; text-align: center; padding: 1.5rem; user-select: none;">
+        <div style="position: relative; width: 110px; height: 110px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; inset: -8px; background: radial-gradient(circle, rgba(212, 175, 55, 0.4) 0%, transparent 70%); border-radius: 50%; filter: blur(8px);"></div>
+          <img src="/icons/icon-192.png" onerror="this.onerror=null;this.src='/app-icon.svg';" alt="أنيس القلوب" style="position: relative; width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); border: 2px solid rgba(212, 175, 55, 0.4); object-fit: contain;" />
+        </div>
+        <h1 style="margin: 0 0 0.5rem 0; font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #f1e5ac, #d4af37, #fef3c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">
+          أنيس القلوب
+        </h1>
+        <p style="margin: 0; font-size: 0.9rem; color: #a7f3d0; opacity: 0.9;">
+          رفيقك القرآني للتدبر والمواساة
+        </p>
+        <div style="margin-top: 2rem; width: 42px; height: 3px; background: rgba(212, 175, 55, 0.3); border-radius: 3px; overflow: hidden; position: relative;">
+          <div style="position: absolute; top: 0; bottom: 0; width: 50%; background: #d4af37; border-radius: 3px; animation: splashPulse 1.2s ease-in-out infinite alternate;"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes splashPulse {
+          0% { left: -20%; width: 30%; }
+          100% { left: 90%; width: 30%; }
+        }
+      </style>
+    </div>
     <!-- استخدام مسار نسبي للملف الرئيسي -->
     <script type="module" src="/src/index.tsx"></script>
 </body>

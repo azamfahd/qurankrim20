@@ -16,11 +16,15 @@ import { Toast, ToastType } from './components/Toast';
 import { Sidebar } from './components/Sidebar';
 import { DailyVerse } from './components/DailyVerse';
 import { PrayerTimesWidget } from './components/PrayerTimesWidget';
+import { AdhanSettingsModal } from './components/AdhanSettingsModal';
+import { AdhanNotificationBanner } from './components/AdhanNotificationBanner';
+import { calculateAccuratePrayerTimes, AdhanAudioEngine, MUEZZINS_LIST } from './services/adhanService';
 import { HijriCalendarModal } from './components/HijriCalendarModal';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
 import { QiblaModal } from './components/QiblaModal';
 import { ZakatCalculatorModal } from './components/ZakatCalculatorModal';
 import { InstallPrompt } from './components/InstallPrompt';
+import { PullToRefresh } from './components/PullToRefresh';
 import AgriculturalCalendarModal from './components/AgriculturalCalendarModal';
 import MiraclesModal from './components/MiraclesModal';
 import { ProphetsModal } from './components/ProphetsModal';
@@ -75,7 +79,6 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9
 
 const App: React.FC = () => {
   const userIdRef = useRef<string>(generateUserId());
-  const [isLoadingData, setIsLoadingData] = useState(true);
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
 
   // تحميل الرسائل النشطة من الذاكرة (الحفظ التلقائي)
@@ -102,6 +105,7 @@ const App: React.FC = () => {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAdhanSettingsOpen, setIsAdhanSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isTasbihOpen, setIsTasbihOpen] = useState(false);
   const [isQuranPlatformOpen, setIsQuranPlatformOpen] = useState(false);
@@ -134,6 +138,90 @@ const App: React.FC = () => {
   const todayHijri = getCurrentHijriDate(hijriOffset);
   const todayReminders = getHijriReminders(todayHijri);
   const [loadingText, setLoadingText] = useState(LOADING_MESSAGES[0]);
+  
+  const [settings, setSettings] = useState<UserSettings>(() => {
+    try {
+      const saved = localStorage.getItem('anis_settings');
+      if (saved) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      }
+      return DEFAULT_SETTINGS;
+    } catch (e) {
+      return DEFAULT_SETTINGS;
+    }
+  });
+
+  // Live Adhan monitoring state
+  const [liveAdhanPrayer, setLiveAdhanPrayer] = useState<string | null>(null);
+  const [isLiveAdhanBannerOpen, setIsLiveAdhanBannerOpen] = useState(false);
+  const lastTriggeredPrayerKeyRef = useRef<string>('');
+
+  // Live Accurate Adhan Checker
+  useEffect(() => {
+    // Service worker message handler (e.g. Stop Adhan from Android notification action)
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'STOP_ADHAN') {
+        AdhanAudioEngine.stop();
+        setIsLiveAdhanBannerOpen(false);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
+    const checkAdhan = () => {
+      const adhanConfig = settings.adhanSettings;
+      if (!adhanConfig || !adhanConfig.enabled) return;
+
+      const now = new Date();
+      const schedule = calculateAccuratePrayerTimes(settings.location, now, adhanConfig.calculationMethod);
+      const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      
+      schedule.prayersList.forEach(prayer => {
+        const isPrayerEnabled = adhanConfig[prayer.key] as boolean;
+        if (!isPrayerEnabled) return;
+
+        const diffMinutes = Math.abs((now.getTime() - prayer.time.getTime()) / 60000);
+        const triggerKey = `${dateKey}_${prayer.name}`;
+        if (diffMinutes <= 1 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
+          lastTriggeredPrayerKeyRef.current = triggerKey;
+          setLiveAdhanPrayer(prayer.name);
+          setIsLiveAdhanBannerOpen(true);
+
+          const muezzinId = adhanConfig.muezzin || 'mishary';
+          const muezzinObj = MUEZZINS_LIST.find(m => m.id === muezzinId);
+          const muezzinName = muezzinObj?.name || 'الشيخ مشاري العفاسي';
+
+          if (adhanConfig.autoPlayLiveAdhan !== false) {
+            AdhanAudioEngine.play(muezzinId, adhanConfig.volume || 85, undefined, undefined, prayer.name);
+          }
+
+          // High-priority Android TWA / PWA / Web notification with Action buttons
+          AdhanAudioEngine.dispatchPrayerNotification(prayer.name, muezzinName);
+        }
+      });
+    };
+
+    checkAdhan();
+    const interval = setInterval(checkAdhan, 15000);
+
+    // Re-check instantly when app comes back to foreground on mobile/Android
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAdhan();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
+    };
+  }, [settings.adhanSettings, settings.location]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
@@ -165,6 +253,7 @@ const App: React.FC = () => {
       // Esc to close all modals
       if (e.key === 'Escape') {
         setIsSettingsOpen(false);
+        setIsAdhanSettingsOpen(false);
         setIsHistoryOpen(false);
         setIsTasbihOpen(false);
         setIsBookmarksOpen(false);
@@ -184,18 +273,6 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const [settings, setSettings] = useState<UserSettings>(() => {
-    try {
-      const saved = localStorage.getItem('anis_settings');
-      if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-      }
-      return DEFAULT_SETTINGS;
-    } catch (e) {
-      return DEFAULT_SETTINGS;
-    }
-  });
   
   const chatSessionRef = useRef<QuranChatSession | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -274,7 +351,6 @@ const App: React.FC = () => {
       if (loadedSessions !== null) {
         setSessions(loadedSessions);
       }
-      setIsLoadingData(false);
     };
 
     const { data: { subscription } } = SupabaseService.onAuthStateChange(async (user) => {
@@ -349,14 +425,6 @@ const App: React.FC = () => {
       setShowPromoBanner(false);
     }
   }, [settings.isLoggedIn, supabaseUser]);
-
-  useEffect(() => {
-    if (isLoadingData && !supabaseUser) {
-      // Small delay to let auth settle
-      const timer = setTimeout(() => setIsLoadingData(false), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [supabaseUser, isLoadingData]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -696,19 +764,36 @@ const App: React.FC = () => {
     return "ليلة هادئة ومطمئنة";
   };
 
-  if (isLoadingData) {
-    return (
-      <div className="app-wrapper royal-gradient flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6 bg-white/10 backdrop-blur-xl p-12 rounded-[3rem] border border-white/20 shadow-2xl">
-          <div className="spin w-12 h-12 border-4 border-[var(--color-gold)] border-t-transparent rounded-full shadow-[0_0_20px_rgba(197,160,89,0.3)]"></div>
-          <p className="text-[var(--color-gold-light)] font-bold text-xl animate-pulse">جاري تحميل الأنوار...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSilentRefresh = async () => {
+    setIsSyncing(true);
+    try {
+      if (userIdRef.current && isOnline) {
+        const loadedSettings = await SyncService.loadSettings(userIdRef.current, settings);
+        if (loadedSettings) {
+          setSettings(prev => ({ ...prev, ...loadedSettings }));
+        }
+        const loadedSessions = await SyncService.loadSessions(userIdRef.current, settings);
+        if (loadedSessions) {
+          setSessions(loadedSessions);
+        }
+      }
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update().catch(() => {});
+        }
+      }
+      setLastSynced(Date.now());
+    } catch (e) {
+      console.warn('Silent refresh error:', e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="app-wrapper royal-gradient selection:bg-[var(--color-gold)] selection:text-white">
+      <PullToRefresh onRefresh={handleSilentRefresh} />
       <InstallPrompt />
       
       <AnimatePresence>
@@ -933,6 +1018,7 @@ const App: React.FC = () => {
                  <PrayerTimesWidget 
                    settings={settings} 
                    onUpdateSettings={setSettings} 
+                   onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
                  />
                </div>
 
@@ -1271,6 +1357,20 @@ const App: React.FC = () => {
         onShowToast={showToast}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
+      />
+
+      <AdhanSettingsModal 
+        isOpen={isAdhanSettingsOpen} 
+        onClose={() => setIsAdhanSettingsOpen(false)} 
+        settings={settings} 
+        onSave={setSettings} 
+      />
+
+      <AdhanNotificationBanner 
+        isOpen={isLiveAdhanBannerOpen}
+        prayerName={liveAdhanPrayer}
+        muezzinName={MUEZZINS_LIST.find(m => m.id === (settings.adhanSettings?.muezzin || 'mishary'))?.name}
+        onClose={() => setIsLiveAdhanBannerOpen(false)}
       />
 
       <HistoryModal

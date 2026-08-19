@@ -1,4 +1,6 @@
 // Service to fetch Quran data from Alquran.cloud API or local Cache Storage (Fully Offline-First)
+import { SURAHS_STATIC_LIST, JUZS_META_STATIC } from '../data/surahsData';
+
 const API_BASE = 'https://api.alquran.cloud/v1';
 const TEXT_CACHE_NAME = 'quran-text-api-v1';
 
@@ -11,10 +13,10 @@ export interface TextCacheProgress {
 }
 
 export class QuranDataService {
-  // Memory Cache for fast retrieval in-session
-  private static surahsListCache: any[] | null = null;
+  // Static instant data for 0ms initial load
+  private static surahsListCache: any[] | null = SURAHS_STATIC_LIST;
   private static pageCache: Record<number, any> = {};
-  private static metaCache: any = null;
+  private static metaCache: any = { juzs: JUZS_META_STATIC };
 
   /**
    * Helper to perform a cached fetch
