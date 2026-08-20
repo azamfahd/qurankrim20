@@ -39,17 +39,21 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: 'dist',
         emptyOutDir: true,
+        chunkSizeWarningLimit: 1500,
         rollupOptions: {
           output: {
-            manualChunks: {
-              'vendor-react': ['react', 'react-dom'],
-              'vendor-supabase': ['@supabase/supabase-js'],
-              'vendor-ui': ['framer-motion', 'lucide-react'],
-              'vendor-ai': ['@google/genai']
+            manualChunks: (id) => {
+              if (id.includes('node_modules')) {
+                if (id.includes('framer-motion')) return 'vendor-motion';
+                if (id.includes('lucide-react')) return 'vendor-icons';
+                if (id.includes('@google/genai')) return 'vendor-ai';
+                if (id.includes('@supabase')) return 'vendor-db';
+                if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+                return 'vendor';
+              }
             }
           }
-        },
-        chunkSizeWarningLimit: 1000
+        }
       }
     };
 });

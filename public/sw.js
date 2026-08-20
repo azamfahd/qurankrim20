@@ -1,5 +1,5 @@
-const CACHE_NAME = 'anis-al-qulub-app-v2';
-const RUNTIME_CACHE = 'anis-al-qulub-runtime-v2';
+const CACHE_NAME = 'anis-al-qulub-app-v3';
+const RUNTIME_CACHE = 'anis-al-qulub-runtime-v3';
 
 // الموارد الأساسية التي يجب تخزينها فوراً عند التثبيت
 const PRECACHE_URLS = [
