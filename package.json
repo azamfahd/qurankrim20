@@ -19,6 +19,7 @@
     "adhan": "^4.4.3",
     "autoprefixer": "^10.4.27",
     "clsx": "^2.1.1",
+    "dexie": "^4.4.5",
     "esbuild": "^0.28.2",
     "express": "^5.2.1",
     "framer-motion": "^12.38.0",

@@ -369,6 +369,39 @@ export class AdhanOfflineManager {
   }
 
   /**
+   * Automatically downloads and caches all missing muezzins in the background
+   */
+  public static async autoDownloadAllMuezzins(
+    onProgress?: (muezzinId: string, percent: number, totalDone: number, totalCount: number) => void
+  ): Promise<{ success: boolean; totalDownloaded: number }> {
+    try {
+      const status = await this.getAllDownloadedStatus();
+      const missing = MUEZZINS_LIST.filter(m => !status.downloadedIds.includes(m.id));
+      
+      if (missing.length === 0) {
+        return { success: true, totalDownloaded: MUEZZINS_LIST.length };
+      }
+
+      let completed = status.downloadedIds.length;
+      for (const m of missing) {
+        if (onProgress) onProgress(m.id, 15, completed, MUEZZINS_LIST.length);
+        const res = await this.downloadMuezzinAudio(m.id, (p) => {
+          if (onProgress) onProgress(m.id, p, completed, MUEZZINS_LIST.length);
+        });
+        if (res.success) {
+          completed++;
+          if (onProgress) onProgress(m.id, 100, completed, MUEZZINS_LIST.length);
+        }
+      }
+
+      return { success: true, totalDownloaded: completed };
+    } catch (e) {
+      console.warn("autoDownloadAllMuezzins caught error:", e);
+      return { success: false, totalDownloaded: 0 };
+    }
+  }
+
+  /**
    * Create an offline Object URL from stored Blob
    */
   public static async getOfflineBlobUrl(muezzinId: string): Promise<string | null> {

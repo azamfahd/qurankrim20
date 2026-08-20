@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll } from 'lucide-react';
+import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin } from 'lucide-react';
 import { UserSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,7 @@ interface SidebarProps {
   onOpenAdhkar: () => void;
   onOpenNamesOfAllah: () => void;
   onOpenQibla: () => void;
+  onOpenLocation?: () => void;
   onOpenZakat: () => void;
   onOpenHijri: () => void;
   onOpenAgriCalendar: () => void;
@@ -39,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAdhkar,
   onOpenNamesOfAllah,
   onOpenQibla,
+  onOpenLocation,
   onOpenZakat,
   onOpenHijri,
   onOpenAgriCalendar,
@@ -149,6 +151,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 label="اتجاه القبلة" 
                 onClick={() => { onOpenQibla(); onClose(); }} 
               />
+              {onOpenLocation && (
+                <SidebarItem 
+                  icon={<MapPin size={20} />} 
+                  label="تحديد مدينتي والموقع" 
+                  onClick={() => { onOpenLocation(); onClose(); }} 
+                />
+              )}
               <SidebarItem 
                 icon={<Calculator size={20} />} 
                 label="حاسبة الزكاة" 

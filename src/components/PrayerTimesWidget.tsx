@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, MapPin, Settings, Sparkles } from 'lucide-react';
 import { UserSettings, UserLocation } from '../types';
-import { calculateAccuratePrayerTimes, AdhanAudioEngine } from '../services/adhanService';
+import { calculateAccuratePrayerTimes, AdhanAudioEngine, AdhanOfflineManager } from '../services/adhanService';
+import { LocationService } from '../services/locationService';
 import { AdhanSettingsModal } from './AdhanSettingsModal';
 
 interface PrayerTimesWidgetProps {
   settings: UserSettings;
   onUpdateSettings: (settings: UserSettings) => void;
   onOpenAdhanSettings?: () => void;
+  onOpenLocationSettings?: () => void;
 }
 
 export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({ 
   settings, 
   onUpdateSettings,
-  onOpenAdhanSettings 
+  onOpenAdhanSettings,
+  onOpenLocationSettings
 }) => {
   const [schedule, setSchedule] = useState(() => 
     calculateAccuratePrayerTimes(settings?.location, new Date(), settings?.adhanSettings?.calculationMethod)
@@ -22,6 +25,13 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
   const [localAdhanModalOpen, setLocalAdhanModalOpen] = useState(false);
 
   const handleOpenAdhan = () => {
+    // 1. Unlock browser audio context for smooth adhan playback
+    AdhanAudioEngine.unlockAudioContext();
+
+    // 2. Automatically initiate offline caching for all muezzins
+    AdhanOfflineManager.autoDownloadAllMuezzins().catch(() => {});
+
+    // 3. Open settings modal
     if (onOpenAdhanSettings) {
       onOpenAdhanSettings();
     } else {
@@ -68,87 +78,29 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
     return () => clearInterval(interval);
   }, [settings?.location, settings?.adhanSettings?.calculationMethod]);
 
+  // Auto-detect location on mount if not already set
+  useEffect(() => {
+    if (!settings?.location) {
+      LocationService.autoDetectLocation(false).then((loc) => {
+        if (loc) {
+          onUpdateSettings({ ...settings, location: loc });
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
   const requestLocation = async () => {
     setIsLoadingLocation(true);
-    
-    // 1. Try GPS Geolocation first for maximum accuracy
-    if ('geolocation' in navigator) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000
-          });
-        });
-
-        let locationName = 'موقع دقيق عبر GPS';
-        try {
-          const geoResponse = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=ar`
-          );
-          if (geoResponse.ok) {
-            const geoData = await geoResponse.json();
-            const city = geoData.city || geoData.locality || geoData.principalSubdivision;
-            if (city) {
-              locationName = `${city}، ${geoData.countryName || 'اليمن'}`;
-            }
-          }
-        } catch (e) {
-          console.warn("Reverse geocoding failed, using generic GPS name:", e);
-        }
-
-        const newLocation: UserLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          name: locationName
-        };
-
-        try {
-          localStorage.setItem('anis_saved_location', JSON.stringify(newLocation));
-        } catch (e) {
-          console.error("Failed to save location to localStorage:", e);
-        }
-
+    try {
+      const loc = await LocationService.autoDetectLocation(true);
+      if (loc) {
         onUpdateSettings({
           ...settings,
-          location: newLocation
+          location: loc
         });
-        setIsLoadingLocation(false);
-        return;
-      } catch (gpsError) {
-        console.warn("GPS Geolocation failed or denied, falling back to IP:", gpsError);
       }
-    }
-
-    // 2. Fallback to IP Geolocation if GPS fails
-    try {
-      const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
-      if (!response.ok) throw new Error('Network response was not ok');
-      const data = await response.json();
-      
-      const latitude = parseFloat(data.latitude);
-      const longitude = parseFloat(data.longitude);
-      const name = data.city ? `${data.city}، ${data.country}` : 'موقعك الحالي (IP)';
-      
-      const newLocation: UserLocation = {
-        latitude,
-        longitude,
-        name
-      };
-
-      try {
-        localStorage.setItem('anis_saved_location', JSON.stringify(newLocation));
-      } catch (e) {
-        console.error("Failed to save location to localStorage:", e);
-      }
-
-      onUpdateSettings({
-        ...settings,
-        location: newLocation
-      });
-    } catch (error) {
-      console.error("IP Geolocation fallback failed:", error);
+    } catch (e) {
+      console.warn("Manual location refresh error:", e);
     } finally {
       setIsLoadingLocation(false);
     }
@@ -193,10 +145,16 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
               <span>إعدادات الأذان</span>
             </button>
             <button 
-              onClick={requestLocation}
+              onClick={() => {
+                if (onOpenLocationSettings) {
+                  onOpenLocationSettings();
+                } else {
+                  requestLocation();
+                }
+              }}
               disabled={isLoadingLocation}
               className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-black/25 hover:bg-[var(--color-gold)]/25 text-slate-100 px-2.5 py-1 rounded-full border border-[var(--color-gold)]/40 hover:border-[var(--color-gold)] transition-all cursor-pointer disabled:opacity-50 shadow-xs active:scale-95 max-w-[140px] sm:max-w-[200px]"
-              title="تحديث الموقع"
+              title="تحديد أو تغيير الموقع الجغرافي"
             >
               <MapPin size={11} className={`text-[var(--color-gold)] shrink-0 ${isLoadingLocation ? "animate-pulse" : ""}`} />
               <span className="truncate">{isLoadingLocation ? 'جاري التحديد...' : currentLocationName}</span>

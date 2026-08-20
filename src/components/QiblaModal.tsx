@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Coordinates, Qibla } from 'adhan';
 import { UserSettings } from '../types';
+import { LocationService } from '../services/locationService';
 
 interface QiblaModalProps {
   isOpen: boolean;
@@ -214,69 +215,16 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
       return;
     }
 
-    // ب) طلب GPS المباشر إذا طلب المستخدم
-    if (useGPS) {
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            let locationName = 'موقع دقيق عبر GPS';
-            try {
-              const geoResponse = await fetch(
-                `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ar`
-              );
-              if (geoResponse.ok) {
-                const geoData = await geoResponse.json();
-                const city = geoData.city || geoData.locality || geoData.principalSubdivision;
-                if (city) {
-                  locationName = `${city}، ${geoData.countryName || ''}`;
-                }
-              }
-            } catch (e) {
-              console.warn("Reverse geocoding warning:", e);
-            }
-
-            updateLocationData(lat, lon, locationName, true);
-            setIsRequestingGPS(false);
-          },
-          (error) => {
-            console.warn("GPS error:", error.message);
-            let msg = "تعذر الحصول على موقع الـ GPS. يمكنك اختيار مدينتك يدويًا من القائمة.";
-            if (error.code === error.TIMEOUT) {
-              msg = "انتهت مهلة البحث عن الـ GPS. جرب الاقتراب من النافذة أو اختر مدينتك من القائمة.";
-            }
-            setLocationError(msg);
-            setIsRequestingGPS(false);
-          },
-          { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-        );
-      } else {
-        setLocationError("ميزة الـ GPS غير مدعومة في متصفحك. يرجى اختيار مدينتك يدويًا.");
-        setIsRequestingGPS(false);
+    try {
+      const loc = await LocationService.autoDetectLocation(useGPS);
+      if (loc) {
+        updateLocationData(loc.latitude, loc.longitude, loc.name || 'موقع محدد تلقائياً', useGPS);
       }
-      return;
-    }
-
-    // ج) تحديد تقريبي عبر IP إذا لم يتوفر موقع محفوظ
-    if (!currentSettings?.location) {
-      try {
-        const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
-        if (response.ok) {
-          const data = await response.json();
-          const lat = parseFloat(data.latitude);
-          const lon = parseFloat(data.longitude);
-          if (!isNaN(lat) && !isNaN(lon)) {
-            const name = `${data.city || 'موقع تقريبي'}، ${data.country || ''}`;
-            updateLocationData(lat, lon, name, false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn("IP Geolocation failed:", e);
-      }
-      // افتراضي: صنعاء
-      updateLocationData(15.3694, 44.1910, 'صنعاء، اليمن (افتراضي)', false);
+    } catch (e) {
+      console.warn("Location detection error in Qibla modal:", e);
+      setLocationError("تعذر تحديد الموقع بدقة، تم استخدام التحديد التلقائي التقريبي.");
+    } finally {
+      setIsRequestingGPS(false);
     }
   }, [updateLocationData]);
 

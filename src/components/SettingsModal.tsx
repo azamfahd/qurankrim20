@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, LogIn, LogOut, Database, RefreshCw, Cloud } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, LogIn, LogOut, Database, RefreshCw, Cloud, MapPin, Navigation } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, getSupabase } from '../services/supabaseService';
@@ -10,6 +10,7 @@ interface SettingsModalProps {
   settings: UserSettings;
   onSave: (settings: UserSettings) => void;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  onOpenLocationModal?: () => void;
   isSyncing?: boolean;
   lastSynced?: number | null;
 }
@@ -20,6 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings, 
   onSave, 
   onShowToast,
+  onOpenLocationModal,
   isSyncing,
   lastSynced
 }) => {
@@ -206,6 +208,97 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 px-4 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner"
                     placeholder="أدخل اسمك..."
                   />
+                </div>
+              </div>
+            </section>
+
+            {/* Location & Prayer Times Section */}
+            <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+              <div className="absolute top-0 right-0 w-2 h-full bg-[var(--color-primary)] opacity-20 group-hover:opacity-100 transition-opacity"></div>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-3">
+                  <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
+                    <MapPin size={18} />
+                  </div>
+                  الموقع الجغرافي ومواقيت الصلاة
+                </h3>
+
+                {onOpenLocationModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenLocationModal();
+                      onClose();
+                    }}
+                    className="text-xs font-bold text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] px-3 py-1.5 rounded-xl bg-[var(--color-primary-light)]/50 hover:bg-[var(--color-primary-light)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Navigation size={13} />
+                    <span>تغيير / تحديد مدينتي</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-gray-50/70 border border-[var(--color-border)] flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-400 block">الموقع الحالي المضبوط</span>
+                    <h4 className="text-sm font-bold text-gray-800 mt-0.5">
+                      {localSettings.location?.name || 'مكة المكرمة، السعودية (افتراضي)'}
+                    </h4>
+                    {localSettings.location && (
+                      <p className="text-[10px] font-mono text-gray-400 mt-0.5">
+                        {localSettings.location.latitude.toFixed(4)}° N, {localSettings.location.longitude.toFixed(4)}° E
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl">
+                    مضبوط ونشط
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-2">طريقة حساب مواقيت الصلاة</label>
+                  <div className="relative group/select">
+                    <select
+                      value={localSettings.adhanSettings?.calculationMethod || 'UmmAlQura'}
+                      onChange={(e) => {
+                        const newMethod = e.target.value;
+                        setLocalSettings({
+                          ...localSettings,
+                          adhanSettings: {
+                            ...(localSettings.adhanSettings || {
+                              enabled: true,
+                              muezzin: 'mishary',
+                              fajrEnabled: true,
+                              dhuhrEnabled: true,
+                              asrEnabled: true,
+                              maghribEnabled: true,
+                              ishaEnabled: true,
+                              volume: 0.8
+                            }),
+                            calculationMethod: newMethod
+                          }
+                        });
+                      }}
+                      className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer text-gray-800"
+                    >
+                      <option value="UmmAlQura">🕋 أم القرى (مكة المكرمة - السعودية، الخليج، اليمن)</option>
+                      <option value="Egyptian">🇪🇬 الهيئة المصرية العامة للمساحة (مصر، إفريقيا، الشام)</option>
+                      <option value="MuslimWorldLeague">🌐 رابطة العالم الإسلامي (أوروبا، الشرق الأقصى، أجزاء من أمريكا)</option>
+                      <option value="Dubai">🇦🇪 دائرة الشؤون الإسلامية بدبي (الإمارات)</option>
+                      <option value="Karachi">🇵🇰 جامعة العلوم الإسلامية بكراتشي (باكستان، الهند، بنغلاديش)</option>
+                      <option value="NorthAmerica">🇺🇸 الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/select:text-[var(--color-primary)] transition-colors">
+                      <Sliders size={18} />
+                    </div>
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
+                      <ChevronDown size={16} />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                    تُحدد زوايا الفجر والعشاء ودقة مواعيد الصلاة بحسب الهيئة الفقهية المعتمدة في إقليمك.
+                  </p>
                 </div>
               </div>
             </section>

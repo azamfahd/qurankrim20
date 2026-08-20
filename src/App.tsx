@@ -19,6 +19,9 @@ import { PrayerTimesWidget } from './components/PrayerTimesWidget';
 import { AdhanSettingsModal } from './components/AdhanSettingsModal';
 import { AdhanNotificationBanner } from './components/AdhanNotificationBanner';
 import { calculateAccuratePrayerTimes, AdhanAudioEngine, MUEZZINS_LIST } from './services/adhanService';
+import { LocationService } from './services/locationService';
+import { ManualLocationModal } from './components/ManualLocationModal';
+import { LocationPromptBanner } from './components/LocationPromptBanner';
 import { HijriCalendarModal } from './components/HijriCalendarModal';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
 import { QiblaModal } from './components/QiblaModal';
@@ -31,7 +34,8 @@ import { ProphetsModal } from './components/ProphetsModal';
 import { QuranChatSession } from './services/geminiService';
 import { SupabaseService } from './services/supabaseService';
 import { SyncService } from './services/syncService';
-import { ChatMessage, AppState, UserSettings, ChatSession, Bookmark, Verse } from './types';
+import { LocalDatabaseService } from './db/localDb';
+import { ChatMessage, AppState, UserSettings, UserLocation, ChatSession, Bookmark, Verse } from './types';
 import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -119,6 +123,9 @@ const App: React.FC = () => {
   const [isAdhkarOpen, setIsAdhkarOpen] = useState(false);
   const [isNamesOfAllahOpen, setIsNamesOfAllahOpen] = useState(false);
   const [isQiblaOpen, setIsQiblaOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [showLocationBanner, setShowLocationBanner] = useState(false);
+  const [locationBannerData, setLocationBannerData] = useState<{ location?: UserLocation; isHighAccuracy?: boolean }>({});
   const [isZakatOpen, setIsZakatOpen] = useState(false);
   const [isHijriOpen, setIsHijriOpen] = useState(false);
   const [isAgriCalendarOpen, setIsAgriCalendarOpen] = useState(false);
@@ -248,6 +255,18 @@ const App: React.FC = () => {
     }
   });
 
+  // Initialize Dexie IndexedDB Local Storage & load cached offline data
+  useEffect(() => {
+    LocalDatabaseService.init().then(async () => {
+      const localSessions = await LocalDatabaseService.getAllSessions();
+      if (localSessions && localSessions.length > 0) {
+        setSessions(localSessions);
+      }
+    }).catch(err => {
+      console.warn('Local database initialization notice:', err);
+    });
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Esc to close all modals
@@ -260,6 +279,8 @@ const App: React.FC = () => {
         setIsAdhkarOpen(false);
         setIsNamesOfAllahOpen(false);
         setIsQiblaOpen(false);
+        setIsLocationModalOpen(false);
+        setShowLocationBanner(false);
         setIsZakatOpen(false);
         setIsAgriCalendarOpen(false);
         setIsMiraclesOpen(false);
@@ -395,6 +416,63 @@ const App: React.FC = () => {
 
     return () => {
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Automatic Intelligent Location Detection for any visitor/user on startup
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Auto-detect immediately without requiring user to press any button
+    LocationService.detectLocationWithDetails(false).then((details) => {
+      if (!isMounted || !details.location) return;
+      
+      const detectedLocation = details.location;
+      setSettings(prev => {
+        if (
+          prev.location?.latitude === detectedLocation.latitude &&
+          prev.location?.longitude === detectedLocation.longitude &&
+          prev.location?.name === detectedLocation.name
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          location: detectedLocation
+        };
+      });
+
+      // Show gentle non-intrusive banner on first launch or when location is detected
+      if (details.isFirstLaunch) {
+        setLocationBannerData({
+          location: detectedLocation,
+          isHighAccuracy: details.source === 'gps'
+        });
+        setShowLocationBanner(true);
+
+        // Auto-dismiss banner after 8 seconds
+        setTimeout(() => {
+          if (isMounted) {
+            setShowLocationBanner(false);
+          }
+        }, 8000);
+      }
+    }).catch(err => {
+      console.warn("Auto location detection caught error:", err);
+    });
+
+    // Listen for any location updates triggered in background
+    const unsubscribeLocation = LocationService.onLocationUpdated((newLoc) => {
+      if (!isMounted || !newLoc) return;
+      setSettings(prev => ({
+        ...prev,
+        location: newLoc
+      }));
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribeLocation();
     };
   }, []);
 
@@ -1019,6 +1097,7 @@ const App: React.FC = () => {
                    settings={settings} 
                    onUpdateSettings={setSettings} 
                    onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
+                   onOpenLocationSettings={() => setIsLocationModalOpen(true)}
                  />
                </div>
 
@@ -1261,6 +1340,7 @@ const App: React.FC = () => {
         onOpenAdhkar={() => setIsAdhkarOpen(true)}
         onOpenNamesOfAllah={() => setIsNamesOfAllahOpen(true)}
         onOpenQibla={() => setIsQiblaOpen(true)}
+        onOpenLocation={() => setIsLocationModalOpen(true)}
         onOpenZakat={() => setIsZakatOpen(true)}
         onOpenHijri={() => setIsHijriOpen(true)}
         onOpenAgriCalendar={() => setIsAgriCalendarOpen(true)}
@@ -1355,8 +1435,43 @@ const App: React.FC = () => {
         settings={settings}
         onSave={setSettings}
         onShowToast={showToast}
+        onOpenLocationModal={() => setIsLocationModalOpen(true)}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
+      />
+
+      <ManualLocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        currentLocation={settings.location}
+        onSelectLocation={(newLocation, calculationMethod) => {
+          setSettings(prev => ({
+            ...prev,
+            location: newLocation,
+            adhanSettings: calculationMethod ? {
+              ...(prev.adhanSettings || {
+                enabled: true,
+                muezzin: 'mishary',
+                fajrEnabled: true,
+                dhuhrEnabled: true,
+                asrEnabled: true,
+                maghribEnabled: true,
+                ishaEnabled: true,
+                volume: 0.8
+              }),
+              calculationMethod
+            } : prev.adhanSettings
+          }));
+          showToast(`تم تعيين الموقع بنجاح: ${newLocation.name}`, 'success');
+        }}
+      />
+
+      <LocationPromptBanner
+        isVisible={showLocationBanner}
+        onClose={() => setShowLocationBanner(false)}
+        location={locationBannerData.location || settings.location}
+        isHighAccuracy={locationBannerData.isHighAccuracy}
+        onOpenLocationSettings={() => setIsLocationModalOpen(true)}
       />
 
       <AdhanSettingsModal 

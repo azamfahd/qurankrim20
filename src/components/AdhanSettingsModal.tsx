@@ -55,14 +55,68 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   const [totalCachedBytes, setTotalCachedBytes] = useState<number>(0);
   const [downloadingMap, setDownloadingMap] = useState<Record<string, number>>({});
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const isAutoDownloadingRef = useRef(false);
   
   const refreshOfflineStatus = async () => {
     try {
       const status = await AdhanOfflineManager.getAllDownloadedStatus();
       setDownloadedMuezzinIds(status.downloadedIds);
       setTotalCachedBytes(status.totalSizeBytes);
+      return status;
     } catch (e) {
       console.warn("Failed to check offline adhan status:", e);
+      return { downloadedIds: [], totalSizeBytes: 0 };
+    }
+  };
+
+  const handleDownloadAll = async (isAutoTrigger = false) => {
+    if (isDownloadingAll || isAutoDownloadingRef.current) return;
+    setIsDownloadingAll(true);
+    isAutoDownloadingRef.current = true;
+
+    try {
+      const status = await AdhanOfflineManager.getAllDownloadedStatus();
+      setDownloadedMuezzinIds(status.downloadedIds);
+      setTotalCachedBytes(status.totalSizeBytes);
+
+      const missing = MUEZZINS_LIST.filter(m => !status.downloadedIds.includes(m.id));
+      if (missing.length === 0) {
+        setIsDownloadingAll(false);
+        isAutoDownloadingRef.current = false;
+        return;
+      }
+
+      for (const m of missing) {
+        setDownloadingMap(prev => ({ ...prev, [m.id]: 25 }));
+        const res = await AdhanOfflineManager.downloadMuezzinAudio(m.id, (p) => {
+          setDownloadingMap(prev => ({ ...prev, [m.id]: p }));
+        });
+        
+        // Update offline status incrementally
+        const currentStatus = await AdhanOfflineManager.getAllDownloadedStatus();
+        setDownloadedMuezzinIds(currentStatus.downloadedIds);
+        setTotalCachedBytes(currentStatus.totalSizeBytes);
+
+        setDownloadingMap(prev => {
+          const next = { ...prev };
+          delete next[m.id];
+          return next;
+        });
+      }
+
+      const finalStatus = await refreshOfflineStatus();
+      setIsDownloadingAll(false);
+      isAutoDownloadingRef.current = false;
+
+      if (finalStatus.downloadedIds.length === MUEZZINS_LIST.length) {
+        setToastMessage('تم تحميل وحفظ أذان جميع القراء محلياً بنجاح! التطبيق جاهز للعمل بدون إنترنت.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3500);
+      }
+    } catch (err) {
+      console.error("Download all error:", err);
+      setIsDownloadingAll(false);
+      isAutoDownloadingRef.current = false;
     }
   };
 
@@ -70,7 +124,14 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     if (isOpen) {
       setAdhan(settings.adhanSettings || defaultAdhanSettings);
       setPlayingMuezzinId(null);
-      refreshOfflineStatus();
+      
+      // 1. Check current offline status
+      refreshOfflineStatus().then((status) => {
+        // 2. Automatically trigger full background download of all muezzins if any are missing
+        if (status.downloadedIds.length < MUEZZINS_LIST.length) {
+          handleDownloadAll(true);
+        }
+      });
     } else {
       AdhanAudioEngine.stop();
       setPlayingMuezzinId(null);
@@ -136,33 +197,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     setToastMessage(`تم حذف الملف الصوتي لـ (${mName}) من الذاكرة المحلية.`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);
-  };
-
-  const handleDownloadAll = async () => {
-    if (isDownloadingAll) return;
-    setIsDownloadingAll(true);
-
-    let successCount = 0;
-    for (const m of MUEZZINS_LIST) {
-      if (!downloadedMuezzinIds.includes(m.id)) {
-        setDownloadingMap(prev => ({ ...prev, [m.id]: 20 }));
-        const res = await AdhanOfflineManager.downloadMuezzinAudio(m.id, (p) => {
-          setDownloadingMap(prev => ({ ...prev, [m.id]: p }));
-        });
-        if (res.success) successCount++;
-        setDownloadingMap(prev => {
-          const next = { ...prev };
-          delete next[m.id];
-          return next;
-        });
-      }
-    }
-
-    await refreshOfflineStatus();
-    setIsDownloadingAll(false);
-    setToastMessage('تم تحميل وحفظ أصوات جميع المؤذنين محلياً بنجاح! التطبيق جاهز تماماً للعمل أوفلاين.');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3500);
   };
 
   const handleSave = async () => {
@@ -302,16 +336,20 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                         <WifiOff size={12} className="text-indigo-500" />
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {downloadedMuezzinIds.length > 0 
-                          ? `${downloadedMuezzinIds.length} من ${MUEZZINS_LIST.length} أصوات محفوظة محلياً (${formatSize(totalCachedBytes)})`
-                          : 'لم يتم تحميل أي أذان محلياً بعد'}
+                        {downloadedMuezzinIds.length === MUEZZINS_LIST.length
+                          ? `جميع الأصوات (${MUEZZINS_LIST.length} من ${MUEZZINS_LIST.length}) محفوظة محلياً (${formatSize(totalCachedBytes)})`
+                          : isDownloadingAll
+                            ? `جاري التحميل التلقائي لكافة الأصوات: ${downloadedMuezzinIds.length} من ${MUEZZINS_LIST.length} مكتمل`
+                            : downloadedMuezzinIds.length > 0 
+                              ? `${downloadedMuezzinIds.length} من ${MUEZZINS_LIST.length} أصوات محفوظة محلياً (${formatSize(totalCachedBytes)})`
+                              : 'جاري بدء التحميل التلقائي للأصوات...'}
                       </p>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={handleDownloadAll}
+                    onClick={() => handleDownloadAll(false)}
                     disabled={isDownloadingAll || downloadedMuezzinIds.length === MUEZZINS_LIST.length}
                     className="flex items-center gap-1 text-[10px] sm:text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
                   >
@@ -333,6 +371,18 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     )}
                   </button>
                 </div>
+
+                {/* Progress bar during auto-download */}
+                {isDownloadingAll && (
+                  <div className="w-full bg-indigo-100 dark:bg-indigo-950/60 rounded-full h-1.5 overflow-hidden">
+                    <motion.div 
+                      className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(10, (downloadedMuezzinIds.length / MUEZZINS_LIST.length) * 100)}%` }}
+                      transition={{ duration: 0.4 }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Muezzin Voice Picker with Download per item */}

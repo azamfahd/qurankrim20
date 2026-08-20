@@ -71,18 +71,18 @@
   ],
   "screenshots": [
     {
-      "src": "/app-icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
       "form_factor": "wide",
-      "label": "شاشة أنيس القلوب الرئيسية"
+      "label": "شاشة أنيس القلوب الرئيسية للكمبيوتر والأجهزة اللوحية"
     },
     {
-      "src": "/app-icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
+      "src": "/screenshot-narrow.png",
+      "sizes": "540x960",
+      "type": "image/png",
       "form_factor": "narrow",
-      "label": "تطبيق أنيس القلوب للهاتف"
+      "label": "تطبيق أنيس القلوب للهواتف الذكية"
     }
   ]
 }

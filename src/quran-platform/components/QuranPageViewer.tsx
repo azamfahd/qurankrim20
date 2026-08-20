@@ -175,30 +175,28 @@ export const QuranPageViewer: React.FC = () => {
     }
   }, [loading, pageData, currentAyah, currentPage, currentSurah]);
 
-  // Auto-dismiss Ayah action menu after 5 seconds of inactivity OR when clicking/tapping outside
+  // Dismiss Ayah action menu when tapping outside both the active ayah AND the floating action bar
   useEffect(() => {
     if (activeAyahMenu === null) return;
 
-    // Timer: Hide automatically after 5 seconds
-    const timer = setTimeout(() => {
-      setActiveAyahMenu(null);
-    }, 5000);
-
-    // Click/Touch Outside listener: Hide immediately if tapping outside the active ayah
+    // Click/Touch Outside listener: Hide only if tapping outside both the active ayah AND the action bar
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest(`#page-ayah-${activeAyahMenu}`)) {
-        setActiveAyahMenu(null);
+      if (
+        target.closest('#floating-ayah-page-bar') ||
+        target.closest(`#page-ayah-${activeAyahMenu}`)
+      ) {
+        return;
       }
+      setActiveAyahMenu(null);
     };
 
     const clickListenerTimeout = setTimeout(() => {
       window.addEventListener('click', handleOutsideClick);
-      window.addEventListener('touchstart', handleOutsideClick);
-    }, 50);
+      window.addEventListener('touchstart', handleOutsideClick, { passive: true });
+    }, 100);
 
     return () => {
-      clearTimeout(timer);
       clearTimeout(clickListenerTimeout);
       window.removeEventListener('click', handleOutsideClick);
       window.removeEventListener('touchstart', handleOutsideClick);
@@ -641,15 +639,18 @@ export const QuranPageViewer: React.FC = () => {
 
           return (
             <motion.div
+              id="floating-ayah-page-bar"
               initial={{ y: 80, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 80, opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-lg bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-2 border-amber-500/40 rounded-3xl p-3 sm:p-4 shadow-2xl flex flex-col gap-2.5 text-gray-900 dark:text-white"
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-lg bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-2 border-amber-500/40 rounded-3xl p-3 sm:p-4 shadow-2xl flex flex-col gap-2.5 text-gray-900 dark:text-white pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-1 pb-2 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between px-1 pb-2 border-b border-gray-100 dark:border-gray-800 select-none">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[var(--color-primary)] dark:text-emerald-400 font-bold flex items-center justify-center text-xs">
                     {activeAyahNum}
@@ -660,8 +661,12 @@ export const QuranPageViewer: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setActiveAyahMenu(null)}
-                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveAyahMenu(null);
+                  }}
+                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                   title="إغلاق القائمة"
                 >
                   <X size={18} />
@@ -669,9 +674,11 @@ export const QuranPageViewer: React.FC = () => {
               </div>
 
               {/* Actions Grid */}
-              <div className="grid grid-cols-5 gap-1.5 sm:gap-2 pt-1">
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2 pt-1 select-none">
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (isPlayingThis) {
                       setIsAudioPlaying(false);
                     } else {
@@ -680,10 +687,10 @@ export const QuranPageViewer: React.FC = () => {
                       setIsAudioPlaying(true);
                     }
                   }}
-                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border ${
+                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border cursor-pointer ${
                     isPlayingThis
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
-                      : 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100/80'
+                      : 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100/80 active:scale-95'
                   }`}
                 >
                   {isPlayingThis ? <Pause size={18} /> : <Play size={18} />}
@@ -693,20 +700,26 @@ export const QuranPageViewer: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSurahAndAyah(activeSurahNum, activeAyahNum);
                     setCurrentView('tafsir');
                     setActiveAyahMenu(null);
                   }}
-                  className="flex flex-col items-center justify-center gap-1 p-2 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100/80 rounded-2xl transition-all"
+                  className="flex flex-col items-center justify-center gap-1 p-2 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100/80 active:scale-95 rounded-2xl transition-all cursor-pointer"
                 >
                   <BookOpen size={18} className="text-amber-600 dark:text-amber-400" />
                   <span className="text-[10px] sm:text-[11px] font-bold">التفسير</span>
                 </button>
 
                 <button
-                  onClick={() => toggleMarkVerse(activeSurahNum, activeAyahNum)}
-                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border ${
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMarkVerse(activeSurahNum, activeAyahNum);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border cursor-pointer active:scale-95 ${
                     isMarked
                       ? 'bg-amber-500 text-white border-amber-600 shadow-md'
                       : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750'
@@ -719,8 +732,12 @@ export const QuranPageViewer: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => toggleBookmark(activeSurahNum, activeAyahNum)}
-                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border ${
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBookmark(activeSurahNum, activeAyahNum);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 p-2 rounded-2xl transition-all border cursor-pointer active:scale-95 ${
                     isBookmarked
                       ? 'bg-emerald-700 text-white border-emerald-800 shadow-md'
                       : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750'
@@ -733,14 +750,16 @@ export const QuranPageViewer: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (activeAyahObj?.text) {
                       navigator.clipboard.writeText(`﴿ ${activeAyahObj.text} ﴾ [سورة ${activeSurahName}: ${activeAyahNum}]`);
                       setCopiedAyahId(activeAyahMenu);
                       setTimeout(() => setCopiedAyahId(null), 2000);
                     }
                   }}
-                  className="flex flex-col items-center justify-center gap-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 rounded-2xl transition-all"
+                  className="flex flex-col items-center justify-center gap-1 p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 active:scale-95 rounded-2xl transition-all cursor-pointer"
                 >
                   {copiedAyahId === activeAyahMenu ? (
                     <Check size={18} className="text-emerald-500" />
