@@ -98,18 +98,35 @@ button, a, [role="button"] {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--color-primary);
+  background: linear-gradient(135deg, #022c22 0%, #055a44 50%, #022c22 100%);
   color: white;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  padding: 0.75rem 1.75rem;
   border-radius: 9999px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 
+    0 4px 12px rgba(4, 61, 46, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary:hover {
-  background-color: var(--color-primary-dark);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #022c22 0%, #066d52 50%, #022c22 100%);
+  border-color: rgba(212, 175, 55, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(4, 61, 46, 0.35),
+    0 0 12px rgba(212, 175, 55, 0.2),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 
+    0 2px 6px rgba(4, 61, 46, 0.3),
+    inset 0 1px 1.5px rgba(0, 0, 0, 0.2);
 }
 
 .btn-ghost {

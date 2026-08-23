@@ -352,18 +352,19 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
             {/* Carved Mountain Rock Tablet */}
             <div className="w-full bg-gradient-to-b from-amber-100 via-stone-100 to-amber-200 p-6 sm:p-8 rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border-4 border-amber-600/60 text-xl sm:text-3xl font-quran leading-loose mb-8 text-stone-900 relative" dir="rtl">
               <div className="absolute top-2 right-4 text-amber-700/60 text-xs font-mono font-bold">آية {activeQuestion.ayah?.numberInSurah}</div>
-              {activeQuestion.words.map((w: string, i: number) => (
-                <span key={i} className="inline-block mx-1">
-                  {i === activeQuestion.hiddenIndex ? (
-                    <span className={`inline-block min-w-[90px] h-10 sm:h-14 border-b-4 mx-1 transition-all px-2 font-bold rounded-t-lg
+              {activeQuestion.words.map((w: string, i: number) => {
+                if (i === activeQuestion.hiddenIndex) {
+                  return (
+                    <span key={i} className={`inline-block min-w-[90px] h-10 sm:h-14 border-b-4 mx-1.5 transition-all px-2 font-bold rounded-t-lg align-middle
                       ${selectedAnswer 
                         ? (selectedAnswer === activeQuestion.hiddenWord ? 'text-emerald-700 border-emerald-600 bg-emerald-100' : 'text-rose-700 border-rose-600 bg-rose-100')
                         : 'border-amber-600 text-amber-800 bg-amber-200/80 animate-pulse'}`}>
                       {selectedAnswer || "؟"}
                     </span>
-                  ) : w}
-                </span>
-              ))}
+                  );
+                }
+                return w + ' ';
+              })}
             </div>
 
             {/* Keys / Sunlit Golden Stone Blocks */}

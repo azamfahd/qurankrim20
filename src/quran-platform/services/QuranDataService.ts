@@ -136,18 +136,56 @@ export class QuranDataService {
 
   static async getTafsir(surahNumber: number, ayahNumberInSurah: number, tafsirId: string = 'ar.muyassar') {
     try {
-      // 1. Try fetching the individual ayah first (for backwards compatibility / dynamic online fetch)
-      try {
-        const data = await this.cachedFetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumberInSurah}/${tafsirId}`);
-        if (data && data.code === 200) {
-          return data.data;
+      // Mapping for Quran.com specific rich tafsirs (Ibn Kathir, Al-Saadi, Al-Tabari, etc.)
+      const QURAN_COM_TAFSIR_MAP: Record<string, number> = {
+        'ar.saadi': 91,       // تفسير السعدي (تيسير الكريم الرحمن)
+        'ar.ibnkathir': 14,   // تفسير ابن كثير (تفسير القرآن العظيم)
+        'ar.tabari': 15,      // تفسير الطبري (جامع البيان)
+        'ar.qurtubi_qc': 90,  // تفسير القرطبي
+        'ar.baghawi_qc': 94,  // تفسير البغوي
+        'ar.waseet_qc': 93    // التفسير الوسيط
+      };
+
+      if (QURAN_COM_TAFSIR_MAP[tafsirId]) {
+        const resourceId = QURAN_COM_TAFSIR_MAP[tafsirId];
+        const qcUrl = `https://api.quran.com/api/v4/tafsirs/${resourceId}/by_ayah/${surahNumber}:${ayahNumberInSurah}`;
+        try {
+          const qcData = await this.cachedFetch(qcUrl);
+          if (qcData && qcData.tafsir && qcData.tafsir.text) {
+            // Strip complex HTML tags while keeping line breaks clean
+            const rawText = qcData.tafsir.text;
+            const cleanText = rawText
+              .replace(/<br\s*[\/]?>/gi, '\n')
+              .replace(/<\/p>/gi, '\n\n')
+              .replace(/<[^>]+>/g, '')
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&nbsp;/g, ' ')
+              .trim();
+
+            return {
+              number: ayahNumberInSurah,
+              text: cleanText,
+              rawHtml: rawText,
+              numberInSurah: ayahNumberInSurah,
+              surah: {
+                number: surahNumber,
+                name: SURAHS_STATIC_LIST.find(s => s.number === surahNumber)?.name || `سورة ${surahNumber}`
+              },
+              edition: {
+                identifier: tafsirId,
+                name: qcData.tafsir.resource_name || tafsirId
+              }
+            };
+          }
+        } catch (qcErr) {
+          console.warn(`Quran.com tafsir fetch failed for ${tafsirId}, checking fallback...`, qcErr);
         }
-      } catch (e) {
-        console.warn(`Individual ayah fetch failed for ${surahNumber}:${ayahNumberInSurah}/${tafsirId}, attempting surah-level cache lookup...`);
       }
 
-      // 2. Fall back to checking the pre-cached whole-surah level data
-      // Pre-cached surahs can be resolved offline
+      // 1. Try checking the pre-cached whole-surah level data first for offline-first instant speed
       const surahData = await this.cachedFetch(`${API_BASE}/surah/${surahNumber}/${tafsirId}`);
       if (surahData && surahData.code === 200 && surahData.data) {
         const s = surahData.data;
@@ -175,7 +213,36 @@ export class QuranDataService {
           };
         }
       }
-      throw new Error('Failed to fetch tafsir from individual and surah-level sources');
+
+      // 2. Try fetching the individual ayah (for dynamic online fetch)
+      try {
+        const data = await this.cachedFetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumberInSurah}/${tafsirId}`);
+        if (data && data.code === 200) {
+          return data.data;
+        }
+      } catch (e) {
+        console.warn(`Individual ayah fetch failed for ${surahNumber}:${ayahNumberInSurah}/${tafsirId}`);
+      }
+
+      // 3. Last fallback: Try Al-Muyassar pre-cached surah if specific tafsir is missing offline
+      if (tafsirId !== 'ar.muyassar') {
+        const fallbackSurah = await this.cachedFetch(`${API_BASE}/surah/${surahNumber}/ar.muyassar`);
+        if (fallbackSurah && fallbackSurah.code === 200 && fallbackSurah.data) {
+          const s = fallbackSurah.data;
+          const ayahObj = s.ayahs?.find((a: any) => a.numberInSurah === ayahNumberInSurah) || s.ayahs?.[ayahNumberInSurah - 1];
+          if (ayahObj) {
+            return {
+              number: ayahObj.number,
+              text: `[التفسير الميسر]: ${ayahObj.text}`,
+              numberInSurah: ayahObj.numberInSurah,
+              surah: { number: s.number, name: s.name },
+              edition: { identifier: 'ar.muyassar', name: 'التفسير الميسر (تلقائي)' }
+            };
+          }
+        }
+      }
+
+      throw new Error('Failed to fetch tafsir from all available sources');
     } catch (error) {
       console.error('Error fetching tafsir:', error);
       return null;
@@ -183,39 +250,36 @@ export class QuranDataService {
   }
 
   /**
-   * Check if full Quran text is cached
+   * Check if full Quran text & all Tafsirs are cached
    */
   static async checkFullCacheStatus(): Promise<{ isCached: boolean; count: number; total: number }> {
     try {
-      if (!('caches' in window)) return { isCached: false, count: 0, total: 1176 };
+      if (!('caches' in window)) return { isCached: false, count: 0, total: 1518 };
       const cache = await caches.open(TEXT_CACHE_NAME);
       const keys = await cache.keys();
       
-      // We expect around:
+      // Expected items:
       // - 1 (list) + 1 (meta) = 2
       // - 114 (surahs uthmani)
-      // - 114 (translations en.asad)
       // - 604 (pages uthmani)
-      // - 114 (tafsir ar.muyassar)
-      // - 114 (tafsir ar.jalalayn)
-      // - 114 (tafsir ar.ibnkathir)
-      // Total = 2 + 114 + 114 + 604 + 114 + 114 + 114 = 1176 urls
-      const totalExpected = 1176;
-      const count = keys.filter(k => k.url.includes(API_BASE)).length;
+      // - 114 * 7 (all 7 complete offline surah tafsirs & translations: muyassar, qurtubi, baghawi, waseet, jalalayn, miqbas, en.asad) = 798
+      // Total = 2 + 114 + 604 + 798 = 1518 urls
+      const totalExpected = 1518;
+      const count = keys.filter(k => k.url.includes(API_BASE) || k.url.includes('api.quran.com')).length;
       
       return {
-        isCached: count >= totalExpected - 30, // Allowing a tiny margin of error
+        isCached: count >= totalExpected - 40, // Allowing a tiny margin of error
         count: Math.min(count, totalExpected),
         total: totalExpected
       };
     } catch (e) {
-      return { isCached: false, count: 0, total: 1176 };
+      return { isCached: false, count: 0, total: 1518 };
     }
   }
 
   /**
-   * Download and Cache ALL Quran pages, surahs, translations, metadata, and Tafsirs for a complete offline reading experience.
-   * Downloads concurrently in controlled chunks (concurrency of 15) to avoid browser rate limits.
+   * Download and Cache ALL Quran pages, surahs, translations, metadata, and all scholarly Tafsirs for a complete 100% offline reading experience.
+   * Downloads concurrently in controlled chunks to avoid browser rate limits.
    */
   static async downloadAllQuranText(
     onProgress: (progress: TextCacheProgress) => void
@@ -236,29 +300,44 @@ export class QuranDataService {
         urlsToDownload.push(`${API_BASE}/surah/${i}/quran-uthmani`);
       }
 
-      // 3. All 114 English Translations
-      for (let i = 1; i <= 114; i++) {
-        urlsToDownload.push(`${API_BASE}/surah/${i}/en.asad`);
-      }
-
-      // 4. All 604 Pages (Uthmani Medina Layout)
+      // 3. All 604 Pages (Uthmani Medina Layout)
       for (let i = 1; i <= 604; i++) {
         urlsToDownload.push(`${API_BASE}/page/${i}/quran-uthmani`);
       }
 
-      // 5. All 114 Surahs Tafsir Muyassar (ar.muyassar)
+      // 4. All 114 Surahs Tafsir Muyassar (ar.muyassar)
       for (let i = 1; i <= 114; i++) {
         urlsToDownload.push(`${API_BASE}/surah/${i}/ar.muyassar`);
       }
 
-      // 6. All 114 Surahs Tafsir Jalalayn (ar.jalalayn)
+      // 5. All 114 Surahs Tafsir Al-Qurtubi (ar.qurtubi)
+      for (let i = 1; i <= 114; i++) {
+        urlsToDownload.push(`${API_BASE}/surah/${i}/ar.qurtubi`);
+      }
+
+      // 6. All 114 Surahs Tafsir Al-Baghawi (ar.baghawi)
+      for (let i = 1; i <= 114; i++) {
+        urlsToDownload.push(`${API_BASE}/surah/${i}/ar.baghawi`);
+      }
+
+      // 7. All 114 Surahs Tafsir Al-Waseet (ar.waseet)
+      for (let i = 1; i <= 114; i++) {
+        urlsToDownload.push(`${API_BASE}/surah/${i}/ar.waseet`);
+      }
+
+      // 8. All 114 Surahs Tafsir Jalalayn (ar.jalalayn)
       for (let i = 1; i <= 114; i++) {
         urlsToDownload.push(`${API_BASE}/surah/${i}/ar.jalalayn`);
       }
 
-      // 7. All 114 Surahs Tafsir Ibn Kathir (ar.ibnkathir)
+      // 9. All 114 Surahs Tanwir Al-Miqbas (ar.miqbas)
       for (let i = 1; i <= 114; i++) {
-        urlsToDownload.push(`${API_BASE}/surah/${i}/ar.ibnkathir`);
+        urlsToDownload.push(`${API_BASE}/surah/${i}/ar.miqbas`);
+      }
+
+      // 10. All 114 English Translations (en.asad)
+      for (let i = 1; i <= 114; i++) {
+        urlsToDownload.push(`${API_BASE}/surah/${i}/en.asad`);
       }
 
       const total = urlsToDownload.length;

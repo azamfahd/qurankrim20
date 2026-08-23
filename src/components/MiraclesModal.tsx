@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { miraclesData, MiracleCategory, MiracleItem } from '../data/miracles';
 import { getQuranAudioUrl } from '../utils/quranAudio';
+import { NumericalAnalysisViewer } from './NumericalAnalysisViewer';
 
 interface MiraclesModalProps {
   isOpen: boolean;
@@ -295,6 +296,9 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
                             </div>
                           </div>
 
+                          {/* Numerical Analysis Visualizer if available */}
+                          <NumericalAnalysisViewer id={miracle.id} />
+
                           {/* Explanation Content */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2 p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100/50 dark:border-blue-900/30">
@@ -419,6 +423,9 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
                             </button>
                           </div>
                         </div>
+
+                        {/* Numerical Analysis Visualizer if available */}
+                        <NumericalAnalysisViewer id={miracle.id} />
 
                         {/* Explanation Content */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

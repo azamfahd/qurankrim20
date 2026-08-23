@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
                 if (id.includes('lucide-react')) return 'vendor-icons';
                 if (id.includes('@google/genai')) return 'vendor-ai';
                 if (id.includes('@supabase')) return 'vendor-db';
-                if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+                if (id.includes('adhan')) return 'vendor-adhan';
                 return 'vendor';
               }
             }

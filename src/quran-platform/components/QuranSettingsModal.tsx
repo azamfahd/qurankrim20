@@ -73,20 +73,21 @@ export const MUSHAF_THEMES: {
 ];
 
 export const RECITERS = [
-  { id: 'ar.faresabbad', name: 'فارس عباد', desc: 'تلاوة عذبة مرتلة' },
-  { id: 'ar.alafasy', name: 'مشاري راشد العفاسي', desc: 'تلاوة خاشعة مرتلة' },
-  { id: 'ar.yasseraldosari', name: 'ياسر الدوسري', desc: 'تلاوة خاشعة ومؤثرة' },
-  { id: 'ar.as-sudais', name: 'عبد الرحمن السديس', desc: 'إمام وخطيب المسجد الحرام' },
-  { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي', desc: 'إمام المسجد الحرام' },
-  { id: 'ar.saoodshuraym', name: 'سعود الشريم', desc: 'تلاوة مكة المكرمة' },
-  { id: 'ar.ahmedajamy', name: 'أحمد بن علي العجمي', desc: 'تلاوة عذبة وشجية' },
-  { id: 'ar.shaatree', name: 'أبو بكر الشاطري', desc: 'تلاوة هادئة ومريحة' },
-  { id: 'ar.husary', name: 'محمود خليل الحصري', desc: 'المصحف المعلم المتقن' },
-  { id: 'ar.minshawi', name: 'محمد صديق المنشاوي (مرتل)', desc: 'تلاوة خاشعة مؤثرة' },
+  { id: 'ar.minshawi', name: 'محمد صديق المنشاوي (مرتل)', desc: 'تلاوة خاشعة ومؤثرة جداً' },
   { id: 'ar.minshawimujawwad', name: 'محمد صديق المنشاوي (مجود)', desc: 'المصحف المجود الخالد' },
-  { id: 'ar.abdulbasitmurattal', name: 'عبد الباسط عبد الصمد (مرتل)', desc: 'المصحف المرتل' },
-  { id: 'ar.abdulbasitmujawwad', name: 'عبد الباسط عبد الصمد (مجود)', desc: 'صوت مكة الخالد' },
-  { id: 'ar.hudhaify', name: 'علي عبد الرحمن الحذيفي', desc: 'إمام المسجد النبوي' },
+  { id: 'ar.abdulbasitmurattal', name: 'عبد الباسط عبد الصمد (مرتل)', desc: 'المصحف المرتل الخاشع' },
+  { id: 'ar.abdulbasitmujawwad', name: 'عبد الباسط عبد الصمد (مجود)', desc: 'صوت مكة الخالد والأداء الفريد' },
+  { id: 'ar.husary', name: 'محمود خليل الحصري (مرتل)', desc: 'المصحف المعلم المتقن بدقة التجويد' },
+  { id: 'ar.husarymujawwad', name: 'محمود خليل الحصري (مجود)', desc: 'التلاوة المجودة الرائعة' },
+  { id: 'ar.faresabbad', name: 'فارس عباد', desc: 'تلاوة عذبة وشجية مرتلة' },
+  { id: 'ar.alafasy', name: 'مشاري راشد العفاسي', desc: 'تلاوة خاشعة ومحبوبة' },
+  { id: 'ar.yasseraldosari', name: 'ياسر الدوسري', desc: 'تلاوة مهيبة من الحرم المكي' },
+  { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي', desc: 'إمام المسجد الحرام' },
+  { id: 'ar.as-sudais', name: 'عبد الرحمن السديس', desc: 'إمام وخطيب المسجد الحرام' },
+  { id: 'ar.saoodshuraym', name: 'سعود الشريم', desc: 'تلاوة الحرم المكي' },
+  { id: 'ar.ahmedajamy', name: 'أحمد بن علي العجمي', desc: 'تلاوة عذبة ومؤثرة' },
+  { id: 'ar.shaatree', name: 'أبو بكر الشاطري', desc: 'تلاوة هادئة ووقورة' },
+  { id: 'ar.hudhaify', name: 'علي عبد الرحمن الحذيفي', desc: 'إمام المسجد النبوي الشريف' },
   { id: 'ar.hanirifai', name: 'هاني الرفاعي', desc: 'تلاوة باكية خاشعة' },
 ];
 
@@ -669,6 +670,45 @@ export const QuranSettingsModal: React.FC = () => {
                     <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showTranslation ? 'translate-x-0' : '-translate-x-5'}`} />
                   </button>
                 </div>
+
+                {/* Reciter Picker in Quran Settings */}
+                <div className="bg-gray-50/80 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                      <Volume2 size={15} className="text-[var(--color-primary)]" />
+                      القارئ المفضل لتلاوة المصحف:
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] dark:text-emerald-300 font-bold">
+                      {RECITERS.find(r => r.id === reciter)?.name || 'محمد صديق المنشاوي'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {RECITERS.map((r) => {
+                      const isSelected = reciter === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            setReciter(r.id);
+                            localStorage.setItem('quran_reciter', r.id);
+                          }}
+                          className={`p-2 rounded-xl border text-right transition-all flex items-center justify-between ${
+                            isSelected
+                              ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)] text-[var(--color-primary-dark)] dark:text-emerald-300 font-bold'
+                              : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-gray-800'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-xs truncate">{r.name}</span>
+                            <span className="text-[10px] text-gray-400 font-normal truncate block">{r.desc}</span>
+                          </div>
+                          {isSelected && <Check size={14} className="text-[var(--color-primary)] shrink-0 mr-1.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -901,8 +941,8 @@ export const QuranSettingsModal: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <ArrowDownToLine size={18} className="text-blue-600 dark:text-blue-400" />
                       <div>
-                        <h4 className="font-bold text-xs text-gray-900 dark:text-white">تحميل المصحف والتفاسير (أوفلاين)</h4>
-                        <p className="text-[10px] text-gray-400">تحميل المصحف الشريف كاملاً وتفاسير السور (الميسر، الجلالين، ابن كثير) والترجمة لقراءتها بدون إنترنت</p>
+                        <h4 className="font-bold text-xs text-gray-900 dark:text-white">تحميل المصحف الشريف والتفاسير كاملة (أوفلاين)</h4>
+                        <p className="text-[10px] text-gray-400">تحميل القرآن كاملاً (604 صفحة و114 سورة) مع أمهات التفاسير (الميسر، القرطبي، البغوي، الوسيط، الجلالين، ابن عباس، ابن كثير، السعدي) للعمل بدون إنترنت 100%</p>
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${textCacheStatus.isCached ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>

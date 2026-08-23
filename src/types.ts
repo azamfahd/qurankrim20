@@ -45,7 +45,7 @@ export interface UserSettings {
   isLoggedIn?: boolean;
   location?: UserLocation;
   adhanSettings?: AdhanSettings;
-  analysisStyle?: 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | string;
+  analysisStyle?: 'smart_adaptive' | 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | 'practical_life' | 'tadabbur' | string;
 }
 
 export interface Verse {
@@ -69,6 +69,7 @@ export interface QuranResponse {
   practicalAdvice?: string;
   tafakkur?: string;
   summary?: string;
+  analysisStyle?: 'smart_adaptive' | 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | 'practical_life' | 'tadabbur' | string;
 }
 
 export interface ChatMessage {

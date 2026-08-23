@@ -16,7 +16,7 @@ interface AdhanSettingsModalProps {
 }
 
 const defaultAdhanSettings: AdhanSettings = {
-  enabled: true,
+  enabled: false,
   muezzin: 'mishary',
   fajrEnabled: true,
   dhuhrEnabled: true,
@@ -120,16 +120,44 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     }
   };
 
+  const ensureSelectedMuezzinDownloaded = async (muezzinId: string) => {
+    if (!muezzinId) return;
+    try {
+      const isDownloaded = await AdhanOfflineManager.isMuezzinDownloaded(muezzinId);
+      if (!isDownloaded.downloaded) {
+        setDownloadingMap(prev => ({ ...prev, [muezzinId]: 20 }));
+        await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (p) => {
+          setDownloadingMap(prev => ({ ...prev, [muezzinId]: p }));
+        });
+        setDownloadingMap(prev => {
+          const next = { ...prev };
+          delete next[muezzinId];
+          return next;
+        });
+        await refreshOfflineStatus();
+      }
+    } catch (e) {
+      console.warn("Failed to download selected muezzin:", e);
+      setDownloadingMap(prev => {
+        const next = { ...prev };
+        delete next[muezzinId];
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
-      setAdhan(settings.adhanSettings || defaultAdhanSettings);
+      const currentAdhan = settings.adhanSettings || defaultAdhanSettings;
+      setAdhan(currentAdhan);
       setPlayingMuezzinId(null);
       
-      // 1. Check current offline status
       refreshOfflineStatus().then((status) => {
-        // 2. Automatically trigger full background download of all muezzins if any are missing
-        if (status.downloadedIds.length < MUEZZINS_LIST.length) {
-          handleDownloadAll(true);
+        // Automatically download ONLY the selected muezzin if enabled and not already downloaded
+        if (currentAdhan.enabled && currentAdhan.muezzin) {
+          if (!status.downloadedIds.includes(currentAdhan.muezzin)) {
+            ensureSelectedMuezzinDownloaded(currentAdhan.muezzin);
+          }
         }
       });
     } else {
@@ -203,11 +231,9 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     AdhanAudioEngine.stop();
     setPlayingMuezzinId(null);
 
-    // If selected muezzin is not downloaded yet, trigger background download
-    if (adhan.muezzin && !downloadedMuezzinIds.includes(adhan.muezzin)) {
-      AdhanOfflineManager.downloadMuezzinAudio(adhan.muezzin).then(() => {
-        refreshOfflineStatus();
-      }).catch(() => {});
+    // If selected muezzin is enabled and not downloaded yet, download only the selected muezzin
+    if (adhan.enabled && adhan.muezzin && !downloadedMuezzinIds.includes(adhan.muezzin)) {
+      ensureSelectedMuezzinDownloaded(adhan.muezzin);
     }
 
     try {
@@ -317,7 +343,22 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     type="checkbox" 
                     className="sr-only peer" 
                     checked={adhan.enabled} 
-                    onChange={(e) => setAdhan({...adhan, enabled: e.target.checked})} 
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      setAdhan({...adhan, enabled: isChecked});
+                      if (isChecked) {
+                        if (adhan.muezzin) {
+                          ensureSelectedMuezzinDownloaded(adhan.muezzin);
+                        }
+                        setToastMessage('تم تفعيل صوت الأذان! جاري تحميل صوت المؤذن المختار للعمل بدون إنترنت...');
+                        setShowToast(true);
+                        setTimeout(() => setShowToast(false), 3500);
+                      } else {
+                        setToastMessage('تم تعطيل صوت الأذان والتنبيهات.');
+                        setShowToast(true);
+                        setTimeout(() => setShowToast(false), 2500);
+                      }
+                    }} 
                   />
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[var(--color-primary)]"></div>
                 </label>
@@ -406,7 +447,12 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     return (
                       <div
                         key={m.id}
-                        onClick={() => setAdhan({...adhan, muezzin: m.id})}
+                        onClick={() => {
+                          setAdhan({...adhan, muezzin: m.id});
+                          if (adhan.enabled) {
+                            ensureSelectedMuezzinDownloaded(m.id);
+                          }
+                        }}
                         className={`p-3 sm:p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                           isSelected 
                             ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-500 text-emerald-950 dark:text-emerald-200 shadow-2xs' 

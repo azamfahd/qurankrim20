@@ -411,9 +411,9 @@ export const SurahSettingsModal: React.FC = () => {
                       <BookOpen size={20} />
                     </div>
                     <div>
-                      <h5 className="font-bold text-sm text-gray-900 dark:text-white">فتح التفسير والتدبر لسورة {cleanName}</h5>
+                      <h5 className="font-bold text-sm text-gray-900 dark:text-white">فتح التفسير الشامل والتدبر لسورة {cleanName}</h5>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        عرض تفسير ابن كثير، الميسر، والجلالين لكل آية مع أسباب النزول
+                        عرض تفاسير كبار العلماء (الميسر، السعدي، ابن كثير، القرطبي، الطبري، البغوي، الوسيط، الجلالين)
                       </p>
                     </div>
                   </div>

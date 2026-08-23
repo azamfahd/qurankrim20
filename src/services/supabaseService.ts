@@ -182,7 +182,7 @@ export class SupabaseService {
       if (error) return null;
 
       const locationObj = typeof data.location === 'string' ? JSON.parse(data.location) : (data.location || undefined);
-      let analysisStyle = 'balanced';
+      let analysisStyle = 'smart_adaptive';
       let realLocation = locationObj;
 
       if (locationObj && typeof locationObj === 'object' && 'analysisStyle' in locationObj) {

@@ -7,9 +7,10 @@ export const InstallPrompt: React.FC = () => {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // 1. Check if it is already installed (standalone mode)
+    // 1. Check if it is already installed (standalone mode or recorded install)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                         ('standalone' in window.navigator && (window.navigator as any).standalone);
+                         ('standalone' in window.navigator && (window.navigator as any).standalone) ||
+                         localStorage.getItem('anis_pwa_installed') === 'true';
     
     if (isStandalone) {
       return; // Already installed, do not show prompt

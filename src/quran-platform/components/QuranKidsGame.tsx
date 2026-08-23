@@ -207,16 +207,16 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
               const isTarget = word === question.missingWord;
               if (isTarget) {
                 return (
-                  <span key={idx} className={`inline-block mx-1 px-4 py-1 rounded-xl font-quran font-bold transition-all ${
+                  <span key={idx} className={`inline-block mx-1.5 px-4 py-1 rounded-xl font-quran font-bold transition-all align-middle ${
                     feedback === 'correct' ? 'bg-emerald-900/90 text-emerald-200 border-2 border-emerald-400' :
                     feedback === 'wrong' ? 'bg-rose-900/90 text-rose-200 border-2 border-rose-400' :
                     'bg-amber-950/50 text-amber-300 border-2 border-dashed border-amber-500/60 min-w-[80px]'
                   }`}>
-                    {feedback === 'correct' ? word : '?'}
+                    {feedback === 'correct' ? word : '؟'}
                   </span>
                 );
               }
-              return <span key={idx} className="mx-0.5">{word}</span>;
+              return word + ' ';
             })}
           </p>
         </div>

@@ -118,8 +118,14 @@ export class LocalDatabaseService {
   public static async getAllSessions(): Promise<ChatSession[]> {
     try {
       await this.init();
-      const sessions = await localDb.sessions.orderBy('updatedAt').reverse().toArray();
-      if (sessions && sessions.length > 0) return sessions;
+      const sessions = await localDb.sessions.toArray();
+      if (sessions && sessions.length > 0) {
+        return sessions.sort((a, b) => {
+          const timeA = typeof a.updatedAt === 'number' ? a.updatedAt : (typeof a.date === 'number' ? a.date : 0);
+          const timeB = typeof b.updatedAt === 'number' ? b.updatedAt : (typeof b.date === 'number' ? b.date : 0);
+          return timeB - timeA;
+        });
+      }
 
       // Fallback to localStorage
       const fallback = localStorage.getItem('anis_history');
@@ -132,9 +138,15 @@ export class LocalDatabaseService {
   }
 
   public static async saveSession(session: ChatSession): Promise<void> {
+    const sessionWithTimestamps: ChatSession = {
+      ...session,
+      createdAt: session.createdAt || (typeof session.date === 'number' ? session.date : Date.now()),
+      updatedAt: session.updatedAt || (typeof session.date === 'number' ? session.date : Date.now())
+    };
+
     try {
       await this.init();
-      await localDb.sessions.put(session);
+      await localDb.sessions.put(sessionWithTimestamps);
     } catch (e) {
       console.warn('IndexedDB saveSession error:', e);
     }
@@ -146,9 +158,9 @@ export class LocalDatabaseService {
       let updated: ChatSession[];
       if (existingIdx >= 0) {
         updated = [...current];
-        updated[existingIdx] = session;
+        updated[existingIdx] = sessionWithTimestamps;
       } else {
-        updated = [session, ...current];
+        updated = [sessionWithTimestamps, ...current];
       }
       localStorage.setItem('anis_history', JSON.stringify(updated));
     } catch (err) {

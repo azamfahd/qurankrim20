@@ -3,34 +3,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import Header from './components/Header';
 import { EmotionForm } from './components/EmotionForm';
 import { ResultCard } from './components/ResultCard';
-import { SettingsModal } from './components/SettingsModal';
-import { HistoryModal } from './components/HistoryModal';
-import { TasbihModal } from './components/TasbihModal';
-import { BookmarksModal } from './components/BookmarksModal';
-import { AdhkarModal } from './components/AdhkarModal';
-import { NamesOfAllahModal } from './components/NamesOfAllahModal';
-import { AboutModal } from './components/AboutModal';
-import QuranPlatformModal from './quran-platform/QuranPlatformModal';
-import { FeedbackModal } from './components/FeedbackModal';
 import { Toast, ToastType } from './components/Toast';
 import { Sidebar } from './components/Sidebar';
 import { DailyVerse } from './components/DailyVerse';
 import { PrayerTimesWidget } from './components/PrayerTimesWidget';
-import { AdhanSettingsModal } from './components/AdhanSettingsModal';
 import { AdhanNotificationBanner } from './components/AdhanNotificationBanner';
 import { calculateAccuratePrayerTimes, AdhanAudioEngine, MUEZZINS_LIST } from './services/adhanService';
 import { LocationService } from './services/locationService';
-import { ManualLocationModal } from './components/ManualLocationModal';
 import { LocationPromptBanner } from './components/LocationPromptBanner';
-import { HijriCalendarModal } from './components/HijriCalendarModal';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
-import { QiblaModal } from './components/QiblaModal';
-import { ZakatCalculatorModal } from './components/ZakatCalculatorModal';
 import { InstallPrompt } from './components/InstallPrompt';
 import { PullToRefresh } from './components/PullToRefresh';
-import AgriculturalCalendarModal from './components/AgriculturalCalendarModal';
-import MiraclesModal from './components/MiraclesModal';
-import { ProphetsModal } from './components/ProphetsModal';
 import { QuranChatSession } from './services/geminiService';
 import { SupabaseService } from './services/supabaseService';
 import { SyncService } from './services/syncService';
@@ -38,6 +21,31 @@ import { LocalDatabaseService } from './db/localDb';
 import { ChatMessage, AppState, UserSettings, UserLocation, ChatSession, Bookmark, Verse } from './types';
 import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Suspense } from 'react';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+// Lazy loaded modals for performance optimization with auto-retry on app updates
+const SettingsModal = lazyWithRetry(() => import('./components/SettingsModal'), 'SettingsModal');
+const HistoryModal = lazyWithRetry(() => import('./components/HistoryModal'), 'HistoryModal');
+const TasbihModal = lazyWithRetry(() => import('./components/TasbihModal'), 'TasbihModal');
+const BookmarksModal = lazyWithRetry(() => import('./components/BookmarksModal'), 'BookmarksModal');
+const AdhkarModal = lazyWithRetry(() => import('./components/AdhkarModal'), 'AdhkarModal');
+const NamesOfAllahModal = lazyWithRetry(() => import('./components/NamesOfAllahModal'), 'NamesOfAllahModal');
+const AboutModal = lazyWithRetry(() => import('./components/AboutModal'), 'AboutModal');
+const FeedbackModal = lazyWithRetry(() => import('./components/FeedbackModal'), 'FeedbackModal');
+const AdhanSettingsModal = lazyWithRetry(() => import('./components/AdhanSettingsModal'), 'AdhanSettingsModal');
+const ManualLocationModal = lazyWithRetry(() => import('./components/ManualLocationModal'), 'ManualLocationModal');
+const HijriCalendarModal = lazyWithRetry(() => import('./components/HijriCalendarModal'), 'HijriCalendarModal');
+const QiblaModal = lazyWithRetry(() => import('./components/QiblaModal'), 'QiblaModal');
+const ZakatCalculatorModal = lazyWithRetry(() => import('./components/ZakatCalculatorModal'), 'ZakatCalculatorModal');
+const ProphetsModal = lazyWithRetry(() => import('./components/ProphetsModal'), 'ProphetsModal');
+const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'));
+const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
+const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
+
+const ModalSuspenseFallback = () => null;
 
 const LOADING_MESSAGES = [
   "نغوص في أعماق آيات الذكر الحكيم...",
@@ -56,7 +64,19 @@ const DEFAULT_SETTINGS: UserSettings = {
   apiKey: '',
   bookmarks: [],
   reciter: 'ar.faresabbad',
-  analysisStyle: 'balanced'
+  analysisStyle: 'smart_adaptive',
+  adhanSettings: {
+    enabled: false,
+    muezzin: 'mishary',
+    fajrEnabled: true,
+    dhuhrEnabled: true,
+    asrEnabled: true,
+    maghribEnabled: true,
+    ishaEnabled: true,
+    volume: 85,
+    calculationMethod: 'MuslimWorldLeague',
+    autoPlayLiveAdhan: true,
+  }
 };
 
 // Helper to generate standard v4 UUID for database compatibility
@@ -442,20 +462,22 @@ const App: React.FC = () => {
         };
       });
 
-      // Show gentle non-intrusive banner on first launch or when location is detected
-      if (details.isFirstLaunch) {
+      // Show gentle non-intrusive banner ONLY on very first launch if user hasn't seen/dismissed it
+      const hasDismissedLocationBanner = localStorage.getItem('anis_location_banner_dismissed') === 'true';
+      if (details.isFirstLaunch && !hasDismissedLocationBanner) {
         setLocationBannerData({
           location: detectedLocation,
           isHighAccuracy: details.source === 'gps'
         });
         setShowLocationBanner(true);
+        localStorage.setItem('anis_location_banner_dismissed', 'true');
 
-        // Auto-dismiss banner after 8 seconds
+        // Auto-dismiss banner after 5 seconds cleanly
         setTimeout(() => {
           if (isMounted) {
             setShowLocationBanner(false);
           }
-        }, 8000);
+        }, 5000);
       }
     }).catch(err => {
       console.warn("Auto location detection caught error:", err);
@@ -872,7 +894,6 @@ const App: React.FC = () => {
   return (
     <div className="app-wrapper royal-gradient selection:bg-[var(--color-gold)] selection:text-white">
       <PullToRefresh onRefresh={handleSilentRefresh} />
-      <InstallPrompt />
       
       <AnimatePresence>
         {!isOnline && !isOfflineBannerDismissed && (
@@ -1195,7 +1216,7 @@ const App: React.FC = () => {
 
                {/* Professional Status Grid Panels */}
                <div className="max-w-xl mx-auto my-5">
-                 <DailyVerse />
+                 <DailyVerse onOpenQuran={openQuran} />
                </div>
 
                <div className="mt-16 mb-10">
@@ -1352,6 +1373,7 @@ const App: React.FC = () => {
         onShowToast={showToast}
       />
 
+      <Suspense fallback={<ModalSuspenseFallback />}>
       <TasbihModal 
         isOpen={isTasbihOpen} 
         onClose={() => setIsTasbihOpen(false)} 
@@ -1379,6 +1401,7 @@ const App: React.FC = () => {
       <AgriculturalCalendarModal
         isOpen={isAgriCalendarOpen}
         onClose={() => setIsAgriCalendarOpen(false)}
+        location={settings.location}
       />
 
       <MiraclesModal
@@ -1538,14 +1561,18 @@ const App: React.FC = () => {
         userInfo={settings}
       />
 
+      <InstallPrompt />
+
       <Toast 
         message={toast.message} 
         type={toast.type} 
         isVisible={toast.isVisible} 
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
       />
+          </Suspense>
     </div>
   );
 };
 
 export default App;
+

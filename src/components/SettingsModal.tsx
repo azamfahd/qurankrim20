@@ -354,15 +354,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="block text-xs font-bold text-gray-600 mb-2">نمط الإجابة والتحليل الروحاني</label>
                   <div className="relative group/select">
                     <select 
-                      value={localSettings.analysisStyle || 'balanced'}
+                      value={localSettings.analysisStyle || 'smart_adaptive'}
                       onChange={(e) => setLocalSettings({ ...localSettings, analysisStyle: e.target.value })}
-                      className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer text-gray-800"
+                      className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer text-gray-800 font-medium"
                     >
-                      <option value="balanced">🌟 النمط المتوازن (روحي وتفسيري مبسط - الافتراضي)</option>
-                      <option value="detailed">📖 النمط التفسيري المفصل والعميق (أسباب النزول، السياق ومعاني الكلمات تفصيلاً)</option>
-                      <option value="smart_summary">💡 النمط التلخيصي العبقري والذكي (رؤوس أقلام، خلاصة مكثفة ومباشرة تصيب لب الموضوع)</option>
-                      <option value="spiritual">🤍 النمط الإيماني والوجداني (بلسم ومواساة للقلب، علاج الأحزان بالقلق والسكينة)</option>
+                      <option value="smart_adaptive">🤖 نمط التكيف الذكي الأوتوماتيكي (تحليل السؤال تلقائياً واختيار النمط الأكثر ملاءمة - الافتراضي الذكي)</option>
+                      <option value="smart_summary">💡 النمط التلخيصي العبقري (رؤوس أقلام، خلاصة مكثفة ومباشرة تصيب لب الموضوع)</option>
+                      <option value="tadabbur">💎 نمط التدبر (استخراج الحكم والمواعظ والدروس الإيمانية العميقة)</option>
+                      <option value="practical_life">🌿 نمط الربط بالواقع (تقديم أمثلة وسيناريوهات وتجارب واقعية لتطبيق القرآن بالحياة)</option>
+                      <option value="spiritual">🤍 النمط الإيماني والوجداني (بلسم ومواساة للقلب، علاج الأحزان بالسكينة والرجاء)</option>
                       <option value="scientific">🧠 النمط العقلاني والعلمي المنهجي (البراهين المنطقية، الاستنباطات الفكرية والإعجاز اللغوي)</option>
+                      <option value="detailed">📖 النمط التفسيري المفصل والعميق (أسباب النزول، السياق ومعاني الكلمات تفصيلاً)</option>
+                      <option value="balanced">🌟 النمط المتوازن (روحي وتفسيري مبسط)</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/select:text-[var(--color-primary)] transition-colors">
                       <Sparkles size={18} />

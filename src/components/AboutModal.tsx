@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Sparkles, Brain, BookOpen, Heart, Compass, CheckCircle2, 
   ShieldCheck, Zap, Lightbulb, Star, Calendar, 
-  Calculator, ChevronDown, ChevronUp, Layers, Book
+  Calculator, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -480,3 +480,5 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
     </AnimatePresence>
   );
 };
+
+export default AboutModal;

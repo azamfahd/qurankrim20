@@ -3,7 +3,9 @@ import { Clock, MapPin, Settings, Sparkles } from 'lucide-react';
 import { UserSettings, UserLocation } from '../types';
 import { calculateAccuratePrayerTimes, AdhanAudioEngine, AdhanOfflineManager } from '../services/adhanService';
 import { LocationService } from '../services/locationService';
-import { AdhanSettingsModal } from './AdhanSettingsModal';
+import { Suspense } from 'react';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+const AdhanSettingsModal = lazyWithRetry(() => import('./AdhanSettingsModal'), 'AdhanSettingsModal');
 
 interface PrayerTimesWidgetProps {
   settings: UserSettings;
@@ -28,10 +30,7 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
     // 1. Unlock browser audio context for smooth adhan playback
     AdhanAudioEngine.unlockAudioContext();
 
-    // 2. Automatically initiate offline caching for all muezzins
-    AdhanOfflineManager.autoDownloadAllMuezzins().catch(() => {});
-
-    // 3. Open settings modal
+    // 2. Open settings modal
     if (onOpenAdhanSettings) {
       onOpenAdhanSettings();
     } else {
@@ -68,26 +67,17 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
       const activeLocation = (lat && lng) ? { latitude: lat, longitude: lng, name: settings?.location?.name || 'موقعي' } : null;
       const res = calculateAccuratePrayerTimes(activeLocation, new Date(), settings?.adhanSettings?.calculationMethod);
       setSchedule(res);
-
-      // Sync 30-day schedule for offline background notifications & Service Worker
-      AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, settings?.adhanSettings?.calculationMethod);
     };
 
     calc();
+
+    // Sync 30-day schedule once when location or method changes (not on every minute tick)
+    const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
+    AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, settings?.adhanSettings?.calculationMethod);
+
     const interval = setInterval(calc, 60000); // refresh every minute
     return () => clearInterval(interval);
-  }, [settings?.location, settings?.adhanSettings?.calculationMethod]);
-
-  // Auto-detect location on mount if not already set
-  useEffect(() => {
-    if (!settings?.location) {
-      LocationService.autoDetectLocation(false).then((loc) => {
-        if (loc) {
-          onUpdateSettings({ ...settings, location: loc });
-        }
-      }).catch(() => {});
-    }
-  }, []);
+  }, [settings?.location?.latitude, settings?.location?.longitude, settings?.location?.name, settings?.adhanSettings?.calculationMethod]);
 
   const requestLocation = async () => {
     setIsLoadingLocation(true);
@@ -192,12 +182,11 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
       </div>
 
       {!onOpenAdhanSettings && (
-        <AdhanSettingsModal 
+        <Suspense fallback={<div className="hidden"></div>}><AdhanSettingsModal 
           isOpen={localAdhanModalOpen} 
           onClose={() => setLocalAdhanModalOpen(false)} 
           settings={settings} 
-          onSave={onUpdateSettings} 
-        />
+          onSave={onUpdateSettings} /></Suspense>
       )}
     </>
   );

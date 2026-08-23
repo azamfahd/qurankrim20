@@ -16,12 +16,33 @@ root.render(
   </ErrorBoundary>
 );
 
-// Manage Service Worker
+// Manage Service Worker for production & offline capability
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(console.error);
-    });
+    const registerSW = () => {
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          // Check for SW updates
+          reg.addEventListener('updatefound', () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.addEventListener('statechange', () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('New app update available and installed in background');
+                }
+              });
+            }
+          });
+        })
+        .catch((err) => console.warn('SW registration warning:', err));
+    };
+
+    if (document.readyState === 'complete') {
+      registerSW();
+    } else {
+      window.addEventListener('load', registerSW);
+    }
   } else {
     // In development, unregister any existing service worker to prevent caching issues with Vite
     navigator.serviceWorker.getRegistrations().then(registrations => {

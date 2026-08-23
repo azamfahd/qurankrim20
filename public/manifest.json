@@ -16,6 +16,12 @@
   "prefer_related_applications": false,
   "icons": [
     {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
@@ -26,12 +32,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -40,21 +40,21 @@
       "short_name": "المواقيت",
       "description": "عرض مواقيت الصلاة والأذان المباشر",
       "url": "/?view=prayer",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     },
     {
       "name": "المصحف الشريف",
       "short_name": "المصحف",
       "description": "قراءة واستماع للقرآن الكريم",
       "url": "/?view=quran",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     },
     {
       "name": "الرفيق القرآني",
       "short_name": "الرفيق",
       "description": "فضفض وتدبر مع أنيس القلوب",
       "url": "/?view=chat",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ],
   "screenshots": [
@@ -67,7 +67,7 @@
     },
     {
       "src": "/screenshot-narrow.png",
-      "sizes": "540x960",
+      "sizes": "540x1170",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "تطبيق أنيس القلوب للهواتف الذكية"
