@@ -124,6 +124,7 @@ const CACHE_NAME = 'anis-adhan-cache-v1';
  */
 export class AdhanOfflineManager {
   private static dbPromise: Promise<IDBDatabase> | null = null;
+  private static activeDownloads: Map<string, Promise<{ success: boolean; error?: string }>> = new Map();
 
   private static getDB(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
@@ -148,12 +149,25 @@ export class AdhanOfflineManager {
   }
 
   /**
+   * Validate audio blob integrity (checks MIME type and minimum size to avoid caching HTML 404s)
+   */
+  public static isValidAudioBlob(blob: Blob): boolean {
+    if (!blob) return false;
+    if (blob.size < 50000) return false; // Minimum 50KB for valid adhan audio clip
+    const type = (blob.type || '').toLowerCase();
+    if (type.includes('html') || type.includes('text') || type.includes('xml')) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Save audio blob into IndexedDB and Cache API
    */
   public static async saveMuezzinAudio(muezzinId: string, blob: Blob): Promise<boolean> {
     try {
-      if (!blob || blob.size < 100000 || blob.type.includes('html')) {
-        console.warn('Rejected saving invalid audio blob');
+      if (!this.isValidAudioBlob(blob)) {
+        console.warn('Rejected saving invalid/corrupted audio blob for', muezzinId);
         return false;
       }
 
@@ -173,7 +187,7 @@ export class AdhanOfflineManager {
         req.onerror = () => reject(req.error);
       });
 
-      // Also mirror into Cache Storage if available
+      // Also mirror into Cache Storage for service worker compatibility
       if (typeof caches !== 'undefined') {
         try {
           const cache = await caches.open(CACHE_NAME);
@@ -186,7 +200,7 @@ export class AdhanOfflineManager {
           });
           await cache.put(resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`), response);
         } catch (cacheErr) {
-          console.warn('Cache API mirror failed, IndexedDB preserved:', cacheErr);
+          console.warn('Cache API mirror notice (IndexedDB preserved):', cacheErr);
         }
       }
 
@@ -203,7 +217,7 @@ export class AdhanOfflineManager {
   public static async isMuezzinDownloaded(muezzinId: string): Promise<{ downloaded: boolean; sizeBytes: number }> {
     try {
       const blob = await this.getMuezzinBlob(muezzinId);
-      if (blob && blob.size > 100000) {
+      if (blob && this.isValidAudioBlob(blob)) {
         return { downloaded: true, sizeBytes: blob.size };
       }
       return { downloaded: false, sizeBytes: 0 };
@@ -227,9 +241,7 @@ export class AdhanOfflineManager {
       });
 
       if (item && item.blob) {
-        // Validate that it's a real audio blob and not corrupted HTML text
-        const isHtml = (item.type && item.type.includes('html')) || (item.blob.type && item.blob.type.includes('html'));
-        if (item.blob.size > 100000 && !isHtml) {
+        if (this.isValidAudioBlob(item.blob)) {
           return item.blob;
         } else {
           // Auto-clean corrupted entry
@@ -262,7 +274,7 @@ export class AdhanOfflineManager {
       let totalSize = 0;
 
       for (const it of items) {
-        if (it && it.blob && it.blob.size > 100000 && !it.type?.includes('html') && !it.blob.type?.includes('html')) {
+        if (it && it.blob && this.isValidAudioBlob(it.blob)) {
           validIds.push(it.id);
           totalSize += it.blob.size;
         } else if (it && it.id) {
@@ -295,7 +307,7 @@ export class AdhanOfflineManager {
           const cache = await caches.open(CACHE_NAME);
           await cache.delete(resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`));
         } catch (e) {
-          console.warn('Cache deletion ignored:', e);
+          console.warn('Cache deletion notice:', e);
         }
       }
 
@@ -307,72 +319,101 @@ export class AdhanOfflineManager {
   }
 
   /**
-   * Download audio file with progressive fallback across multiple CDNs & strict integrity checks
+   * Download audio file with concurrency control, multiple CDNs fallback & integrity checks
    */
   public static async downloadMuezzinAudio(
     muezzinId: string,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal
   ): Promise<{ success: boolean; error?: string }> {
-    const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
-    if (!muezzin) {
-      return { success: false, error: 'المؤذن غير موجود' };
+    // If a download for this muezzin is already in progress, reuse the existing promise
+    if (this.activeDownloads.has(muezzinId)) {
+      return this.activeDownloads.get(muezzinId)!;
     }
 
-    const urls = muezzin.audioUrls.map(u => resolveAudioPath(u));
-    let lastError = '';
-
-    for (let i = 0; i < urls.length; i++) {
-      const url = urls[i];
-      try {
-        if (onProgress) onProgress(15 + i * 15);
-        
-        const response = await fetch(url, {
-          method: 'GET',
-          cache: 'no-cache'
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        // Discard any HTML response (such as SPA 404 redirects)
-        if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
-          throw new Error('الرابط أعاد صفحة نصية وليس ملف صوتي');
-        }
-
-        if (onProgress) onProgress(70);
-
-        const blob = await response.blob();
-        
-        // Full Adhan audio files are between 1MB and 4MB (at least 200KB)
-        if (blob.size < 100000 || blob.type.includes('html')) {
-          throw new Error('الملف المحمل غير صالح أو صغير جداً');
-        }
-
-        if (onProgress) onProgress(90);
-
-        const saved = await this.saveMuezzinAudio(muezzinId, blob);
-        if (saved) {
-          if (onProgress) onProgress(100);
-          return { success: true };
-        } else {
-          throw new Error('فشل الحفظ في التخزين المحلي');
-        }
-      } catch (err: any) {
-        console.warn(`Download attempt for ${muezzinId} from ${url} failed:`, err);
-        lastError = err?.message || 'تعذر التحميل';
+    const downloadTask = (async () => {
+      const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
+      if (!muezzin) {
+        return { success: false, error: 'المؤذن غير موجود' };
       }
-    }
 
-    return { success: false, error: lastError || 'تعذر تنزيل ملف الصوت. يرجى التحقق من اتصال الإنترنت.' };
+      const urls = muezzin.audioUrls.map(u => resolveAudioPath(u));
+      let lastError = '';
+
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        try {
+          if (onProgress) onProgress(20 + i * 15);
+          
+          const fetchController = new AbortController();
+          const timeoutId = setTimeout(() => fetchController.abort(), 12000);
+          
+          if (signal) {
+              signal.addEventListener('abort', () => fetchController.abort());
+              if (signal.aborted) throw new Error('Aborted');
+          }
+
+          const response = await fetch(url, {
+            method: 'GET',
+            cache: 'no-cache',
+            signal: fetchController.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
+            throw new Error('الرابط أعاد صفحة ويب وليس ملفاً صوتياً');
+          }
+
+          if (onProgress) onProgress(70);
+
+          const blob = await response.blob();
+          
+          if (!this.isValidAudioBlob(blob)) {
+            throw new Error('الملف المحمل غير صالح أو تالف');
+          }
+
+          if (onProgress) onProgress(90);
+
+          const saved = await this.saveMuezzinAudio(muezzinId, blob);
+          if (saved) {
+            if (onProgress) onProgress(100);
+            return { success: true };
+          } else {
+            throw new Error('فشل الحفظ في التخزين المحلي');
+          }
+        } catch (err: any) {
+          if (err.name === 'AbortError' || signal?.aborted || err.message?.includes('aborted') || err.message === 'Aborted') {
+            throw err;
+          }
+          console.warn(`Download attempt for ${muezzinId} from ${url} failed:`, err);
+          lastError = err?.message || 'تعذر التحميل';
+        }
+      }
+
+      return { success: false, error: lastError || 'تعذر تنزيل ملف الصوت. يرجى التحقق من اتصال الإنترنت.' };
+    })();
+
+    this.activeDownloads.set(muezzinId, downloadTask);
+
+    try {
+      const result = await downloadTask;
+      return result;
+    } finally {
+      this.activeDownloads.delete(muezzinId);
+    }
   }
 
   /**
    * Automatically downloads and caches all missing muezzins in the background
    */
   public static async autoDownloadAllMuezzins(
-    onProgress?: (muezzinId: string, percent: number, totalDone: number, totalCount: number) => void
+    onProgress?: (muezzinId: string, percent: number, totalDone: number, totalCount: number) => void,
+    signal?: AbortSignal
   ): Promise<{ success: boolean; totalDownloaded: number }> {
     try {
       const status = await this.getAllDownloadedStatus();
@@ -384,10 +425,13 @@ export class AdhanOfflineManager {
 
       let completed = status.downloadedIds.length;
       for (const m of missing) {
+        if (signal?.aborted) {
+          throw new Error('Aborted');
+        }
         if (onProgress) onProgress(m.id, 15, completed, MUEZZINS_LIST.length);
         const res = await this.downloadMuezzinAudio(m.id, (p) => {
           if (onProgress) onProgress(m.id, p, completed, MUEZZINS_LIST.length);
-        });
+        }, signal);
         if (res.success) {
           completed++;
           if (onProgress) onProgress(m.id, 100, completed, MUEZZINS_LIST.length);
@@ -395,8 +439,9 @@ export class AdhanOfflineManager {
       }
 
       return { success: true, totalDownloaded: completed };
-    } catch (e) {
-      console.warn("autoDownloadAllMuezzins caught error:", e);
+    } catch (e: any) {
+      if (e.name === 'AbortError' || e.message === 'Aborted' || signal?.aborted || e.message?.includes('aborted')) throw e;
+      console.warn("autoDownloadAllMuezzins notice:", e);
       return { success: false, totalDownloaded: 0 };
     }
   }
@@ -406,7 +451,7 @@ export class AdhanOfflineManager {
    */
   public static async getOfflineBlobUrl(muezzinId: string): Promise<string | null> {
     const blob = await this.getMuezzinBlob(muezzinId);
-    if (blob && blob.size > 100000) {
+    if (blob && this.isValidAudioBlob(blob)) {
       return URL.createObjectURL(blob);
     }
     return null;
@@ -444,6 +489,9 @@ export class AdhanAudioEngine {
   private static isSWListenerInitialized: boolean = false;
   private static isAudioUnlocked: boolean = false;
   private static sharedAudioContext: AudioContext | null = null;
+  private static currentSessionId: number = 0;
+  private static pendingAudioInstances: Set<HTMLAudioElement> = new Set();
+  private static backgroundKeepAliveAudio: HTMLAudioElement | null = null;
 
   /**
    * Unlocks browser audio playback context on first user interaction
@@ -467,17 +515,27 @@ export class AdhanAudioEngine {
         }
       }
 
-      // Also create a silent buffer playback to unlock HTMLAudioElement
-      const silentAudio = new Audio();
-      silentAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-      silentAudio.volume = 0.001;
-      const playPromise = silentAudio.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          this.isAudioUnlocked = true;
-          silentAudio.pause();
-        }).catch(() => {});
+      // Initialize continuous silent audio loop for Android APK background persistence
+      if (!this.backgroundKeepAliveAudio) {
+        this.backgroundKeepAliveAudio = new Audio();
+        // Base64 silent audio (short WAV)
+        this.backgroundKeepAliveAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+        this.backgroundKeepAliveAudio.volume = 0.001;
+        this.backgroundKeepAliveAudio.loop = true;
+        this.backgroundKeepAliveAudio.crossOrigin = 'anonymous';
+        const playPromise = this.backgroundKeepAliveAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            this.isAudioUnlocked = true;
+            console.log('Background audio keep-alive activated for APKs.');
+          }).catch((err) => {
+            console.warn('Keep-alive audio failed to start:', err);
+          });
+        }
+      } else if (this.backgroundKeepAliveAudio.paused) {
+         this.backgroundKeepAliveAudio.play().catch(()=>{});
       }
+
     } catch (e) {
       console.warn('Audio unlock notice:', e);
     }
@@ -535,7 +593,7 @@ export class AdhanAudioEngine {
         this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
       }
     } catch (e) {
-      console.warn("WakeLock error (safe to ignore):", e);
+      console.warn("WakeLock notice:", e);
     }
   }
 
@@ -619,7 +677,7 @@ export class AdhanAudioEngine {
           };
         }
       } catch (e) {
-        console.warn("MediaSession setup error:", e);
+        console.warn("MediaSession setup notice:", e);
       }
     }
   }
@@ -754,24 +812,34 @@ export class AdhanAudioEngine {
   }
 
   /**
-   * Helper to create, configure, and attempt to play an HTMLAudioElement with error handling
+   * Helper to create, configure, and attempt to play an HTMLAudioElement with error handling and session matching
    */
   private static attemptAudioPlay(
     sourceUrl: string,
     volume: number,
     muezzinName: string,
     prayerName: string,
+    sessionId: number,
     onStart?: () => void,
     onEnd?: () => void
   ): Promise<{ success: boolean; audio: HTMLAudioElement | null; error?: string }> {
     return new Promise((resolve) => {
+      // Abort immediately if session changed
+      if (sessionId !== this.currentSessionId) {
+        resolve({ success: false, audio: null, error: 'Session aborted' });
+        return;
+      }
+
       let isSettled = false;
       const audio = new Audio();
+      this.pendingAudioInstances.add(audio);
+
       audio.preload = 'auto';
       audio.src = sourceUrl;
       audio.volume = Math.max(0, Math.min(1, volume / 100));
 
       const cleanup = () => {
+        this.pendingAudioInstances.delete(audio);
         audio.removeEventListener('playing', onPlaying);
         audio.removeEventListener('error', onError);
         audio.removeEventListener('stalled', onStalled);
@@ -781,13 +849,25 @@ export class AdhanAudioEngine {
         if (!isSettled) {
           isSettled = true;
           cleanup();
+
+          if (sessionId !== this.currentSessionId) {
+            try {
+              audio.pause();
+              audio.src = '';
+            } catch {}
+            resolve({ success: false, audio: null, error: 'Session outdated' });
+            return;
+          }
+
           this.setupMediaSession(muezzinName, prayerName, audio);
           this.requestWakeLock();
           if (onStart) onStart();
 
           audio.onended = () => {
-            this.stop();
-            if (onEnd) onEnd();
+            if (sessionId === this.currentSessionId) {
+              this.stop();
+              if (onEnd) onEnd();
+            }
           };
 
           resolve({ success: true, audio });
@@ -807,7 +887,6 @@ export class AdhanAudioEngine {
       };
 
       const onStalled = () => {
-        // If audio stalls before playing, give a timeout window
         setTimeout(() => {
           if (!isSettled && audio.readyState < 2) {
             isSettled = true;
@@ -815,25 +894,25 @@ export class AdhanAudioEngine {
             console.warn(`Audio playback stalled for ${sourceUrl}`);
             resolve({ success: false, audio: null, error: 'Playback stalled' });
           }
-        }, 5000);
+        }, 4000);
       };
 
       audio.addEventListener('playing', onPlaying, { once: true });
       audio.addEventListener('error', onError, { once: true });
       audio.addEventListener('stalled', onStalled);
 
-      // Play invocation within interaction context
+      // Play invocation
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          // Promise resolved, playing event will trigger onPlaying
+          // Promise resolved by browser -> audio has successfully begun playback
+          onPlaying();
         }).catch((err) => {
           if (!isSettled) {
             isSettled = true;
             cleanup();
             console.warn(`audio.play() rejected for ${sourceUrl}:`, err);
             
-            // Check for browser Autoplay rejection
             if (err.name === 'NotAllowedError') {
               console.warn('Autoplay prevented: user interaction is required.');
             }
@@ -842,22 +921,23 @@ export class AdhanAudioEngine {
         });
       }
 
-      // Safety timeout: if neither play nor error triggers within 8 seconds
+      // Safety timeout: 5 seconds
       setTimeout(() => {
         if (!isSettled) {
           isSettled = true;
           cleanup();
           resolve({ success: false, audio: null, error: 'Connection timeout' });
         }
-      }, 8000);
+      }, 5000);
     });
   }
 
   /**
    * Plays adhan with Offline-First priority & sequential fallback retry across all available sources:
-   * 1. Check IndexedDB / Local Cache Storage -> Instant 100% offline playback
-   * 2. If not downloaded & online -> Stream with resolved production URLs & auto-cache in background
-   * 3. Fallback synth chime if completely offline and un-cached
+   * 1. Stop any currently playing audio instantly
+   * 2. Check IndexedDB / Local Cache Storage -> Instant 100% offline playback
+   * 3. Fallback to Local MP3 / CDN streaming & auto-cache in background
+   * 4. Fallback synth chime if completely offline and un-cached
    */
   public static async play(
     muezzinId: string, 
@@ -866,10 +946,13 @@ export class AdhanAudioEngine {
     onStart?: () => void,
     prayerName: string = 'الصلاة'
   ): Promise<{ success: boolean; source: 'offline_cache' | 'online_stream' | 'fallback_synth'; error?: string }> {
+    // 1. Stop any current audio and cleanup previous session first
     this.stop();
-    this.initServiceWorkerListeners();
+    
+    // 2. Increment session ID for the NEW active playback session
+    const thisSession = ++this.currentSessionId;
 
-    // Prepare audio context unlocking
+    this.initServiceWorkerListeners();
     this.unlockAudioContext();
 
     const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId) || MUEZZINS_LIST[0];
@@ -877,7 +960,9 @@ export class AdhanAudioEngine {
     // Priority 1: Check Local Offline Storage
     try {
       const offlineBlob = await AdhanOfflineManager.getMuezzinBlob(muezzin.id);
-      if (offlineBlob && offlineBlob.size > 100000) {
+      if (thisSession !== this.currentSessionId) return { success: false, source: 'offline_cache' };
+
+      if (offlineBlob && AdhanOfflineManager.isValidAudioBlob(offlineBlob)) {
         const offlineUrl = URL.createObjectURL(offlineBlob);
         this.activeObjectUrl = offlineUrl;
         
@@ -886,9 +971,17 @@ export class AdhanAudioEngine {
           volume,
           muezzin.name,
           prayerName,
+          thisSession,
           onStart,
           onEnd
         );
+
+        if (thisSession !== this.currentSessionId) {
+          if (result.audio) {
+            try { result.audio.pause(); result.audio.src = ''; } catch {}
+          }
+          return { success: false, source: 'offline_cache' };
+        }
 
         if (result.success && result.audio) {
           this.currentAudio = result.audio;
@@ -904,12 +997,15 @@ export class AdhanAudioEngine {
         }
       }
     } catch (offlineErr) {
-      console.warn('Offline blob check failed, falling back to direct URLs:', offlineErr);
+      console.warn('Offline blob check notice:', offlineErr);
     }
+
+    if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
 
     // Priority 2: Direct Local File & CDN Fallbacks with resolved production paths
     const urls = muezzin.audioUrls.map(u => resolveAudioPath(u));
     for (let i = 0; i < urls.length; i++) {
+      if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
       const url = urls[i];
       try {
         const result = await this.attemptAudioPlay(
@@ -917,9 +1013,17 @@ export class AdhanAudioEngine {
           volume,
           muezzin.name,
           prayerName,
+          thisSession,
           onStart,
           onEnd
         );
+
+        if (thisSession !== this.currentSessionId) {
+          if (result.audio) {
+            try { result.audio.pause(); result.audio.src = ''; } catch {}
+          }
+          return { success: false, source: 'online_stream' };
+        }
 
         if (result.success && result.audio) {
           this.currentAudio = result.audio;
@@ -934,6 +1038,8 @@ export class AdhanAudioEngine {
         console.warn(`Failed attempt from ${url}:`, err);
       }
     }
+
+    if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
 
     // Priority 3: Synthesized Tone Fallback
     console.info('All audio sources failed. Triggering synthesized fallback tone.');
@@ -956,12 +1062,24 @@ export class AdhanAudioEngine {
 
   public static stop() {
     this.releaseWakeLock();
+    // Increment session so any pending attempt drops
+    this.currentSessionId++;
 
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.playbackState = 'none';
       } catch {}
     }
+
+    // Force stop all pending or stalled audio instances
+    this.pendingAudioInstances.forEach(audio => {
+      try {
+        audio.pause();
+        audio.src = '';
+        audio.load();
+      } catch {}
+    });
+    this.pendingAudioInstances.clear();
 
     if (this.currentAudio) {
       try {
@@ -1111,5 +1229,10 @@ export function calculateAccuratePrayerTimes(
     nextPrayerTime: nextTime,
     prayersList
   };
+}
+
+// Auto-register touch/click interaction audio unlock for all browsers & webviews
+if (typeof window !== 'undefined') {
+  AdhanAudioEngine.setupInteractionAudioUnlock();
 }
 

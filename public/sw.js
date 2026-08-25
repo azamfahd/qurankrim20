@@ -1,5 +1,5 @@
-const CACHE_NAME = 'anis-al-qulub-app-v4';
-const RUNTIME_CACHE = 'anis-al-qulub-runtime-v4';
+const CACHE_NAME = 'anis-al-qulub-app-v5';
+const RUNTIME_CACHE = 'anis-al-qulub-runtime-v5';
 
 // الموارد الأساسية التي يجب تخزينها فوراً عند التثبيت
 const PRECACHE_URLS = [
@@ -16,7 +16,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // استخدام Promise.allSettled لضمان عدم توقف التثبيت إذا تعذر تحميل أي عنصر فردي
       await Promise.allSettled(
         PRECACHE_URLS.map(async (url) => {
           try {
@@ -62,7 +61,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          // المحاولة من الشبكة أولاً للحصول على أحدث نسخة عند التحديث
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
             const cache = await caches.open(CACHE_NAME);
@@ -73,13 +71,11 @@ self.addEventListener('fetch', (event) => {
           console.warn('Navigation network fetch failed, using cache fallback:', err);
         }
 
-        // في حال فشل الشبكة أو وضع عدم الاتصال، جلب الصفحة الرئيسية من الكاش
         const cachedIndex = await caches.match('/index.html') || await caches.match('/') || await caches.match(event.request);
         if (cachedIndex) {
           return cachedIndex;
         }
 
-        // استجابة احتياطية ناعمة في أقسى الظروف
         return new Response(
           '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>أنيس القلوب</title></head><body style="font-family:sans-serif;text-align:center;padding:2rem;background:#022c22;color:#fff;"><h2>أنيس القلوب</h2><p>تتم إعادة الاتصال بالشبكة...</p><button onclick="window.location.reload()" style="padding:10px 20px;border-radius:20px;background:#d4af37;border:none;color:#000;font-weight:bold;cursor:pointer;">إعادة المحاولة</button></body></html>',
           { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
@@ -120,7 +116,6 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         } catch (err) {
           console.warn('Asset fetch error:', url.href, err);
-          // لإرجاع أداة احتياطية للصور/الأيقونات دون إلقاء خطأ قاتل في المتصفح
           if (url.pathname.match(/\.(svg|png|jpg|jpeg)$/)) {
             const svgFallback = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>';
             return new Response(svgFallback, { headers: { 'Content-Type': 'image/svg+xml' } });
@@ -159,6 +154,10 @@ self.addEventListener('message', (event) => {
 
   if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  } else if (event.data.type === 'CHECK_APK_UPDATE') {
+    if (event.data.installedVersion) {
+      checkApkVersionAndNotify(event.data.installedVersion);
+    }
   } else if (event.data.type === 'UPDATE_PRAYER_SCHEDULE') {
     caches.open(RUNTIME_CACHE).then((cache) => {
       const response = new Response(JSON.stringify(event.data.data), {
@@ -178,21 +177,211 @@ self.addEventListener('message', (event) => {
         muezzinId: event.data.muezzinId
       }));
     });
+  } else if (event.data.type === 'SCHEDULE_DHIKR_REMINDER') {
+    // Save or update dhikr schedule and settings in runtime cache for offline/background
+    caches.open(RUNTIME_CACHE).then((cache) => {
+      const payload = {
+        settings: event.data.settings || {},
+        database: event.data.database || [],
+        timestamp: Date.now()
+      };
+      const response = new Response(JSON.stringify(payload), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      cache.put('/offline-dhikr-settings.json', response);
+    });
+  } else if (event.data.type === 'TEST_DHIKR_NOTIFICATION') {
+    // Test lock-screen & background notification immediately
+    triggerDirectDhikrNotification(event.data.dhikr);
   }
 });
 
-// Periodic Sync & Notification handling
+// دالة فحص وتنبيه المستخدم بوجود تحديث جديد لملف الـ APK
+async function checkApkVersionAndNotify(currentInstalledVersion) {
+  try {
+    const res = await fetch('/api/version', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    if (data && data.apk && data.apk.available) {
+      const serverVersion = data.apk.version || data.version;
+      const isNewer = isVersionNewer(serverVersion, currentInstalledVersion);
+
+      if (isNewer) {
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((client) => {
+          client.postMessage({
+            type: 'APK_UPDATE_AVAILABLE',
+            versionInfo: {
+              version: serverVersion,
+              releaseNotes: data.apk.releaseNotes,
+              sizeFormatted: data.apk.sizeFormatted,
+              downloadUrl: data.apk.downloadUrl || '/app-release.apk'
+            }
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Error checking APK version in SW:', err);
+  }
+}
+
+// دالة مقارنة أرقام الإصدارات SemVer
+function isVersionNewer(serverVer, currentVer) {
+  if (!serverVer) return false;
+  if (!currentVer) return true;
+  
+  const v1Parts = String(serverVer).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const v2Parts = String(currentVer).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  
+  for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+    const p1 = v1Parts[i] || 0;
+    const p2 = v2Parts[i] || 0;
+    if (p1 > p2) return true;
+    if (p1 < p2) return false;
+  }
+  return false;
+}
+
+// Periodic Sync & Notification handling in Background
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'update-prayer-times' || event.tag === 'check-adhan-alarm') {
     event.waitUntil(checkPrayerTimesAndNotify());
+  } else if (event.tag === 'check-dhikr-reminder') {
+    event.waitUntil(checkDhikrAndNotify());
   }
 });
 
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-prayer-times' || event.tag === 'adhan-sync') {
     event.waitUntil(checkPrayerTimesAndNotify());
+  } else if (event.tag === 'dhikr-sync') {
+    event.waitUntil(checkDhikrAndNotify());
   }
 });
+
+// دالة إطلاق إشعار ذكر مباشر ومتقدم على شاشة القفل والخلفية
+async function triggerDirectDhikrNotification(customDhikr) {
+  try {
+    const dhikr = customDhikr || {
+      id: 'prophet_salawat_1',
+      text: 'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ أَجْمَعِينَ',
+      virtue: 'من صلى عليّ صلاة صلى الله عليه بها عشراً',
+      category: 'prophet_salawat',
+      categoryName: 'الصلاة على النبي ﷺ'
+    };
+
+    const isSalawat = dhikr.category === 'prophet_salawat';
+    const title = isSalawat ? '✨ صلِّ على النبي ﷺ' : `🌿 ${dhikr.categoryName || 'ذكر الله وطمأنينة القلب'}`;
+    const body = `${dhikr.text}${dhikr.virtue ? `\n\nفضل الذكر: ${dhikr.virtue}` : ''}`;
+
+    await self.registration.showNotification(title, {
+      body: body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: `dhikr-${Date.now()}`,
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 400],
+      dir: 'rtl',
+      lang: 'ar',
+      data: { 
+        dhikrId: dhikr.id, 
+        category: dhikr.category,
+        text: dhikr.text 
+      },
+      actions: [
+        { action: 'recite', title: '📿 سبّحت / صلّيت' },
+        { action: 'open-app', title: '📖 فتح التطبيق' }
+      ]
+    });
+  } catch (err) {
+    console.warn('Error showing direct dhikr notification in SW:', err);
+  }
+}
+
+// دالة فحص وتنبيه الأذكار بالخلفية وشاشة القفل
+async function checkDhikrAndNotify() {
+  try {
+    const cache = await caches.open(RUNTIME_CACHE);
+    const cachedResponse = await cache.match('/offline-dhikr-settings.json');
+    if (!cachedResponse) return;
+
+    const payload = await cachedResponse.json();
+    const settings = payload.settings;
+    if (!settings || !settings.enabled) return;
+
+    // Check quiet hours
+    if (settings.quietHoursEnabled) {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      const [startH, startM] = (settings.quietHoursStart || '23:00').split(':').map(Number);
+      const [endH, endM] = (settings.quietHoursEnd || '06:00').split(':').map(Number);
+      const startTotal = (startH || 0) * 60 + (startM || 0);
+      const endTotal = (endH || 0) * 60 + (endM || 0);
+      const inQuiet = startTotal <= endTotal 
+        ? (currentMins >= startTotal && currentMins < endTotal)
+        : (currentMins >= startTotal || currentMins < endTotal);
+      if (inQuiet) return;
+    }
+
+    // Select dhikr item from stored database or defaults
+    const db = Array.isArray(payload.database) && payload.database.length > 0
+      ? payload.database
+      : [
+          {
+            id: 'salawat_bg_1',
+            category: 'prophet_salawat',
+            categoryName: 'الصلاة على النبي ﷺ',
+            text: 'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ',
+            virtue: 'أولى الناس بي يوم القيامة أكثرهم علي صلاة'
+          },
+          {
+            id: 'baqiyat_bg_1',
+            category: 'baqiyat_salihat',
+            categoryName: 'الباقيات الصالحات',
+            text: 'سُبْحَانَ اللَّهِ ، وَالْحَمْدُ لِلَّهِ ، وَلَا إِلَهَ إِلَّا اللَّهُ ، وَاللَّهُ أَكْبَرُ',
+            virtue: 'أحب الكلام إلى الله وأحب مما طلعت عليه الشمس'
+          },
+          {
+            id: 'istighfar_bg_1',
+            category: 'istighfar',
+            categoryName: 'الاستغفار وسيد الاستغفار',
+            text: 'أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ الَّذِي لَا إِلَهَ إِلَّا هُوَ الْحَيَّ الْقَيُّومَ وَأَتُوبُ إِلَيْهِ',
+            virtue: 'غُفرت ذنوبه وإن كان فرّ من الزحف'
+          },
+          {
+            id: 'hawqala_bg_1',
+            category: 'hawqala',
+            categoryName: 'الحوقلة وتفريج الكروب',
+            text: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ',
+            virtue: 'كنز من كنوز الجنة وباب من أبواب الفرج'
+          }
+        ];
+
+    // Filter by user category if selected
+    let candidates = db;
+    if (settings.category && settings.category !== 'all') {
+      const filtered = db.filter(item => item.category === settings.category);
+      if (filtered.length > 0) candidates = filtered;
+    }
+
+    const item = candidates[Math.floor(Math.random() * candidates.length)];
+    await triggerDirectDhikrNotification(item);
+
+    // Also notify active window clients if any are open in background
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clientsList.forEach(client => {
+      client.postMessage({
+        type: 'TRIGGER_DHIKR_ALERT',
+        dhikr: item
+      });
+    });
+  } catch (err) {
+    console.warn('Background dhikr check error in SW:', err);
+  }
+}
 
 // دالة فحص أوقات الصلاة بالخلفية بدون اتصال
 async function checkPrayerTimesAndNotify() {
@@ -214,13 +403,14 @@ async function checkPrayerTimesAndNotify() {
 
             if (timeDiff <= 2 * 60 * 1000) {
               await self.registration.showNotification(`حان الآن موعد أذان ${prayer.name}`, {
-                body: `الله أكبر، حان وقت صلاة ${prayer.name}.`,
+                body: `الله أكبر، حان وقت صلاة ${prayer.name}. حان وقت لقاء الله وطمأنينة القلب.`,
                 icon: '/icons/icon-192.png',
                 badge: '/icons/icon-192.png',
                 tag: `adhan-${prayer.name}-${now.toDateString()}`,
                 renotify: true,
                 requireInteraction: true,
                 vibrate: [500, 250, 500, 250, 1000],
+                silent: false,
                 dir: 'rtl',
                 lang: 'ar',
                 actions: [
@@ -247,27 +437,64 @@ async function checkPrayerTimesAndNotify() {
   }
 }
 
+// معالجة الضغط على إشعارات الخلفية وشاشة القفل
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const action = event.action;
+  const notificationData = event.notification.data || {};
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      // 1. إذا ضغط المستخدم زر التسبيح السريع مباشرة من شاشة القفل
+      if (action === 'recite') {
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((client) => {
+          client.postMessage({ 
+            type: 'RECORD_RECITATION',
+            category: notificationData.category || 'all'
+          });
+        });
+
+        // إشعار تأكيد خفيف ولطيف
+        try {
+          await self.registration.showNotification('✨ تقبل الله طاعتكم', {
+            body: 'أُجرت بحمد الله! تم تسجيل الذكر والتسبيح في صحيفتك المباركة.',
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-192.png',
+            tag: 'dhikr-ack',
+            vibrate: [100, 50, 100],
+            silent: true,
+            dir: 'rtl',
+            lang: 'ar'
+          });
+        } catch {}
+        return;
+      }
+
+      // 2. إذا ضغط المستخدم إيقاف الأذان
       if (action === 'stop-adhan') {
-        clientList.forEach((client) => {
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((client) => {
           client.postMessage({ type: 'STOP_ADHAN' });
         });
         return;
       }
 
+      // 3. فتح أو تركيز التطبيق
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         if (client.url && 'focus' in client) {
+          client.postMessage({
+            type: 'SHOW_DHIKR_BANNER_DIRECT',
+            data: notificationData
+          });
           return client.focus();
         }
       }
+
       if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
+        return self.clients.openWindow('/?source=notification');
       }
-    })
+    })()
   );
 });

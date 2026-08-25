@@ -228,9 +228,9 @@ export const SmartAppButton: React.FC<SmartAppButtonProps> = ({ variant = 'sideb
                   </>
                 ) : (
                   <>
-                    <h3 className="text-lg font-black royal-text-gradient">تثبيت أنيس القلوب</h3>
+                    <h3 className="text-lg font-black royal-text-gradient">تثبيت تطبيق أنيس القلوب</h3>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      احصل على تجربة تطبيق هاتف كاملة، شاشة بداية فاخرة، وعمل بدون إنترنت.
+                      اختر الطريقة المفضلة لتشغيل التطبيق على جهازك:
                     </p>
 
                     {isIOS ? (
@@ -250,18 +250,78 @@ export const SmartAppButton: React.FC<SmartAppButtonProps> = ({ variant = 'sideb
                         </ol>
                       </div>
                     ) : (
-                      <div className="w-full bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 text-right text-xs text-slate-200 space-y-2 mt-1">
-                        <p className="font-bold text-amber-300">للتثبيت كـ PWA على جهازك:</p>
-                        <p className="text-[11px] text-slate-300 leading-relaxed">
-                          1. افتح البرنامج في متصفح خارجي (مثل Chrome أو Safari).<br />
-                          2. افتح قائمة المتصفح (⋮) ثم اختر <strong className="text-white">"تثبيت التطبيق"</strong> أو <strong className="text-white">"إضافة إلى الشاشة الرئيسية"</strong>.
-                        </p>
+                      <div className="w-full space-y-2.5 my-1 text-right">
+                        {/* Option 1: APK (Primary) */}
+                        <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-black text-emerald-300 flex items-center gap-1.5">
+                              <Smartphone size={15} />
+                              تطبيق أندرويد المستقل (APK)
+                            </span>
+                            <span className="text-[9px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full font-black">
+                              الأساسي والموصى به
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300 mb-3 leading-relaxed">
+                            تطبيق أندرويد حقيقي، بدون شريط متصفح، وشاشة كاملة مع دعم التحديثات التلقائية.
+                          </p>
+                          <a
+                            href="/app-release.apk"
+                            download="anis-al-qulub.apk"
+                            onClick={() => {
+                              localStorage.setItem('anis_apk_installed_version', '1.1.0');
+                              localStorage.setItem('anis_pwa_installed', 'true');
+                              setShowModal(false);
+                            }}
+                            className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer border border-emerald-400/30"
+                          >
+                            <Download size={15} />
+                            <span>تحميل ملف APK المباشر</span>
+                          </a>
+                        </div>
+
+                        {/* Option 2: PWA (Secondary) */}
+                        <div className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/50 text-xs">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                              <Download size={14} className="text-amber-400" />
+                              تثبيت سريع للشاشة الرئيسية (PWA)
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mb-2">
+                            إضافة خفيفة لشاشتك الرئيسية من المتصفح بدون تحميل ملفات.
+                          </p>
+                          {deferredPrompt ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                deferredPrompt.prompt();
+                                deferredPrompt.userChoice.then((choiceResult: any) => {
+                                  if (choiceResult?.outcome === 'accepted') {
+                                    setIsInstalled(true);
+                                    localStorage.setItem('anis_pwa_installed', 'true');
+                                  }
+                                  setDeferredPrompt(null);
+                                  setShowModal(false);
+                                });
+                              }}
+                              className="w-full py-2 px-3 bg-slate-700 hover:bg-slate-600 text-amber-200 font-bold rounded-xl transition-all text-[11px] flex items-center justify-center gap-1.5 cursor-pointer border border-slate-600"
+                            >
+                              <PlusSquare size={13} />
+                              <span>تثبيت PWA الآن</span>
+                            </button>
+                          ) : (
+                            <p className="text-[10px] text-slate-400">
+                              افتح قائمة المتصفح (⋮) ⬅️ ثم اضغط على <strong>"تثبيت التطبيق"</strong>
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 
                     <button
                       onClick={() => setShowModal(false)}
-                      className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-[var(--color-gold-dark)] to-[var(--color-gold)] text-white font-bold rounded-xl transition-all text-xs cursor-pointer shadow-md"
+                      className="w-full mt-1 py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all text-xs cursor-pointer"
                     >
                       إغلاق
                     </button>

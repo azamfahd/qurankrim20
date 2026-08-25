@@ -23,6 +23,18 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((reg) => {
+          // Trigger APK update check ONLY if user has previously installed an APK version
+          const activeWorker = reg.active || navigator.serviceWorker.controller;
+          if (activeWorker) {
+            const installedVersion = localStorage.getItem('anis_apk_installed_version');
+            if (installedVersion) {
+              activeWorker.postMessage({
+                type: 'CHECK_APK_UPDATE',
+                installedVersion: installedVersion
+              });
+            }
+          }
+
           // Check for SW updates
           reg.addEventListener('updatefound', () => {
             const installingWorker = reg.installing;

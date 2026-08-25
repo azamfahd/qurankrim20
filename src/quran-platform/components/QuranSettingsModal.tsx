@@ -9,6 +9,7 @@ import {
 import { useQuranContext, MushafTheme } from '../store/QuranContext';
 import { QuranSyncService } from '../services/quranSyncService';
 import { QuranDataService, TextCacheProgress } from '../services/QuranDataService';
+import { DownloadManager } from '../../services/DownloadManager';
 
 export const MUSHAF_THEMES: {
   id: MushafTheme;
@@ -277,22 +278,33 @@ export const QuranSettingsModal: React.FC = () => {
     }
 
     setCacheMessage(null);
-    await QuranDataService.downloadAllQuranText((prog) => {
-      setTextDownloadProgress(prog);
-      if (prog.status === 'completed') {
-        setCacheMessage({ text: 'تم تحميل المصحف والتفاسير بنجاح للعمل أوفلاين!', type: 'success' });
-        checkTextCacheStatus();
-        setTimeout(() => {
-          setTextDownloadProgress(null);
-          setCacheMessage(null);
-        }, 5000);
-      } else if (prog.status === 'error') {
-        setCacheMessage({ text: prog.error || 'حدث خطأ أثناء تحميل المصحف الشريف.', type: 'error' });
-        checkTextCacheStatus();
-        setTimeout(() => {
-          setTextDownloadProgress(null);
-          setCacheMessage(null);
-        }, 5000);
+    
+    DownloadManager.addTask({
+      id: 'quran-text-all',
+      title: 'تحميل المصحف الشريف والتفاسير',
+      type: 'quran-text',
+      payload: {},
+      totalItems: 1176, // 114 surah + 114 tafsir x 6 + 604 pages + 2 meta
+      execute: async (task, signal) => {
+        await QuranDataService.downloadAllQuranText((prog) => {
+          DownloadManager.updateProgress(task.id, prog.completed, prog.total, prog.percentage);
+          setTextDownloadProgress(prog);
+          if (prog.status === 'completed') {
+            setCacheMessage({ text: 'تم تحميل المصحف والتفاسير بنجاح للعمل أوفلاين!', type: 'success' });
+            checkTextCacheStatus();
+            setTimeout(() => {
+              setTextDownloadProgress(null);
+              setCacheMessage(null);
+            }, 5000);
+          } else if (prog.status === 'error') {
+            setCacheMessage({ text: prog.error || 'حدث خطأ أثناء تحميل المصحف الشريف.', type: 'error' });
+            checkTextCacheStatus();
+            setTimeout(() => {
+              setTextDownloadProgress(null);
+              setCacheMessage(null);
+            }, 5000);
+          }
+        }, signal);
       }
     });
   };

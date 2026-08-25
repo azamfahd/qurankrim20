@@ -282,7 +282,8 @@ export class QuranDataService {
    * Downloads concurrently in controlled chunks to avoid browser rate limits.
    */
   static async downloadAllQuranText(
-    onProgress: (progress: TextCacheProgress) => void
+    onProgress: (progress: TextCacheProgress) => void,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
       if (!('caches' in window)) {
@@ -358,6 +359,9 @@ export class QuranDataService {
       
       const workers = Array(CONCURRENCY).fill(null).map(async () => {
         while (queue.length > 0) {
+          if (signal?.aborted) {
+            throw new Error('Aborted');
+          }
           const url = queue.shift();
           if (!url) break;
 
@@ -381,8 +385,13 @@ export class QuranDataService {
             let lastError: any = null;
 
             for (let attempt = 1; attempt <= retries; attempt++) {
+              if (signal?.aborted) throw new Error('Aborted');
               try {
-                const response = await fetch(url);
+                const fetchController = new AbortController();
+                if (signal) {
+                  signal.addEventListener('abort', () => fetchController.abort());
+                }
+                const response = await fetch(url, { signal: fetchController.signal });
                 if (response.ok) {
                   await cache.put(url, response);
                   success = true;
@@ -390,7 +399,10 @@ export class QuranDataService {
                 } else {
                   lastError = new Error(`HTTP status ${response.status}`);
                 }
-              } catch (err) {
+              } catch (err: any) {
+                if (err.name === 'AbortError' || signal?.aborted) {
+                  throw err;
+                }
                 lastError = err;
               }
               
@@ -406,7 +418,8 @@ export class QuranDataService {
               // Add a very small delay even on success to avoid bursting requests
               await new Promise(resolve => setTimeout(resolve, 80));
             }
-          } catch (e) {
+          } catch (e: any) {
+            if (e.name === 'AbortError' || e.message === 'Aborted' || signal?.aborted || e.message?.includes('aborted')) throw e;
             console.error(`Unexpected error for ${url}:`, e);
           }
 
@@ -429,6 +442,7 @@ export class QuranDataService {
         status: 'completed'
       });
     } catch (e: any) {
+      if (e.name === 'AbortError' || e.message === 'Aborted' || signal?.aborted || e.message?.includes('aborted')) throw e;
       console.error('Failed to download Quran text database:', e);
       onProgress({
         total: 1176,

@@ -121,7 +121,8 @@ export class AudioCacheService {
     surahNumber: number,
     reciterId: string,
     ayahs: any[],
-    onProgress: (progress: CacheProgress) => void
+    onProgress: (progress: CacheProgress) => void,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
       if (!('caches' in window)) {
@@ -140,9 +141,12 @@ export class AudioCacheService {
       });
 
       for (const ayah of ayahs) {
+        if (signal?.aborted) {
+          throw new Error('Aborted');
+        }
+
         const url = getQuranAudioUrl(reciterId, ayah.number, surahNumber, ayah.numberInSurah);
         
-        // Check if already cached
         const alreadyCached = await cache.match(url);
         if (alreadyCached) {
           completed++;
@@ -155,9 +159,13 @@ export class AudioCacheService {
           continue;
         }
 
-        // Fetch and put in cache
         try {
-          const response = await fetch(url);
+          const fetchController = new AbortController();
+          if (signal) {
+            signal.addEventListener('abort', () => fetchController.abort());
+          }
+          
+          const response = await fetch(url, { signal: fetchController.signal });
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           await cache.put(url, response);
           completed++;
@@ -169,8 +177,10 @@ export class AudioCacheService {
             status: 'downloading'
           });
         } catch (err: any) {
+          if (err.name === 'AbortError' || signal?.aborted || err.message?.includes('aborted')) {
+            throw err;
+          }
           console.error(`Failed to download ayah ${ayah.number}:`, err);
-          // Keep downloading others even if one fails
         }
       }
 
@@ -182,6 +192,9 @@ export class AudioCacheService {
         error: completed < total ? 'بعض الآيات لم تُحمل بنجاح بسبب مشكلة في الاتصال.' : undefined
       });
     } catch (e: any) {
+      if (e.name === 'AbortError' || signal?.aborted || e.message?.includes('aborted')) {
+        throw e;
+      }
       console.error('Download surah failed:', e);
       onProgress({
         total: ayahs.length,

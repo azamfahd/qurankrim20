@@ -9,6 +9,7 @@ import { QuranDataService } from '../services/QuranDataService';
 import { AudioCacheService, CacheProgress } from '../services/audioCacheService';
 import { getQuranAudioUrl } from '../../utils/quranAudio';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DownloadManager } from '../../services/DownloadManager';
 import { getCleanSurahName } from './AyahMarker';
 
 export const RECITERS = [
@@ -93,18 +94,30 @@ const QuranAudioPlayer = () => {
 
   const handleDownloadSurah = async () => {
     if (!surahData || !surahData.ayahs) return;
-    await AudioCacheService.downloadSurah(
-      currentSurah,
-      reciter,
-      surahData.ayahs,
-      (prog) => {
-        setDownloadProgress(prog);
-        if (prog.status === 'completed' || prog.status === 'error') {
-          checkDownloadStatus();
-          setTimeout(() => setDownloadProgress(null), 4000);
-        }
+    
+    DownloadManager.addTask({
+      id: `quran-surah-${currentSurah}-${reciter}`,
+      title: `تحميل سورة ${surahData.name} - ${RECITERS.find(r => r.id === reciter)?.name || ''}`,
+      type: 'quran-surah',
+      payload: { surahNumber: currentSurah, reciterId: reciter },
+      totalItems: surahData.ayahs.length,
+      execute: async (task, signal) => {
+        await AudioCacheService.downloadSurah(
+          currentSurah,
+          reciter,
+          surahData.ayahs,
+          (prog) => {
+            DownloadManager.updateProgress(task.id, prog.completed, prog.total, prog.percentage);
+            setDownloadProgress(prog);
+            if (prog.status === 'completed' || prog.status === 'error') {
+              checkDownloadStatus();
+              setTimeout(() => setDownloadProgress(null), 4000);
+            }
+          },
+          signal
+        );
       }
-    );
+    });
   };
 
   const handleDeleteSurahCache = async () => {

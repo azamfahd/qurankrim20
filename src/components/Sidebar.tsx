@@ -1,8 +1,9 @@
 import React from 'react';
-import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin } from 'lucide-react';
+import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin, Smartphone, Bell } from 'lucide-react';
 import { UserSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SmartAppButton } from './SmartAppButton';
+import { DhikrReminderService } from '../services/dhikrReminderService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface SidebarProps {
   onOpenProphets?: () => void;
   onOpenBookmarks: () => void;
   onOpenAdhkar: () => void;
+  onOpenDhikrReminder?: () => void;
   onOpenNamesOfAllah: () => void;
   onOpenQibla: () => void;
   onOpenLocation?: () => void;
@@ -24,6 +26,7 @@ interface SidebarProps {
   onOpenMiracles: () => void;
   onOpenAbout: () => void;
   onOpenFeedback: () => void;
+  onOpenInstall?: () => void;
   userInfo: UserSettings;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -39,6 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenProphets,
   onOpenBookmarks,
   onOpenAdhkar,
+  onOpenDhikrReminder,
   onOpenNamesOfAllah,
   onOpenQibla,
   onOpenLocation,
@@ -48,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenMiracles,
   onOpenAbout,
   onOpenFeedback,
+  onOpenInstall,
   userInfo,
   onShowToast
 }) => {
@@ -171,6 +176,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               <SidebarItem 
+                icon={<Bell size={20} />} 
+                label="التنبيه الذكي بذكر الله والصلاة على النبي ﷺ" 
+                badge={DhikrReminderService.getSettings().enabled ? 'نشط' : 'جديد'}
+                onClick={() => { if (onOpenDhikrReminder) onOpenDhikrReminder(); onClose(); }} 
+                variant="dhikr_alert"
+              />
+
+              <SidebarItem 
                 icon={<SunMoon size={20} />} 
                 label="أذكار الصباح والمساء" 
                 onClick={() => { onOpenAdhkar(); onClose(); }} 
@@ -254,7 +267,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => { onOpenSettings(); onClose(); }} 
                 variant="settings"
               />
-              {isStandalone ? (
+
+              <div className="pt-1 space-y-1.5">
                 <SidebarItem 
                   icon={<Share2 size={20} />} 
                   label="مشاركة التطبيق" 
@@ -277,33 +291,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }} 
                   variant="share"
                 />
-              ) : (
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <SidebarItemCompact 
-                    icon={<Share2 size={18} />} 
-                    label="مشاركة التطبيق" 
+
+                {/* Only show install button if user is running in browser and has NOT already installed the app */}
+                {!isStandalone && (
+                  <SidebarItem 
+                    icon={<Smartphone size={20} />} 
+                    label="تحميل وتثبيت التطبيق" 
+                    badge="APK / PWA"
                     onClick={() => {
-                      if (navigator.share) {
-                        navigator.share({
-                          title: 'تطبيق أنيس القلوب',
-                          text: 'رفيقك القرآني للتدبر والسكينة. جربه الآن!',
-                          url: window.location.origin
-                        }).catch((error) => {
-                          if (error.name !== 'AbortError' && !error.message.includes('canceled')) {
-                            console.error('Error sharing:', error);
-                          }
-                        });
-                      } else {
-                        navigator.clipboard.writeText(window.location.origin);
-                        onShowToast('تم نسخ رابط التطبيق بنجاح', 'success');
+                      if (onOpenInstall) {
+                        onOpenInstall();
                       }
                       onClose();
                     }} 
-                    variant="share"
+                    variant="apk"
                   />
-                  <SmartAppButton variant="sidebar-grid" onCloseSidebar={onClose} />
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="p-4 text-center border-t border-[var(--color-border)] bg-gray-50/50 space-y-0.5">
@@ -354,6 +358,11 @@ const VARIANT_MAP = {
     bg: 'bg-[#fff7ed]/55 hover:bg-[#fff7ed]/90 border-orange-600/10 hover:border-orange-600/40 shadow-[0_2px_8px_rgba(234,88,12,0.02)] hover:shadow-lg text-orange-950',
     iconBg: 'bg-orange-600/10 text-orange-700 group-hover:bg-orange-600 group-hover:text-white',
     text: 'text-orange-950 group-hover:text-orange-800'
+  },
+  dhikr_alert: {
+    bg: 'bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 hover:bg-amber-500/20 border-amber-500/30 hover:border-amber-500/60 shadow-[0_2px_8px_rgba(217,119,6,0.06)] hover:shadow-lg text-emerald-950',
+    iconBg: 'bg-gradient-to-br from-amber-400 to-amber-600 text-emerald-950 group-hover:scale-110 group-hover:rotate-6 shadow-sm',
+    text: 'text-emerald-950 font-black group-hover:text-emerald-900'
   },
   names: {
     bg: 'bg-[#fffbeb]/55 hover:bg-[#fffbeb]/90 border-amber-600/10 hover:border-amber-600/40 shadow-[0_2px_8px_rgba(217,119,6,0.02)] hover:shadow-lg text-amber-950',
@@ -414,18 +423,25 @@ const VARIANT_MAP = {
     bg: 'bg-[#f0f9ff]/55 hover:bg-[#f0f9ff]/90 border-sky-600/10 hover:border-sky-600/40 shadow-[0_2px_8px_rgba(2,132,199,0.02)] hover:shadow-lg text-sky-950',
     iconBg: 'bg-sky-600/10 text-sky-700 group-hover:bg-sky-600 group-hover:text-white',
     text: 'text-sky-950 group-hover:text-sky-800'
+  },
+  apk: {
+    bg: 'bg-gradient-to-r from-[#022c22]/95 via-[#064e3b]/90 to-[#042f2e]/95 border-amber-400/50 hover:border-amber-400 shadow-[0_4px_16px_rgba(4,61,46,0.35)] hover:shadow-xl text-white',
+    iconBg: 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 group-hover:scale-110 shadow-md',
+    text: 'text-amber-100 group-hover:text-white'
   }
 };
 
 const SidebarItem = ({ 
   icon, 
   label, 
+  badge,
   onClick, 
   primary = false, 
   variant = 'default' 
 }: { 
   icon: React.ReactNode, 
   label: string, 
+  badge?: string,
   onClick: () => void, 
   primary?: boolean, 
   variant?: keyof typeof VARIANT_MAP 
@@ -433,27 +449,34 @@ const SidebarItem = ({
   const currentVariant = VARIANT_MAP[variant] || VARIANT_MAP.default;
   return (
     <button 
-      className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group border cursor-pointer hover:-translate-y-1 active:translate-y-0 ${
+      className={`w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl transition-all duration-300 group border cursor-pointer hover:-translate-y-1 active:translate-y-0 ${
         primary 
           ? 'bg-gradient-to-r from-[#022c22] via-[#05533f] to-[#022c22] text-white border-[var(--color-gold)]/50 hover:border-[var(--color-gold)] shadow-[0_6px_16px_-2px_rgba(4,61,46,0.35)] hover:shadow-[0_12px_24px_-4px_rgba(4,61,46,0.45)]' 
           : currentVariant.bg
       }`}
       onClick={onClick}
     >
-      <div className={`p-2.5 rounded-xl transition-all duration-300 ${
-        primary 
-          ? 'bg-gradient-to-br from-[#f1e5ac] to-[#d4af37] text-[#022c22] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.4)]' 
-          : `${currentVariant.iconBg} group-hover:rotate-3 group-hover:scale-105 group-hover:shadow-md`
-      }`}>
-        {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div className={`p-2.5 rounded-xl transition-all duration-300 shrink-0 ${
+          primary 
+            ? 'bg-gradient-to-br from-[#f1e5ac] to-[#d4af37] text-[#022c22] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.4)]' 
+            : `${currentVariant.iconBg} group-hover:rotate-3 group-hover:scale-105 group-hover:shadow-md`
+        }`}>
+          {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
+        </div>
+        <span className={`font-black text-xs sm:text-sm tracking-wide transition-colors truncate ${
+          primary 
+            ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]' 
+            : currentVariant.text
+        }`}>
+          {label}
+        </span>
       </div>
-      <span className={`font-black text-xs sm:text-sm tracking-wide transition-colors ${
-        primary 
-          ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]' 
-          : currentVariant.text
-      }`}>
-        {label}
-      </span>
+      {badge && (
+        <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black shrink-0 shadow-sm border border-amber-200/60">
+          {badge}
+        </span>
+      )}
     </button>
   );
 };

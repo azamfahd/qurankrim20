@@ -275,6 +275,16 @@ button, a, [role="button"] {
 }
 
 /* Custom 3D Themes for Each Quick Action */
+.action-card.dhikr-alert {
+  --card-glow: rgba(245, 158, 11, 0.45);
+  --card-border: rgba(245, 158, 11, 0.45);
+  --card-border-hover: rgba(251, 191, 36, 0.95);
+  --card-3d-shadow: #78350f;
+  --card-icon-gradient: linear-gradient(135deg, #f59e0b, #d97706, #10b981);
+  --card-icon-text: #022c22;
+  --card-accent-text: #fef08a;
+}
+
 .action-card.hijri {
   --card-glow: rgba(212, 175, 55, 0.35);
   --card-border: rgba(212, 175, 55, 0.35);

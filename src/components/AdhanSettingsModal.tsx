@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Volume2, VolumeX, Save, Bell, BellRing, Info, 
   Check, Play, Square, Sparkles, Moon, Sun, Sunrise, Sunset, Clock, Compass, ShieldCheck,
-  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2
+  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2, Zap, Settings, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserSettings, AdhanSettings } from '../types';
 import { MUEZZINS_LIST, AdhanAudioEngine, AdhanOfflineManager } from '../services/adhanService';
+import { SmartPermissionModal } from './SmartPermissionModal';
 
 interface AdhanSettingsModalProps {
   isOpen: boolean;
@@ -44,13 +45,22 @@ const PRAYERS_CONFIG = [
   { key: 'ishaEnabled' as const, name: 'العشاء', icon: Moon, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30' },
 ];
 
+import { DownloadManager } from '../services/DownloadManager';
+
 export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [adhan, setAdhan] = useState<AdhanSettings>(settings.adhanSettings || defaultAdhanSettings);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [playingMuezzinId, setPlayingMuezzinId] = useState<string | null>(null);
+  const [isSmartPermOpen, setIsSmartPermOpen] = useState(false);
+  const [notificationPerm, setNotificationPerm] = useState<string>('default');
+  const [isTestingQuickAlert, setIsTestingQuickAlert] = useState(false);
 
-  // Offline caching states
+  const checkNotificationPermission = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotificationPerm(Notification.permission);
+    }
+  };
   const [downloadedMuezzinIds, setDownloadedMuezzinIds] = useState<string[]>([]);
   const [totalCachedBytes, setTotalCachedBytes] = useState<number>(0);
   const [downloadingMap, setDownloadingMap] = useState<Record<string, number>>({});
@@ -70,53 +80,26 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   };
 
   const handleDownloadAll = async (isAutoTrigger = false) => {
-    if (isDownloadingAll || isAutoDownloadingRef.current) return;
-    setIsDownloadingAll(true);
-    isAutoDownloadingRef.current = true;
-
-    try {
-      const status = await AdhanOfflineManager.getAllDownloadedStatus();
-      setDownloadedMuezzinIds(status.downloadedIds);
-      setTotalCachedBytes(status.totalSizeBytes);
-
-      const missing = MUEZZINS_LIST.filter(m => !status.downloadedIds.includes(m.id));
-      if (missing.length === 0) {
-        setIsDownloadingAll(false);
-        isAutoDownloadingRef.current = false;
-        return;
+    DownloadManager.addTask({
+      id: 'adhan-all',
+      title: 'تحميل جميع أصوات الأذان',
+      type: 'adhan-all',
+      payload: {},
+      totalItems: MUEZZINS_LIST.length,
+      execute: async (task, signal) => {
+        const res = await AdhanOfflineManager.autoDownloadAllMuezzins((mId, p, done, total) => {
+          DownloadManager.updateProgress(task.id, done, total);
+        }, signal);
+        if (res.success) {
+          refreshOfflineStatus();
+        }
       }
-
-      for (const m of missing) {
-        setDownloadingMap(prev => ({ ...prev, [m.id]: 25 }));
-        const res = await AdhanOfflineManager.downloadMuezzinAudio(m.id, (p) => {
-          setDownloadingMap(prev => ({ ...prev, [m.id]: p }));
-        });
-        
-        // Update offline status incrementally
-        const currentStatus = await AdhanOfflineManager.getAllDownloadedStatus();
-        setDownloadedMuezzinIds(currentStatus.downloadedIds);
-        setTotalCachedBytes(currentStatus.totalSizeBytes);
-
-        setDownloadingMap(prev => {
-          const next = { ...prev };
-          delete next[m.id];
-          return next;
-        });
-      }
-
-      const finalStatus = await refreshOfflineStatus();
-      setIsDownloadingAll(false);
-      isAutoDownloadingRef.current = false;
-
-      if (finalStatus.downloadedIds.length === MUEZZINS_LIST.length) {
-        setToastMessage('تم تحميل وحفظ أذان جميع القراء محلياً بنجاح! التطبيق جاهز للعمل بدون إنترنت.');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3500);
-      }
-    } catch (err) {
-      console.error("Download all error:", err);
-      setIsDownloadingAll(false);
-      isAutoDownloadingRef.current = false;
+    });
+    
+    if (!isAutoTrigger) {
+      setToastMessage('تم بدء تحميل جميع الأصوات في الخلفية...');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2500);
     }
   };
 
@@ -125,24 +108,22 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     try {
       const isDownloaded = await AdhanOfflineManager.isMuezzinDownloaded(muezzinId);
       if (!isDownloaded.downloaded) {
-        setDownloadingMap(prev => ({ ...prev, [muezzinId]: 20 }));
-        await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (p) => {
-          setDownloadingMap(prev => ({ ...prev, [muezzinId]: p }));
+        DownloadManager.addTask({
+          id: `adhan-${muezzinId}`,
+          title: `تحميل صوت الأذان المحدد`,
+          type: 'adhan',
+          payload: { muezzinId },
+          totalItems: 100,
+          execute: async (task, signal) => {
+            await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (p) => {
+              DownloadManager.updateProgress(task.id, p, 100, p);
+            }, signal);
+            refreshOfflineStatus();
+          }
         });
-        setDownloadingMap(prev => {
-          const next = { ...prev };
-          delete next[muezzinId];
-          return next;
-        });
-        await refreshOfflineStatus();
       }
     } catch (e) {
       console.warn("Failed to download selected muezzin:", e);
-      setDownloadingMap(prev => {
-        const next = { ...prev };
-        delete next[muezzinId];
-        return next;
-      });
     }
   };
 
@@ -151,6 +132,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       const currentAdhan = settings.adhanSettings || defaultAdhanSettings;
       setAdhan(currentAdhan);
       setPlayingMuezzinId(null);
+      checkNotificationPermission();
       
       refreshOfflineStatus().then((status) => {
         // Automatically download ONLY the selected muezzin if enabled and not already downloaded
@@ -163,8 +145,53 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     } else {
       AdhanAudioEngine.stop();
       setPlayingMuezzinId(null);
+      setIsTestingQuickAlert(false);
     }
   }, [isOpen, settings]);
+
+  const handleQuickTest = async () => {
+    if (isTestingQuickAlert) {
+      AdhanAudioEngine.stop();
+      setIsTestingQuickAlert(false);
+      return;
+    }
+
+    setIsTestingQuickAlert(true);
+    const mId = adhan.muezzin || 'mishary';
+    const mObj = MUEZZINS_LIST.find(m => m.id === mId) || MUEZZINS_LIST[0];
+
+    // Notification test
+    if ('Notification' in window && Notification.permission === 'granted') {
+      AdhanAudioEngine.dispatchPrayerNotification('صلاة تجريبية', mObj.name);
+    }
+
+    const res = await AdhanAudioEngine.play(
+      mId,
+      adhan.volume,
+      () => setIsTestingQuickAlert(false),
+      undefined,
+      'صلاة تجريبية'
+    );
+
+    if (res.success) {
+      setToastMessage(`تم إرسال إشعار تجريبي وتشغيل أذان (${mObj.name}) بنجاح!`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+
+      // Auto stop after 6 seconds
+      setTimeout(() => {
+        if (AdhanAudioEngine.isPlaying()) {
+          AdhanAudioEngine.stop();
+          setIsTestingQuickAlert(false);
+        }
+      }, 6000);
+    } else {
+      setIsTestingQuickAlert(false);
+      setToastMessage(res.error || 'تعذر تشغيل الصوت. يرجى التأكد من تحميل صوت المؤذن.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+    }
+  };
 
   const togglePreview = async (muezzinId: string) => {
     if (playingMuezzinId === muezzinId) {
@@ -191,30 +218,29 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
   const handleDownloadMuezzin = async (muezzinId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (downloadingMap[muezzinId] !== undefined) return;
-
-    setDownloadingMap(prev => ({ ...prev, [muezzinId]: 10 }));
-    const result = await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (percent) => {
-      setDownloadingMap(prev => ({ ...prev, [muezzinId]: percent }));
+    const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
+    if (!muezzin) return;
+    
+    DownloadManager.addTask({
+      id: `adhan-${muezzinId}`,
+      title: `تحميل أذان - ${muezzin.name}`,
+      type: 'adhan',
+      payload: { muezzinId },
+      totalItems: 100,
+      execute: async (task, signal) => {
+        const result = await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (percent) => {
+          DownloadManager.updateProgress(task.id, percent, 100, percent);
+        }, signal);
+        
+        if (result.success) {
+          refreshOfflineStatus();
+        }
+      }
     });
 
-    setDownloadingMap(prev => {
-      const next = { ...prev };
-      delete next[muezzinId];
-      return next;
-    });
-
-    if (result.success) {
-      await refreshOfflineStatus();
-      const mName = MUEZZINS_LIST.find(m => m.id === muezzinId)?.name || 'المؤذن';
-      setToastMessage(`تم تحميل وتخزين أذان (${mName}) محلياً! يعمل الآن دون إنترنت.`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } else {
-      setToastMessage(`تعذر تحميل الملف: ${result.error || 'يرجى التحقق من الاتصال بالإنترنت'}`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3500);
-    }
+    setToastMessage(`تم إضافة ${muezzin.name} لقائمة التحميل`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2500);
   };
 
   const handleDeleteOfflineMuezzin = async (muezzinId: string, e: React.MouseEvent) => {
@@ -238,8 +264,11 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
     try {
       localStorage.setItem('anis_adhan_settings', JSON.stringify(adhan));
+      // Re-sync 30 days prayer schedule with chosen calculation method & location
+      const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
+      AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod);
     } catch (e) {
-      console.error("Local storage error:", e);
+      console.error("Local storage sync error:", e);
     }
 
     if (adhan.enabled) {
@@ -343,16 +372,22 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     type="checkbox" 
                     className="sr-only peer" 
                     checked={adhan.enabled} 
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const isChecked = e.target.checked;
                       setAdhan({...adhan, enabled: isChecked});
                       if (isChecked) {
+                        // Check if permission already granted or trigger smart permission modal
+                        if ('Notification' in window && Notification.permission !== 'granted') {
+                          setIsSmartPermOpen(true);
+                        } else {
+                          checkNotificationPermission();
+                        }
                         if (adhan.muezzin) {
                           ensureSelectedMuezzinDownloaded(adhan.muezzin);
                         }
-                        setToastMessage('تم تفعيل صوت الأذان! جاري تحميل صوت المؤذن المختار للعمل بدون إنترنت...');
+                        setToastMessage('تم تفعيل صوت وتنبيهات الأذان بنجاح!');
                         setShowToast(true);
-                        setTimeout(() => setShowToast(false), 3500);
+                        setTimeout(() => setShowToast(false), 3000);
                       } else {
                         setToastMessage('تم تعطيل صوت الأذان والتنبيهات.');
                         setShowToast(true);
@@ -654,7 +689,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                 <div className="p-1.5 bg-emerald-500/20 rounded-xl text-emerald-700 dark:text-emerald-300 shrink-0 mt-0.5">
                   <ShieldCheck size={16} />
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 flex-1">
                   <p className="font-bold text-xs">حساب فلكي دقيق وموثق بدون اتصال:</p>
                   <p className="text-[11px] leading-relaxed opacity-90">
                     يتم احتساب المواقيت بدقة فلكية تامة محلياً داخل جهازك دون الحاجة لسيرفر خارجي، والأصوات المحمّلة تنطلق فوراً دون اتصال بالإنترنت.
@@ -662,6 +697,23 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                 </div>
               </div>
 
+              {/* Troubleshooting / Battery Optimization Warning */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-900/30 border border-amber-500/40 flex items-start gap-3 text-amber-900 dark:text-amber-200 text-xs mt-2">
+                <div className="p-1.5 bg-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
+                  <AlertTriangle size={16} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <p className="font-bold text-xs">لضمان عمل الأذان والشاشة مقفلة (هام جداً):</p>
+                  <p className="text-[11px] leading-relaxed opacity-90 mb-1">
+                    إذا كان الأذان لا يعمل في الخلفية أو عند قفل الهاتف، فهذا بسبب نظام <strong>"تحسين البطارية"</strong> الخاص بجهازك والذي يقتل التطبيقات.
+                  </p>
+                  <ul className="list-disc list-inside text-[10px] space-y-0.5 pr-1 font-medium opacity-80">
+                    <li>اذهب إلى إعدادات الهاتف (Settings) ⬅️ التطبيقات</li>
+                    <li>ابحث عن هذا التطبيق وادخل على إعدادات "البطارية"</li>
+                    <li>اختر <strong>"غير مقيّد" (Unrestricted)</strong> أو أوقف تحسين البطارية.</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             {/* Footer Actions */}
@@ -685,6 +737,25 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
             </div>
 
           </motion.div>
+
+          {/* Adhan Background Execution & Permissions Guide Modal */}
+          {/* Smart On-Demand Permission Prompt Modal */}
+          <SmartPermissionModal
+            isOpen={isSmartPermOpen}
+            onClose={() => {
+              setIsSmartPermOpen(false);
+              checkNotificationPermission();
+            }}
+            title="تفعيل إشعارات وتنبيه الأذان الفوري"
+            description="لضمان وصول إشعار التنبيه وسماع صوت الأذان بدقة في وقته على شاشة القفل والخلفية."
+            icon="bell"
+            onGrantSuccess={() => {
+              setNotificationPerm('granted');
+              setToastMessage('تم تفعيل إذن الإشعارات بنجاح!');
+              setShowToast(true);
+              setTimeout(() => setShowToast(false), 3000);
+            }}
+          />
 
           {/* Toast Notification Alert */}
           <AnimatePresence>

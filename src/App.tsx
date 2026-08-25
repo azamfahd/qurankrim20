@@ -4,6 +4,7 @@ import Header from './components/Header';
 import { EmotionForm } from './components/EmotionForm';
 import { ResultCard } from './components/ResultCard';
 import { Toast, ToastType } from './components/Toast';
+import { GlobalDownloadOverlay } from './components/GlobalDownloadOverlay';
 import { Sidebar } from './components/Sidebar';
 import { DailyVerse } from './components/DailyVerse';
 import { PrayerTimesWidget } from './components/PrayerTimesWidget';
@@ -13,21 +14,26 @@ import { LocationService } from './services/locationService';
 import { LocationPromptBanner } from './components/LocationPromptBanner';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
 import { InstallPrompt } from './components/InstallPrompt';
+import { InstallModal } from './components/InstallModal';
+import { ApkUpdateBanner } from './components/ApkUpdateBanner';
 import { PullToRefresh } from './components/PullToRefresh';
 import { QuranChatSession } from './services/geminiService';
 import { SupabaseService } from './services/supabaseService';
 import { SyncService } from './services/syncService';
 import { LocalDatabaseService } from './db/localDb';
 import { ChatMessage, AppState, UserSettings, UserLocation, ChatSession, Bookmark, Verse } from './types';
-import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll } from 'lucide-react';
+import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll, Smartphone, Download, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Suspense } from 'react';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { DhikrReminderService } from './services/dhikrReminderService';
+import { DhikrFloatingBanner } from './components/DhikrFloatingBanner';
 
 // Lazy loaded modals for performance optimization with auto-retry on app updates
 const SettingsModal = lazyWithRetry(() => import('./components/SettingsModal'), 'SettingsModal');
+const DhikrSettingsModal = lazyWithRetry(() => import('./components/DhikrSettingsModal'), 'DhikrSettingsModal');
 const HistoryModal = lazyWithRetry(() => import('./components/HistoryModal'), 'HistoryModal');
 const TasbihModal = lazyWithRetry(() => import('./components/TasbihModal'), 'TasbihModal');
 const BookmarksModal = lazyWithRetry(() => import('./components/BookmarksModal'), 'BookmarksModal');
@@ -44,6 +50,7 @@ const ProphetsModal = lazyWithRetry(() => import('./components/ProphetsModal'), 
 const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'));
 const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
 const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
+const MissedAdhanDiagnosticModal = lazyWithRetry(() => import('./components/MissedAdhanDiagnosticModal').then(module => ({ default: module.MissedAdhanDiagnosticModal })));
 
 const ModalSuspenseFallback = () => null;
 
@@ -132,6 +139,7 @@ const App: React.FC = () => {
   const [isAdhanSettingsOpen, setIsAdhanSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isTasbihOpen, setIsTasbihOpen] = useState(false);
+  const [isDhikrReminderOpen, setIsDhikrReminderOpen] = useState(false);
   const [isQuranPlatformOpen, setIsQuranPlatformOpen] = useState(false);
   const [quranInitialState, setQuranInitialState] = useState<{ surah?: number, ayah?: number, view?: any }>({});
 
@@ -152,7 +160,10 @@ const App: React.FC = () => {
   const [isMiraclesOpen, setIsMiraclesOpen] = useState(false);
   const [isProphetsOpen, setIsProphetsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [apkUpdateInfo, setApkUpdateInfo] = useState<{ version: string; releaseNotes?: string; sizeFormatted?: string } | null>(null);
+  const [isApkUpdateBannerOpen, setIsApkUpdateBannerOpen] = useState(false);
   const [hijriOffset, setHijriOffset] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('anis_hijri_offset');
@@ -181,15 +192,28 @@ const App: React.FC = () => {
   // Live Adhan monitoring state
   const [liveAdhanPrayer, setLiveAdhanPrayer] = useState<string | null>(null);
   const [isLiveAdhanBannerOpen, setIsLiveAdhanBannerOpen] = useState(false);
+  const [isMissedAdhanModalOpen, setIsMissedAdhanModalOpen] = useState(false);
+  const [missedAdhanName, setMissedAdhanName] = useState<string | null>(null);
   const lastTriggeredPrayerKeyRef = useRef<string>('');
 
-  // Live Accurate Adhan Checker
+  // Live Accurate Adhan & Dhikr Checker
   useEffect(() => {
-    // Service worker message handler (e.g. Stop Adhan from Android notification action)
+    DhikrReminderService.init(settings.dhikrReminderSettings);
+  }, []);
+
+  useEffect(() => {
+    // Service worker message handler (e.g. Stop Adhan, APK Update Notification)
     const handleServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'STOP_ADHAN') {
+      if (!event.data) return;
+      if (event.data.type === 'STOP_ADHAN') {
         AdhanAudioEngine.stop();
         setIsLiveAdhanBannerOpen(false);
+      } else if (event.data.type === 'APK_UPDATE_AVAILABLE') {
+        const hasInstalledApk = localStorage.getItem('anis_apk_installed_version');
+        if (hasInstalledApk && event.data.versionInfo) {
+          setApkUpdateInfo(event.data.versionInfo);
+          setIsApkUpdateBannerOpen(true);
+        }
       }
     };
 
@@ -209,9 +233,12 @@ const App: React.FC = () => {
         const isPrayerEnabled = adhanConfig[prayer.key] as boolean;
         if (!isPrayerEnabled) return;
 
-        const diffMinutes = Math.abs((now.getTime() - prayer.time.getTime()) / 60000);
+        // Positive value means 'now' is after prayer time
+        const rawDiffMinutes = (now.getTime() - prayer.time.getTime()) / 60000; 
         const triggerKey = `${dateKey}_${prayer.name}`;
-        if (diffMinutes <= 1 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
+        
+        // Exact time window (within ~1.5 minutes)
+        if (Math.abs(rawDiffMinutes) <= 1.5 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
           lastTriggeredPrayerKeyRef.current = triggerKey;
           setLiveAdhanPrayer(prayer.name);
           setIsLiveAdhanBannerOpen(true);
@@ -226,6 +253,13 @@ const App: React.FC = () => {
 
           // High-priority Android TWA / PWA / Web notification with Action buttons
           AdhanAudioEngine.dispatchPrayerNotification(prayer.name, muezzinName);
+        } 
+        // OS Battery Optimization Detection: Woke up late! (Between 1.5 to 20 mins late)
+        else if (rawDiffMinutes > 1.5 && rawDiffMinutes <= 20 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
+          // Record it so we don't spam
+          lastTriggeredPrayerKeyRef.current = triggerKey;
+          setMissedAdhanName(prayer.name);
+          setIsMissedAdhanModalOpen(true);
         }
       });
     };
@@ -292,6 +326,7 @@ const App: React.FC = () => {
       // Esc to close all modals
       if (e.key === 'Escape') {
         setIsSettingsOpen(false);
+        setIsDhikrReminderOpen(false);
         setIsAdhanSettingsOpen(false);
         setIsHistoryOpen(false);
         setIsTasbihOpen(false);
@@ -306,6 +341,7 @@ const App: React.FC = () => {
         setIsMiraclesOpen(false);
         setIsProphetsOpen(false);
         setIsAboutOpen(false);
+        setIsInstallModalOpen(false);
         setIsFeedbackOpen(false);
         setIsSidebarOpen(false);
       }
@@ -1129,63 +1165,52 @@ const App: React.FC = () => {
                  </div>
                  
                  <div className="relative z-10 flex flex-col items-center">
-                   {/* Noble Quran Direct Access 3D Jewel Button */}
-                   <button
-                     onClick={() => openQuran(undefined, undefined, 'index')}
-                     className="mb-5 group relative overflow-hidden inline-flex items-center gap-3.5 px-6 py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none"
-                     style={{
-                       background: 'linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)',
-                       boxShadow: '0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)',
-                       border: '1px solid rgba(212, 175, 55, 0.65)'
-                     }}
-                     title="فتح فهرس المصحف الشريف لاختيار وتلاوة القرآن الكريم"
-                   >
-                     {/* Glossy sheen top overlay */}
-                     <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-t-2xl"></div>
+                    {/* Noble Quran Direct Access 3D Jewel Button */}
+                    <div className="flex justify-center mb-5 w-full max-w-sm px-2">
+                      <button
+                        onClick={() => openQuran(undefined, undefined, "index")}
+                        className="group relative overflow-hidden inline-flex items-center justify-between gap-3.5 px-6 py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
+                        style={{
+                          background: "linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)",
+                          boxShadow: "0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
+                          border: "1px solid rgba(212, 175, 55, 0.65)"
+                        }}
+                        title="فتح فهرس المصحف الشريف لاختيار وتلاوة القرآن الكريم"
+                      >
+                        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-t-2xl"></div>
+                        <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
 
-                     {/* Animated light shimmer beam on hover */}
-                     <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
+                        <div className="flex items-center gap-3.5 relative z-10">
+                          <div 
+                            className="w-11 h-11 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                            style={{
+                              background: "linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.8), inset 0 -2px 0 rgba(0,0,0,0.3)",
+                              border: "1px solid rgba(255, 245, 200, 0.8)"
+                            }}
+                          >
+                            <BookOpen size={22} className="text-[#022c22] drop-shadow-sm" />
+                          </div>
 
-                     {/* 3D Gold Coin Icon Box */}
-                     <div 
-                       className="relative z-10 w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
-                       style={{
-                         background: 'linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)',
-                         boxShadow: '0 4px 12px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.8), inset 0 -2px 0 rgba(0,0,0,0.3)',
-                         border: '1px solid rgba(255, 245, 200, 0.8)'
-                       }}
-                     >
-                       <BookOpen size={20} className="text-[#022c22] drop-shadow-sm" />
-                     </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                المصحف الشريف
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-amber-400/50 text-amber-200">قراءة</span>
+                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-emerald-400/50 text-emerald-200">تلاوة</span>
+                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-teal-400/50 text-teal-200">تفسير</span>
+                            </div>
+                          </div>
+                        </div>
 
-                     {/* Main Labels & 3D Feature Pills */}
-                     <div className="relative z-10 text-right flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-                       <span className="text-base sm:text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                         المصحف الشريف
-                       </span>
-                       
-                       {/* Feature badges with 3D glow */}
-                       <div className="flex items-center gap-1.5 flex-wrap">
-                         <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-[12px] font-extrabold bg-emerald-950/90 border border-amber-400/60 text-amber-200 shadow-[0_2px_6px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-1">
-                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                           قراءة
-                         </span>
-                         <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-[12px] font-extrabold bg-emerald-950/90 border border-emerald-400/60 text-emerald-200 shadow-[0_2px_6px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-1">
-                           تلاوة
-                         </span>
-                         <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-[12px] font-extrabold bg-emerald-950/90 border border-teal-400/60 text-teal-200 shadow-[0_2px_6px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] flex items-center gap-1">
-                           تفسير
-                         </span>
-                       </div>
-                     </div>
-
-                     {/* 3D Action Arrow */}
-                     <div 
-                       className="relative z-10 mr-1 w-7 h-7 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner"
-                     >
-                       <ArrowLeft size={16} />
-                     </div>
-                   </button>
+                        <div className="relative z-10 mr-1 w-8 h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner shrink-0">
+                          <ArrowLeft size={18} />
+                        </div>
+                      </button>
+                    </div>
 
                     <h2 className="text-base sm:text-lg font-bold text-white tracking-normal leading-relaxed drop-shadow-md">كيف يمكنني أن أؤنس قلبك اليوم بآيات الله؟</h2>
                  </div>
@@ -1197,22 +1222,23 @@ const App: React.FC = () => {
                  
                  <div className="mt-3 flex flex-row flex-nowrap overflow-x-auto gap-2 max-w-2xl mx-auto px-4 w-full justify-start md:justify-center no-scrollbar pb-1 snap-x select-none">
                    {[
-                     "أشعر بضيق في صدري",
-                     "أريد آيات عن الصبر",
-                     "كيف أتوكل على الله؟",
-                     "أشعر بالقلق من المستقبل",
-                     "آيات تجلب السكينة"
-                   ].map((prompt, idx) => (
-                     <button
-                       key={idx}
-                       onClick={() => handleEmotionSubmit(prompt)}
-                       className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 snap-center select-none"
-                     >
-                       {prompt}
-                     </button>
-                   ))}
-                 </div>
-               </div>
+                      "أشعر بضيق في صدري",
+                      "أريد آيات عن الصبر",
+                      "كيف أتوكل على الله؟",
+                      "أشعر بالقلق من المستقبل",
+                      "آيات تجلب السكينة"
+                    ].map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleEmotionSubmit(prompt)}
+                        className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 snap-center select-none"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
 
                {/* Professional Status Grid Panels */}
                <div className="max-w-xl mx-auto my-5">
@@ -1261,7 +1287,13 @@ const App: React.FC = () => {
                        <ArrowLeft size={18} className="text-amber-300 group-hover:-translate-x-1 transition-transform" />
                      </div>
                    </div>
-                                       <div className="action-card prophets group" onClick={() => setIsProphetsOpen(true)}>
+                                                           <div className="action-card dhikr-alert group" onClick={() => setIsDhikrReminderOpen(true)}>
+                      <div className="action-card-icon bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950">
+                        <Bell size={22} className="animate-pulse" />
+                      </div>
+                      <span className="action-card-title font-black text-amber-300">تنبيه الأذكار</span>
+                    </div>
+                    <div className="action-card prophets group" onClick={() => setIsProphetsOpen(true)}>
                       <div className="action-card-icon">
                         <Scroll size={22} />
                       </div>
@@ -1356,6 +1388,7 @@ const App: React.FC = () => {
         onOpenHistory={() => setIsHistoryOpen(true)}
         onNewChat={startNewChat}
         onOpenTasbih={() => setIsTasbihOpen(true)}
+        onOpenDhikrReminder={() => setIsDhikrReminderOpen(true)}
         onOpenQuranPlatform={() => openQuran(undefined, undefined, 'index')}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         onOpenAdhkar={() => setIsAdhkarOpen(true)}
@@ -1369,6 +1402,7 @@ const App: React.FC = () => {
         onOpenProphets={() => setIsProphetsOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenInstall={() => setIsInstallModalOpen(true)}
         userInfo={settings}
         onShowToast={showToast}
       />
@@ -1563,14 +1597,59 @@ const App: React.FC = () => {
 
       <InstallPrompt />
 
+      <InstallModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        onShowToast={showToast}
+      />
+
+      <ApkUpdateBanner
+        isOpen={isApkUpdateBannerOpen}
+        versionInfo={apkUpdateInfo || undefined}
+        onUpdate={() => {
+          setIsApkUpdateBannerOpen(false);
+          const link = document.createElement('a');
+          link.href = '/app-release.apk';
+          link.download = 'anis-al-qulub.apk';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          if (apkUpdateInfo?.version) {
+            localStorage.setItem('anis_apk_installed_version', apkUpdateInfo.version);
+          }
+          showToast('جاري تحميل التحديث الجديد لملف الـ APK...', 'success');
+        }}
+        onDismiss={() => {
+          setIsApkUpdateBannerOpen(false);
+        }}
+      />
+
       <Toast 
         message={toast.message} 
         type={toast.type} 
         isVisible={toast.isVisible} 
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
       />
-          </Suspense>
-    </div>
+
+      <GlobalDownloadOverlay />
+
+      <MissedAdhanDiagnosticModal
+        isOpen={isMissedAdhanModalOpen}
+        onClose={() => setIsMissedAdhanModalOpen(false)}
+        prayerName={missedAdhanName || ''}
+      />
+
+      <DhikrSettingsModal
+        isOpen={isDhikrReminderOpen}
+        onClose={() => setIsDhikrReminderOpen(false)}
+        onShowToast={showToast}
+      />
+
+      <DhikrFloatingBanner
+        onOpenSettings={() => setIsDhikrReminderOpen(true)}
+      />
+    </Suspense>
+  </div>
   );
 };
 

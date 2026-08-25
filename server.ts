@@ -18,6 +18,62 @@ async function startServer() {
     }
   }));
 
+  // Serve Digital Asset Links for Android TWA / APK standalone validation
+  app.get("/.well-known/assetlinks.json", (req, res) => {
+    const assetlinksPath = path.join(process.cwd(), "public", ".well-known", "assetlinks.json");
+    if (fs.existsSync(assetlinksPath)) {
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+      return res.sendFile(assetlinksPath);
+    }
+    return res.status(404).json({ error: "assetlinks.json not found" });
+  });
+
+  // App & APK version endpoint for Service Worker live updates
+  app.get("/api/version", (req, res) => {
+    const apkPath = path.join(process.cwd(), "public", "app-release.apk");
+    let apkExists = false;
+    let apkSize = 0;
+    let lastModified = new Date().toISOString();
+
+    if (fs.existsSync(apkPath)) {
+      apkExists = true;
+      const stats = fs.statSync(apkPath);
+      apkSize = stats.size;
+      lastModified = stats.mtime.toISOString();
+    }
+
+    const sizeFormatted = apkSize > 0 ? `${(apkSize / (1024 * 1024)).toFixed(2)} MB` : '1.6 MB';
+
+    res.json({
+      name: "أنيس القلوب",
+      version: "1.1.0",
+      packageName: "app.azamfahd.qurankrim20.twa",
+      updatedAt: lastModified,
+      apk: {
+        available: apkExists,
+        version: "1.1.0",
+        size: apkSize,
+        sizeFormatted: sizeFormatted,
+        downloadUrl: "/app-release.apk",
+        releaseNotes: "تحسينات في سرعة التصفح والاستجابة وعمل المصواقيت دون اتصال."
+      }
+    });
+  });
+
+  // Direct APK download routes with proper headers and encoding support
+  app.get(["/app-release.apk", "/api/download-apk", encodeURI("/أنيس القلوب - رفيقك القرآني.apk")], (req, res) => {
+    const apkPath = path.join(process.cwd(), "public", "app-release.apk");
+    if (fs.existsSync(apkPath)) {
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      res.setHeader("Content-Disposition", 'attachment; filename="anis-al-qulub.apk"');
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.sendFile(apkPath);
+    }
+    return res.status(404).json({ error: "APK file not found" });
+  });
+
   // Adhan streaming & downloading proxy endpoint
   app.get("/api/adhan/stream/:id", (req, res) => {
     try {

@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "ضع_هنا_معرف_التطبيق_الخاص_بك_PACKAGE_NAME", 
+      "package_name": "app.azamfahd.qurankrim20.twa",
       "sha256_cert_fingerprints": [
-        "ضع_هنا_بصمة_SHA-256_الخاصة_بشهادة_توقيع_التطبيق_من_متجر_جوجل_أو_من_مفتاح_المطور"
+        "D6:44:DF:05:E8:BA:8F:FD:B6:07:AD:03:48:7F:95:49:96:2A:A7:4A:F7:7F:C2:62:7A:E5:F5:E3:56:E5:10:39"
       ]
     }
   }
