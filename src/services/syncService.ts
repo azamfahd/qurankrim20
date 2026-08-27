@@ -87,7 +87,9 @@ export class SyncService {
 
       if (loadedSettings) {
         const merged = { ...(localSettings || {}), ...loadedSettings };
-        await LocalDatabaseService.saveLocalSettings(merged as UserSettings);
+        delete merged.isLoggedIn;
+        delete merged.uid;
+        await LocalDatabaseService.saveLocalSettings({ ...currentSettings, ...merged, isLoggedIn: true, uid: userId });
         return merged;
       }
     } catch (e) {

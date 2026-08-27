@@ -156,7 +156,7 @@ export const InstallPrompt: React.FC = () => {
           <div className="flex items-center gap-2">
             <a
               href="/app-release.apk"
-              download="anis-al-qulub.apk"
+              download="أنيس القلوب - القرآن الذكي.apk"
               onClick={() => {
                 localStorage.setItem('anis_apk_installed_version', '1.1.0');
                 localStorage.setItem('anis_pwa_installed', 'true');

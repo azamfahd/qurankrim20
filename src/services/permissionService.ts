@@ -4,7 +4,7 @@
  * with an informative UI trigger flow.
  */
 
-export type PermissionType = 'notifications' | 'location' | 'audio';
+export type PermissionType = 'notifications' | 'location' | 'audio' | 'background';
 export type PermissionStateResult = 'granted' | 'denied' | 'prompt' | 'unsupported';
 
 export interface PermissionCheckResult {
@@ -22,7 +22,15 @@ export interface PermissionRequestOptions {
   onDeny?: () => void;
 }
 
+type PermissionListener = (options: PermissionRequestOptions) => void;
+
 export class PermissionService {
+  private static listener: PermissionListener | null = null;
+
+  public static setModalListener(listener: PermissionListener) {
+    this.listener = listener;
+  }
+
   /**
    * Detects if running inside Android WebView / TWA / APK container
    */
@@ -70,7 +78,7 @@ export class PermissionService {
         return 'prompt';
       }
 
-      if (type === 'audio') {
+      if (type === 'audio' || type === 'background') {
         return 'granted';
       }
     } catch (err) {
@@ -164,47 +172,60 @@ export class PermissionService {
    * Helper to determine whether the app needs to show a custom rationale modal
    * before triggering native Android WebView / browser prompt
    */
-  public static async checkAndRequestPermission(
-    type: PermissionType,
-    showModalCallback?: (options: PermissionRequestOptions) => void,
-    onSuccess?: () => void
-  ): Promise<boolean> {
+  public static async requestDynamicPermission(type: PermissionType): Promise<boolean> {
     const current = await this.checkPermission(type);
 
     if (current === 'granted') {
-      if (onSuccess) onSuccess();
       return true;
     }
 
-    // If a modal handler is provided and permission isn't granted yet, show beautiful rationale UI
-    if (showModalCallback) {
-      const titles: Record<PermissionType, string> = {
-        notifications: 'تفعيل إشعارات وتنبيهات الأذان',
-        location: 'تحديد الموقع لمواقيت الصلاة واتجاه القبلة',
-        audio: 'تشغيل الصوت والتلاوات'
-      };
+    // Attempt direct native system request first for seamless automatic experience
+    try {
+      const granted = await this.requestSystemPermission(type);
+      
+      // Force bypass the custom UI modal for notifications, audio, and background 
+      // but return the REAL granted state so the app knows if native notifications work.
+      if (type === 'notifications' || type === 'audio' || type === 'background') {
+        return granted;
+      }
+      
+      if (granted) return true;
+    } catch {}
 
-      const descriptions: Record<PermissionType, string> = {
-        notifications: 'يحتاج التطبيق لإذن الإشعارات لتنبيهك بدقة عند دخول وقت الصلاة وعرض الأذان على شاشة القفل.',
-        location: 'نستخدم إذن الموقع الجغرافي لحساب مواقيت الصلاة الدقيقة لمدينتك وتحديد زاوية القبلة الشريفة بدقة متناهية.',
-        audio: 'للسماح بتشغيل التلاوات القرآنية وصوت المؤذن في الخلفية.'
-      };
+    // Only show informative modal if not yet granted and listener is available
+    if (this.listener) {
+      return new Promise<boolean>((resolve) => {
+        const titles: Record<PermissionType, string> = {
+          notifications: 'تفعيل إشعارات وتنبيهات الأذان والأذكار',
+          location: 'تحديد الموقع لمواقيت الصلاة',
+          audio: 'تشغيل الصوت والتلاوات',
+          background: 'السماح بالعمل في الخلفية'
+        };
 
-      showModalCallback({
-        type,
-        title: titles[type],
-        description: descriptions[type],
-        onGrant: async () => {
-          const ok = await this.requestSystemPermission(type);
-          if (ok && onSuccess) onSuccess();
-        }
+        const descriptions: Record<PermissionType, string> = {
+          notifications: 'لتشغيل إشعارات الأذان والأذكار تلقائياً في الخلفية وعلى شاشة القفل دون الحاجة لفتح التطبيق.',
+          location: 'نستخدم الموقع الجغرافي لحساب مواقيت الصلاة الدقيقة لمدينتك وتحديد اتجاه القبلة الشريفة.',
+          audio: 'للسماح بتشغيل التلاوات القرآنية وصوت المؤذن.',
+          background: 'نحتاج صلاحية العمل في الخلفية لضمان رفع الأذان حتى عندما تكون الشاشة مقفلة.'
+        };
+
+        this.listener!({
+          type,
+          title: titles[type],
+          description: descriptions[type],
+          onGrant: async () => {
+            const granted = await this.requestSystemPermission(type);
+            resolve(granted);
+          },
+          onDeny: () => {
+            resolve(false);
+          }
+        });
       });
-      return false;
     }
 
-    // Fallback: direct system request
+    // Fallback: direct system request if no UI listener is registered
     const granted = await this.requestSystemPermission(type);
-    if (granted && onSuccess) onSuccess();
     return granted;
   }
 }
@@ -212,4 +233,4 @@ export class PermissionService {
 /**
  * Convenience standalone function
  */
-export const checkAndRequestPermission = PermissionService.checkAndRequestPermission.bind(PermissionService);
+export const requestDynamicPermission = PermissionService.requestDynamicPermission.bind(PermissionService);

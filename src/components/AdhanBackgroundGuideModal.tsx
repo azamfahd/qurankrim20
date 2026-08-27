@@ -1,3 +1,4 @@
+import { requestDynamicPermission } from "../services/permissionService";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -69,9 +70,10 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
     }
 
     try {
-      const perm = await Notification.requestPermission();
-      setNotificationPermission(perm);
-      if (perm === 'granted') {
+      const perm = await requestDynamicPermission('notifications');
+      const grantedStr = perm ? 'granted' : 'denied';
+      setNotificationPermission(grantedStr as NotificationPermission);
+      if (perm) {
         setTestResult({ status: 'success', message: 'تم منح إذن الإشعارات بنجاح! ستصلك تنبيهات الأذان ومواقيت الصلاة.' });
         if (onPermissionGranted) onPermissionGranted();
       } else if (perm === 'denied') {

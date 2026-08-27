@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, BellRing, X, Sparkles } from 'lucide-react';
+import { VolumeX, Play, X, BellRing, Sparkles } from 'lucide-react';
 import { AdhanAudioEngine } from '../services/adhanService';
 
 interface AdhanNotificationBannerProps {
@@ -8,70 +8,107 @@ interface AdhanNotificationBannerProps {
   isOpen: boolean;
   onClose: () => void;
   muezzinName?: string;
+  muezzinId?: string;
+  volume?: number;
 }
 
 export const AdhanNotificationBanner: React.FC<AdhanNotificationBannerProps> = ({
   prayerName,
   isOpen,
   onClose,
-  muezzinName = 'مشاري راشد العفاسي'
+  muezzinName = 'الشيخ مشاري راشد العفاسي',
+  muezzinId = 'mishary',
+  volume = 85
 }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const unsub = AdhanAudioEngine.subscribe(state => {
+      setIsPlaying(state.isPlaying);
+    });
+    return () => unsub();
+  }, []);
+
   if (!isOpen || !prayerName) return null;
 
   const handleStop = () => {
     AdhanAudioEngine.stop();
-    onClose();
+  };
+
+  const handleForcePlay = () => {
+    AdhanAudioEngine.unlockAudioContext();
+    AdhanAudioEngine.play(muezzinId, volume, undefined, undefined, prayerName);
   };
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -50, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -30, scale: 0.95 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 280 }}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-lg bg-gradient-to-r from-[var(--color-primary-dark)] via-slate-900 to-[var(--color-primary-dark)] border-2 border-[var(--color-gold)] text-white p-4 rounded-3xl shadow-2xl backdrop-blur-xl text-right"
+        initial={{ opacity: 0, y: -40, scale: 0.9, filter: 'blur(10px)' }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, y: -30, scale: 0.95, filter: 'blur(5px)' }}
+        transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+        className="fixed top-3 sm:top-5 left-1/2 -translate-x-1/2 z-[9999] w-[92%] sm:w-[320px] bg-slate-950/95 backdrop-blur-xl border border-white/10 text-white rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.7),0_0_12px_rgba(245,158,11,0.05)] overflow-hidden group"
         dir="rtl"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/50 flex items-center justify-center text-[var(--color-gold-light)] shrink-0 animate-pulse">
-              <BellRing size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-[var(--color-gold-light)]">حان الآن موعد أذان {prayerName}</span>
-                <Sparkles size={13} className="text-[var(--color-gold)]" />
+        {/* Subtle top gold accent line */}
+        <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent"></div>
+
+        <div className="p-2.5 flex flex-col gap-1.5 relative z-10">
+          {/* Main Info Row */}
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="relative shrink-0">
+                {isPlaying && <div className="absolute -inset-0.5 bg-amber-400/30 rounded-full animate-ping opacity-75"></div>}
+                <div className="w-7.5 h-7.5 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white relative z-10 shadow-md border border-amber-300/25">
+                  <BellRing size={12} className="animate-[wiggle_1s_ease-in-out_infinite]" />
+                </div>
               </div>
-              <p className="text-xs text-slate-300">بصوت: {muezzinName}</p>
+              <div className="min-w-0">
+                <span className="font-bold text-[11.5px] text-amber-300/95 leading-none block">أذان {prayerName}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5 leading-none">بصوت {muezzinName}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 shrink-0">
+              {isPlaying ? (
+                <button
+                  onClick={handleStop}
+                  className="flex items-center justify-center w-6 h-6 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  title="إيقاف"
+                >
+                  <VolumeX size={11} />
+                </button>
+              ) : (
+                <button
+                  onClick={handleForcePlay}
+                  className="flex items-center justify-center w-6 h-6 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all active:scale-95 cursor-pointer animate-pulse"
+                  title="تشغيل"
+                >
+                  <Play size={11} className="fill-current ml-0.5" />
+                </button>
+              )}
+              
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5 transition-colors cursor-pointer"
+                title="إغلاق"
+              >
+                <X size={11} />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleStop}
-              className="flex items-center gap-1 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
-              title="إيقاف صوت الأذان"
-            >
-              <VolumeX size={15} />
-              <span>إيقاف</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-              title="إخفاء التنبيه"
-            >
-              <X size={16} />
-            </button>
+          {/* Compact Post-Adhan Du'a */}
+          <div className="bg-black/30 rounded-xl px-2.5 py-1.5 flex items-start gap-1 border border-white/5 shadow-inner">
+            <Sparkles size={10} className="text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+            <p className="font-arabic text-[10px] sm:text-[10.5px] text-slate-200 leading-relaxed text-right font-medium">
+              «اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، آتِ مُحَمَّدًا الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا»
+            </p>
           </div>
-        </div>
-
-        {/* Post-Adhan Du'a */}
-        <div className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-slate-300 leading-relaxed bg-white/5 p-2.5 rounded-2xl">
-          <p className="font-semibold text-[var(--color-gold-light)] mb-0.5">دعاء ما بعد الأذان:</p>
-          <p className="font-arabic">«اللَّهُمَّ رَبَّ هَذِهِ الدَّعْوَةِ التَّامَّةِ، وَالصَّلَاةِ القَائِمَةِ، آتِ مُحَمَّدًا الوَسِيلَةَ وَالفَضِيلَةَ، وَابْعَثْهُ مَقَامًا مَحْمُودًا الَّذِي وَعَدْتَهُ»</p>
         </div>
       </motion.div>
     </AnimatePresence>
   );
 };
+

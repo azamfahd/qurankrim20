@@ -50,7 +50,8 @@ const ProphetsModal = lazyWithRetry(() => import('./components/ProphetsModal'), 
 const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'));
 const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
 const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
-const MissedAdhanDiagnosticModal = lazyWithRetry(() => import('./components/MissedAdhanDiagnosticModal').then(module => ({ default: module.MissedAdhanDiagnosticModal })));
+
+const DynamicPermissionModal = lazyWithRetry(() => import('./components/DynamicPermissionModal').then(module => ({ default: module.DynamicPermissionModal })));
 
 const ModalSuspenseFallback = () => null;
 
@@ -192,9 +193,21 @@ const App: React.FC = () => {
   // Live Adhan monitoring state
   const [liveAdhanPrayer, setLiveAdhanPrayer] = useState<string | null>(null);
   const [isLiveAdhanBannerOpen, setIsLiveAdhanBannerOpen] = useState(false);
-  const [isMissedAdhanModalOpen, setIsMissedAdhanModalOpen] = useState(false);
-  const [missedAdhanName, setMissedAdhanName] = useState<string | null>(null);
   const lastTriggeredPrayerKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    const unsub = AdhanAudioEngine.subscribe((state) => {
+      if (state.activePrayerName) {
+        setLiveAdhanPrayer(state.activePrayerName);
+        setIsLiveAdhanBannerOpen(true);
+      } else if (!state.isPlaying) {
+        // Only close if it stopped playing (though we might want to let the user close it manually, 
+        // but if activePrayerName is null, it means it was stopped)
+        setIsLiveAdhanBannerOpen(false);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Live Accurate Adhan & Dhikr Checker
   useEffect(() => {
@@ -214,6 +227,14 @@ const App: React.FC = () => {
           setApkUpdateInfo(event.data.versionInfo);
           setIsApkUpdateBannerOpen(true);
         }
+      } else if (event.data.type === 'PWA_UPDATE_AVAILABLE') {
+        showToast('تم إصدار تحديث جديد للتطبيق! قم بتحديث الصفحة للحصول على الميزات الجديدة.', 'success');
+        setTimeout(() => {
+           // Provide an update notification banner if you want, but for now we can just show a toast
+           if (window.confirm('تم العثور على تحديث جديد للبرنامج. هل ترغب بإعادة التحميل لتحديث الملفات الآن؟')) {
+             window.location.reload();
+           }
+        }, 1500);
       }
     };
 
@@ -237,15 +258,15 @@ const App: React.FC = () => {
         const rawDiffMinutes = (now.getTime() - prayer.time.getTime()) / 60000; 
         const triggerKey = `${dateKey}_${prayer.name}`;
         
-        // Exact time window (within ~1.5 minutes)
-        if (Math.abs(rawDiffMinutes) <= 1.5 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
+        // Active prayer window (from 0 to 15 minutes after prayer start)
+        if (rawDiffMinutes >= -0.5 && rawDiffMinutes <= 15 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
           lastTriggeredPrayerKeyRef.current = triggerKey;
           setLiveAdhanPrayer(prayer.name);
           setIsLiveAdhanBannerOpen(true);
 
           const muezzinId = adhanConfig.muezzin || 'mishary';
           const muezzinObj = MUEZZINS_LIST.find(m => m.id === muezzinId);
-          const muezzinName = muezzinObj?.name || 'الشيخ مشاري العفاسي';
+          const muezzinName = muezzinObj?.name || 'الشيخ مشاري راشد العفاسي';
 
           if (adhanConfig.autoPlayLiveAdhan !== false) {
             AdhanAudioEngine.play(muezzinId, adhanConfig.volume || 85, undefined, undefined, prayer.name);
@@ -254,30 +275,43 @@ const App: React.FC = () => {
           // High-priority Android TWA / PWA / Web notification with Action buttons
           AdhanAudioEngine.dispatchPrayerNotification(prayer.name, muezzinName);
         } 
-        // OS Battery Optimization Detection: Woke up late! (Between 1.5 to 20 mins late)
-        else if (rawDiffMinutes > 1.5 && rawDiffMinutes <= 20 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
-          // Record it so we don't spam
+        // If prayer is already well past (more than 15 mins), mark it quietly without any annoying alert
+        else if (rawDiffMinutes > 15 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
           lastTriggeredPrayerKeyRef.current = triggerKey;
-          setMissedAdhanName(prayer.name);
-          setIsMissedAdhanModalOpen(true);
         }
       });
     };
 
     checkAdhan();
-    const interval = setInterval(checkAdhan, 15000);
+    const interval = setInterval(checkAdhan, 5000);
 
-    // Re-check instantly when app comes back to foreground on mobile/Android
+    // Re-check instantly when app comes back to foreground or window receives focus
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        AdhanAudioEngine.unlockAudioContext();
         checkAdhan();
       }
     };
+    const handleFocus = () => {
+      AdhanAudioEngine.unlockAudioContext();
+      checkAdhan();
+    };
+
+    const handlePointerDown = () => {
+      AdhanAudioEngine.unlockAudioContext();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handleFocus);
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handleFocus);
+      window.removeEventListener('pointerdown', handlePointerDown);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
       }
@@ -385,6 +419,8 @@ const App: React.FC = () => {
         finalSettings = { 
           ...finalSettings, 
           ...loadedSettings, 
+          isLoggedIn: isLogged,
+          uid: isLogged ? uid : undefined,
           apiKey: effectiveApiKey, 
           location: effectiveLocation 
         };
@@ -1542,6 +1578,8 @@ const App: React.FC = () => {
         isOpen={isLiveAdhanBannerOpen}
         prayerName={liveAdhanPrayer}
         muezzinName={MUEZZINS_LIST.find(m => m.id === (settings.adhanSettings?.muezzin || 'mishary'))?.name}
+        muezzinId={settings.adhanSettings?.muezzin || 'mishary'}
+        volume={settings.adhanSettings?.volume ?? 85}
         onClose={() => setIsLiveAdhanBannerOpen(false)}
       />
 
@@ -1610,7 +1648,7 @@ const App: React.FC = () => {
           setIsApkUpdateBannerOpen(false);
           const link = document.createElement('a');
           link.href = '/app-release.apk';
-          link.download = 'anis-al-qulub.apk';
+          link.download = 'أنيس القلوب - القرآن الذكي.apk';
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -1632,12 +1670,7 @@ const App: React.FC = () => {
       />
 
       <GlobalDownloadOverlay />
-
-      <MissedAdhanDiagnosticModal
-        isOpen={isMissedAdhanModalOpen}
-        onClose={() => setIsMissedAdhanModalOpen(false)}
-        prayerName={missedAdhanName || ''}
-      />
+      <DynamicPermissionModal />
 
       <DhikrSettingsModal
         isOpen={isDhikrReminderOpen}

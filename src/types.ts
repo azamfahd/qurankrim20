@@ -35,7 +35,10 @@ export interface DhikrReciterInfo {
   avatar?: string;
   previewUrl: string;
   audioUrls?: { [dhikrId: string]: string };
+  fallbackUrls?: { [dhikrId: string]: string };
   isBuiltIn?: boolean;
+  sizeFormatted?: string;
+  offlineReady?: boolean;
 }
 
 export interface DhikrReminderSettings {
@@ -48,9 +51,6 @@ export interface DhikrReminderSettings {
   reciterId?: string; // 'mishary' | 'maher' | 'abdulbasit' | 'alghamdi' | 'qatami' | 'nufais' | 'sudais' | 'random'
   volume: number; // 0 - 100
   vibrate: boolean;
-  quietHoursEnabled: boolean;
-  quietHoursStart: string; // e.g. "23:00"
-  quietHoursEnd: string; // e.g. "06:00"
   showFloatingBanner: boolean;
   compactBanner?: boolean;
   autoDismissSeconds: number;
@@ -85,6 +85,7 @@ export interface UserSettings {
   apiKey?: string;
   bookmarks?: Bookmark[];
   isLoggedIn?: boolean;
+  uid?: string;
   location?: UserLocation;
   adhanSettings?: AdhanSettings;
   dhikrReminderSettings?: DhikrReminderSettings;

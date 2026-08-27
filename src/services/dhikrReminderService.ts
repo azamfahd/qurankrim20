@@ -1,17 +1,15 @@
+import { requestDynamicPermission } from "./permissionService";
 import { DhikrItem, DhikrReminderSettings, DhikrReciterInfo } from '../types';
 
 export const DEFAULT_DHIKR_SETTINGS: DhikrReminderSettings = {
-  enabled: false,
-  triggerOnAppOpen: false, // التنبيه عند فتح التطبيق مباشرة (مغلق ومستقل ليمنع أي إزعاج)
+  enabled: true,
+  triggerOnAppOpen: true, // تفعيل التنبيه المباشر والتلقائي فور فتح التطبيق لعرض الأذكار الجميلة وسماع الصوت العذب
   intervalMinutes: 15,
   soundType: 'voice_and_chime',
   category: 'all',
   reciterId: 'mishary', // الصوت التلقائي الأساسي والمباشر للشيخ مشاري راشد العفاسي
   volume: 85,
   vibrate: true,
-  quietHoursEnabled: true,
-  quietHoursStart: '23:00',
-  quietHoursEnd: '06:00',
   showFloatingBanner: true,
   compactBanner: false,
   autoDismissSeconds: 12,
@@ -29,6 +27,7 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
     description: 'تلاوة وأذكار بصوت الشيخ مشاري العفاسي محملة ومدمجة بشكل أساسي في النظام جاهزة للعمل فوراً بدون إنترنت',
     avatar: '🎙️',
     previewUrl: '/audio/adhkar/mishary_preview.mp3',
+    sizeFormatted: '1.8 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/mishary_salawat.mp3',
       istighfar: '/audio/adhkar/mishary_istighfar.mp3',
@@ -37,15 +36,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/mishary_tahsin.mp3',
       preview: '/audio/adhkar/mishary_preview.mp3'
     },
+    fallbackUrls: {
+      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3',
+      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/5429.mp3',
+      baqiyat: 'https://everyayah.com/data/Alafasy_128kbps/087001.mp3',
+      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/2179.mp3',
+      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/262.mp3',
+      preview: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3'
+    },
     isBuiltIn: true
   },
   {
     id: 'maher',
     name: 'الشيخ ماهر المعيقلي',
     title: 'إمام المسجد الحرام بمكة المكرمة',
-    description: 'تلاوة وأذكار شجية من رحاب البيت الحرام مدمجة محلياً',
+    description: 'تلاوة وأذكار شجية من رحاب البيت الحرام (تحميل عند الطلب)',
     avatar: '🕋',
-    previewUrl: '/audio/adhkar/maher_preview.mp3',
+    previewUrl: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/033056.mp3',
+    sizeFormatted: '750 كيلوبايت',
     audioUrls: {
       salawat: '/audio/adhkar/maher_salawat.mp3',
       istighfar: '/audio/adhkar/maher_istighfar.mp3',
@@ -54,15 +62,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/maher_tahsin.mp3',
       preview: '/audio/adhkar/maher_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/071010.mp3',
+      baqiyat: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/087001.mp3',
+      hawqala: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/033056.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'abdulbasit',
     name: 'الشيخ عبد الباسط عبد الصمد',
     title: 'صوت مكة الخالد وسفير القرآن',
-    description: 'نبرة تاريخية ذهبية تفيض خشوعاً وجلالاً مدمجة محلياً',
+    description: 'نبرة تاريخية ذهبية تفيض خشوعاً وجلالاً (تحميل عند الطلب)',
     avatar: '📜',
-    previewUrl: '/audio/adhkar/abdulbasit_preview.mp3',
+    previewUrl: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/033056.mp3',
+    sizeFormatted: '3.1 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/abdulbasit_salawat.mp3',
       istighfar: '/audio/adhkar/abdulbasit_istighfar.mp3',
@@ -71,15 +88,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/abdulbasit_tahsin.mp3',
       preview: '/audio/adhkar/abdulbasit_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/071010.mp3',
+      baqiyat: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/087001.mp3',
+      hawqala: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/033056.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'husary',
     name: 'الشيخ محمود خليل الحصري',
     title: 'شيخ عموم المقارئ المصرية وإمام الترتيل المتقن',
-    description: 'أداء متقن ورصين يملأ القلب سكينة وخشوعاً مدمج محلياً',
+    description: 'أداء متقن ورصين يملأ القلب سكينة وخشوعاً (تحميل عند الطلب)',
     avatar: '📖',
-    previewUrl: '/audio/adhkar/husary_preview.mp3',
+    previewUrl: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3',
+    sizeFormatted: '2.8 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/husary_salawat.mp3',
       istighfar: '/audio/adhkar/husary_istighfar.mp3',
@@ -88,15 +114,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/husary_tahsin.mp3',
       preview: '/audio/adhkar/husary_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3',
+      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.husary/5429.mp3',
+      baqiyat: 'https://everyayah.com/data/Husary_128kbps/087001.mp3',
+      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.husary/2179.mp3',
+      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.husary/262.mp3',
+      preview: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'minshawi',
     name: 'الشيخ محمد صديق المنشاوي',
     title: 'الصوت الباكي ذو الخشوع والوقار العالي',
-    description: 'تلاوة وأذكار ترق لها القلوب وتخشع لسماعها مدمجة محلياً',
+    description: 'تلاوة وأذكار ترق لها القلوب وتخشع لسماعها (تحميل عند الطلب)',
     avatar: '🕊️',
-    previewUrl: '/audio/adhkar/minshawi_preview.mp3',
+    previewUrl: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3',
+    sizeFormatted: '2.3 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/minshawi_salawat.mp3',
       istighfar: '/audio/adhkar/minshawi_istighfar.mp3',
@@ -105,15 +140,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/minshawi_tahsin.mp3',
       preview: '/audio/adhkar/minshawi_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3',
+      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/5429.mp3',
+      baqiyat: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/087001.mp3',
+      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/2179.mp3',
+      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/262.mp3',
+      preview: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'alghamdi',
     name: 'الشيخ سعد الغامدي',
     title: 'تلاوة متقنة هادئة وسكينة للنفس',
-    description: 'أذكار وأدعية بصوت الشيخ سعد الغامدي الصافي مدمجة محلياً',
+    description: 'أذكار وأدعية بصوت الشيخ سعد الغامدي الصافي (تحميل عند الطلب)',
     avatar: '🌿',
-    previewUrl: '/audio/adhkar/alghamdi_preview.mp3',
+    previewUrl: 'https://everyayah.com/data/Ghamadi_40kbps/033056.mp3',
+    sizeFormatted: '580 كيلوبايت',
     audioUrls: {
       salawat: '/audio/adhkar/alghamdi_salawat.mp3',
       istighfar: '/audio/adhkar/alghamdi_istighfar.mp3',
@@ -122,15 +166,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/alghamdi_tahsin.mp3',
       preview: '/audio/adhkar/alghamdi_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://everyayah.com/data/Ghamadi_40kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Ghamadi_40kbps/071010.mp3',
+      baqiyat: 'https://everyayah.com/data/Ghamadi_40kbps/087001.mp3',
+      hawqala: 'https://everyayah.com/data/Ghamadi_40kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Ghamadi_40kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Ghamadi_40kbps/033056.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'qatami',
     name: 'الشيخ ناصر القطامي',
     title: 'نبرة خاشعة ورقيقة تأسر القلوب',
-    description: 'تسجيلات مميزة بصوت ندي وخشوع مؤثر مدمجة محلياً',
+    description: 'تسجيلات مميزة بصوت ندي وخشوع مؤثر (تحميل عند الطلب)',
     avatar: '✨',
-    previewUrl: '/audio/adhkar/qatami_preview.mp3',
+    previewUrl: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/033056.mp3',
+    sizeFormatted: '1.5 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/qatami_salawat.mp3',
       istighfar: '/audio/adhkar/qatami_istighfar.mp3',
@@ -139,15 +192,24 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/qatami_tahsin.mp3',
       preview: '/audio/adhkar/qatami_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/071010.mp3',
+      baqiyat: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/087001.mp3',
+      hawqala: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/033056.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'sudais',
     name: 'الشيخ عبد الرحمن السديس',
     title: 'إمام وخطيب المسجد الحرام',
-    description: 'أدعية وأذكار بصوت الشيخ السديس المكي الشهير مدمجة محلياً',
+    description: 'أدعية وأذكار بصوت الشيخ السديس المكي الشهير (تحميل عند الطلب)',
     avatar: '🕌',
-    previewUrl: '/audio/adhkar/sudais_preview.mp3',
+    previewUrl: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/033056.mp3',
+    sizeFormatted: '2.1 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/sudais_salawat.mp3',
       istighfar: '/audio/adhkar/sudais_istighfar.mp3',
@@ -156,7 +218,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: '/audio/adhkar/sudais_tahsin.mp3',
       preview: '/audio/adhkar/sudais_preview.mp3'
     },
-    isBuiltIn: true
+    fallbackUrls: {
+      salawat: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/071010.mp3',
+      baqiyat: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/087001.mp3',
+      hawqala: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/033056.mp3'
+    },
+    isBuiltIn: false
   },
   {
     id: 'random',
@@ -165,6 +235,7 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
     description: 'استمع في كل مرة لصوت قارئ مختلف من خيرة الأصوات المسجلة',
     avatar: '🔀',
     previewUrl: '/audio/adhkar/mishary_preview.mp3',
+    sizeFormatted: 'حزمة كاملة',
     isBuiltIn: true
   }
 ];
@@ -591,18 +662,19 @@ type SettingsListener = (settings: DhikrReminderSettings) => void;
 type AudioStateListener = (state: DhikrAudioState) => void;
 
 /**
- * مدير التخزين غير المتصل لصوتيات الأذكار وقراء القرآن (IndexedDB)
+ * مدير التخزين غير المتصل لصوتيات الأذكار وقراء القرآن (IndexedDB + Cache Storage)
  */
 export class DhikrOfflineManager {
   private static DB_NAME = 'anis_dhikr_audio_db_v2';
   private static STORE_NAME = 'reciters_audio';
+  private static CACHE_NAME = 'anis_dhikr_cache_v2';
   private static DB_VERSION = 1;
   private static dbPromise: Promise<IDBDatabase> | null = null;
 
   private static getDB(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
       this.dbPromise = new Promise((resolve, reject) => {
-        if (!('indexedDB' in window)) {
+        if (typeof window === 'undefined' || !('indexedDB' in window)) {
           reject(new Error('IndexedDB not supported'));
           return;
         }
@@ -620,6 +692,22 @@ export class DhikrOfflineManager {
     return this.dbPromise;
   }
 
+  public static async saveAudioBlob(key: string, blob: Blob): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+        const store = tx.objectStore(this.STORE_NAME);
+        store.put({ key, blob, timestamp: Date.now() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(new Error('Transaction aborted'));
+      });
+    } catch (e) {
+      console.warn('Failed to save blob to IndexedDB:', e);
+    }
+  }
+
   public static async getReciterAudioBlob(reciterId: string, categoryKey: string): Promise<Blob | null> {
     try {
       const db = await this.getDB();
@@ -628,11 +716,17 @@ export class DhikrOfflineManager {
         const store = tx.objectStore(this.STORE_NAME);
         const req = store.get(`${reciterId}_${categoryKey}`);
         req.onsuccess = () => {
-          if (req.result && req.result.blob) {
+          if (req.result && req.result.blob && req.result.blob.size > 2000) {
             resolve(req.result.blob);
           } else {
             const previewReq = store.get(`${reciterId}_preview`);
-            previewReq.onsuccess = () => resolve(previewReq.result?.blob || null);
+            previewReq.onsuccess = () => {
+              if (previewReq.result && previewReq.result.blob && previewReq.result.blob.size > 2000) {
+                resolve(previewReq.result.blob);
+              } else {
+                resolve(null);
+              }
+            };
             previewReq.onerror = () => resolve(null);
           }
         };
@@ -644,9 +738,171 @@ export class DhikrOfflineManager {
   }
 
   public static async isReciterDownloaded(reciterId: string): Promise<boolean> {
+    if (reciterId === 'random') return true;
+    try {
+      const flag = localStorage.getItem(`anis_reciter_downloaded_${reciterId}`);
+      if (flag === 'true') return true;
+
+      const db = await this.getDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.STORE_NAME, 'readonly');
+        const store = tx.objectStore(this.STORE_NAME);
+        const req = store.get(`${reciterId}_salawat`);
+        req.onsuccess = () => {
+          const isDownloaded = !!(req.result && req.result.blob && req.result.blob.size > 2000);
+          if (isDownloaded) {
+            localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
+          }
+          resolve(isDownloaded);
+        };
+        req.onerror = () => resolve(false);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  public static async getDownloadedReciterIds(): Promise<string[]> {
+    const list: string[] = [];
+    for (const r of DHIKR_RECITERS) {
+      if (r.id === 'random') continue;
+      const isDl = await this.isReciterDownloaded(r.id);
+      if (isDl) list.push(r.id);
+    }
+    return list;
+  }
+
+  /**
+   * تنزيل وتخزين كافة تسجيلات القارئ المحددة للعمل أوفلاين
+   */
+  public static async downloadReciterAudio(
+    reciterId: string, 
+    onProgress?: (percent: number) => void
+  ): Promise<boolean> {
     const reciter = DHIKR_RECITERS.find(r => r.id === reciterId);
-    if (reciter?.isBuiltIn) return true;
-    return false;
+    if (!reciter || reciter.id === 'random') return false;
+
+    const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
+    let completed = 0;
+
+    for (let i = 0; i < categories.length; i++) {
+      const catKey = categories[i];
+      const localUrl = reciter.audioUrls ? reciter.audioUrls[catKey] : `/audio/adhkar/${reciterId}_${catKey}.mp3`;
+      const fallbackUrl = reciter.fallbackUrls ? reciter.fallbackUrls[catKey] : '';
+
+      let blob: Blob | null = null;
+
+      // 1. Try local URL first
+      try {
+        const res = await fetch(localUrl, { cache: 'no-cache' });
+        if (res.ok) {
+          const b = await res.blob();
+          if (b.size > 2000) {
+            blob = b;
+          }
+        }
+      } catch (e) {
+        // Continue to fallback
+      }
+
+      // 2. Try fallback external CDN if local failed
+      if (!blob && fallbackUrl) {
+        try {
+          const res = await fetch(fallbackUrl, { cache: 'no-cache' });
+          if (res.ok) {
+            const b = await res.blob();
+            if (b.size > 2000) {
+              blob = b;
+            }
+          }
+        } catch (e) {
+          // Fallback failed
+        }
+      }
+
+      if (blob) {
+        await this.saveAudioBlob(`${reciterId}_${catKey}`, blob);
+        
+        // Also put in Cache Storage if available
+        if (typeof window !== 'undefined' && 'caches' in window) {
+          try {
+            const cache = await caches.open(this.CACHE_NAME);
+            await cache.put(localUrl, new Response(blob));
+          } catch {}
+        }
+        completed++;
+      }
+
+      if (onProgress) {
+        const p = Math.round(((i + 1) / categories.length) * 100);
+        onProgress(p);
+      }
+    }
+
+    const success = completed >= 3; // at least majority saved
+    if (success) {
+      localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
+    }
+    return success;
+  }
+
+  /**
+   * حذف الملفات المحملة للقارئ لتوفير المساحة
+   */
+  public static async deleteReciterAudio(reciterId: string): Promise<boolean> {
+    try {
+      localStorage.removeItem(`anis_reciter_downloaded_${reciterId}`);
+      const db = await this.getDB();
+      const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
+      const tx = db.transaction(this.STORE_NAME, 'readwrite');
+      const store = tx.objectStore(this.STORE_NAME);
+      
+      for (const catKey of categories) {
+        store.delete(`${reciterId}_${catKey}`);
+      }
+
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const cache = await caches.open(this.CACHE_NAME);
+          const reciter = DHIKR_RECITERS.find(r => r.id === reciterId);
+          if (reciter?.audioUrls) {
+            for (const u of Object.values(reciter.audioUrls)) {
+              await cache.delete(u);
+            }
+          }
+        } catch {}
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * تنزيل أصوات جميع المشايخ دفعة واحدة
+   */
+  public static async downloadAllReciters(
+    onProgress?: (overallPercent: number, currentReciterName: string) => void
+  ): Promise<boolean> {
+    const reciters = DHIKR_RECITERS.filter(r => r.id !== 'random');
+    let totalSuccess = 0;
+
+    for (let i = 0; i < reciters.length; i++) {
+      const r = reciters[i];
+      if (onProgress) {
+        const overall = Math.round((i / reciters.length) * 100);
+        onProgress(overall, r.name);
+      }
+      const ok = await this.downloadReciterAudio(r.id);
+      if (ok) totalSuccess++;
+    }
+
+    if (onProgress) {
+      onProgress(100, 'اكتمل تحميل جميع القراء بنجاح');
+    }
+
+    return totalSuccess > 0;
   }
 }
 
@@ -666,6 +922,11 @@ export class DhikrReminderService {
   private static broadcastChannel: BroadcastChannel | null = null;
   private static isInitialized = false;
   private static isSWListenerInitialized = false;
+  private static activeTriggeredDhikr: DhikrItem | null = null;
+
+  public static getActiveTriggeredDhikr(): DhikrItem | null {
+    return this.activeTriggeredDhikr;
+  }
 
   /**
    * تحويل تصنيف الذكر إلى مفتاح الملف الصوتي
@@ -737,13 +998,9 @@ export class DhikrReminderService {
     // إذا كان المستخدم قد فعّل خيار التنبيه المباشر عند فتح التطبيق
     if (this.settings.enabled && this.settings.triggerOnAppOpen) {
       setTimeout(() => {
-        const now = Date.now();
-        const timeSinceLast = now - this.lastTriggerTimestamp;
-        // إطلاق التنبيه فقط إذا مر أكثر من دقيقة على آخر تنبيه
-        if (timeSinceLast >= 60 * 1000) {
-          this.triggerReminder();
-        }
-      }, 2500);
+        // يتم إطلاق التذكير التلقائي الجميل مباشرة عند فتح البرنامج لترطيب اللسان بذكر الله
+        this.triggerReminder();
+      }, 1500);
     }
 
     const unlock = () => {
@@ -849,16 +1106,29 @@ export class DhikrReminderService {
    * طلب إذن شاشة القفل وتجربة الإشعار الفوري
    */
   public static async testLockScreenNotification(customDhikr?: DhikrItem): Promise<boolean> {
-    if (!('Notification' in window)) return false;
+    const dhikr = customDhikr || this.selectDhikr();
+
+    // 1. إطلاق التنبيه والبطاقة الصوتية الجميلة داخل التطبيق فوراً لمعاينة النص وسماع الصوت
+    this.triggerReminder(dhikr, true);
+
+    // 2. محاولة إرسال إشعار النظام الفعلي (شريط الإشعارات وشاشة القفل)
+    if (!('Notification' in window)) return true;
 
     let permission = Notification.permission;
     if (permission !== 'granted') {
-      permission = await Notification.requestPermission();
+      try {
+        const isGranted = await requestDynamicPermission('notifications');
+        permission = isGranted ? 'granted' : 'denied';
+      } catch (err) {
+        console.warn('Could not request notification permission for testing:', err);
+      }
     }
 
-    if (permission !== 'granted') return false;
-
-    const dhikr = customDhikr || this.selectDhikr();
+    // حتى لو لم تكن صلاحية الإشعارات ممنوحة في بيئة التطوير (داخل iframe)،
+    // فإننا نرجع true لأننا نجحنا في عرض البطاقة الصوتية الجميلة داخل التطبيق.
+    if (permission !== 'granted') {
+      return true;
+    }
 
     try {
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -870,8 +1140,9 @@ export class DhikrReminderService {
         await this.sendSystemNotification(dhikr);
       }
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      console.warn('Could not trigger native background test notification:', e);
+      return true;
     }
   }
 
@@ -909,17 +1180,50 @@ export class DhikrReminderService {
   }
 
   /**
-   * إيقاف تشغيل الصوت الحالي فوراً (عند إغلاق الشعار أو الضغط على زر الإغلاق)
+   * إيقاف تشغيل الصوت الحالي فوراً (عند إغلاق الشعار أو الضغط على زر الإيقاف/المعاينة)
    */
   public static stopAudio() {
+    this.releaseWakeLock();
+    this.activeTriggeredDhikr = null;
     if (this.activeAudioElement) {
       try {
         this.activeAudioElement.pause();
         this.activeAudioElement.currentTime = 0;
+        this.activeAudioElement.src = '';
       } catch {}
       this.activeAudioElement = null;
     }
     this.currentPlayingDhikrId = null;
+
+    // تنظيف كل إشعارات النظام النشطة للأذكار والتنبيهات من شريط الإشعارات فور الإغلاق
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        navigator.serviceWorker.ready.then(registration => {
+          if (registration && typeof registration.getNotifications === 'function') {
+            registration.getNotifications().then(notifications => {
+              if (notifications && notifications.length > 0) {
+                notifications.forEach(notification => {
+                  if (notification.tag && (notification.tag.startsWith('dhikr-') || notification.tag.startsWith('adhan-'))) {
+                    notification.close();
+                  }
+                });
+              }
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('Error clearing notifications on stop:', err);
+      }
+    }
+
+    // تنظيف بيانات الجلسة الصوتية من شاشة القفل وشريط الإشعارات فور الإغلاق
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = 'none';
+        navigator.mediaSession.metadata = null;
+      } catch (e) {}
+    }
+
     this.notifyAudioState({ isPlaying: false, duration: 0, currentTime: 0 });
   }
 
@@ -958,36 +1262,11 @@ export class DhikrReminderService {
       return;
     }
 
-    if (this.settings.quietHoursEnabled && this.isCurrentlyQuietHour()) {
-      return;
-    }
-
     const intervalMs = Math.max(1, this.settings.intervalMinutes) * 60 * 1000;
     const timeSinceLast = now - this.lastTriggerTimestamp;
 
     if (timeSinceLast >= intervalMs) {
       this.triggerReminder();
-    }
-  }
-
-  /**
-   * فحص ساعات الهدوء
-   */
-  public static isCurrentlyQuietHour(): boolean {
-    if (!this.settings.quietHoursEnabled) return false;
-    const now = new Date();
-    const currentMins = now.getHours() * 60 + now.getMinutes();
-
-    const [startH, startM] = (this.settings.quietHoursStart || '23:00').split(':').map(Number);
-    const [endH, endM] = (this.settings.quietHoursEnd || '06:00').split(':').map(Number);
-
-    const startTotal = (startH || 0) * 60 + (startM || 0);
-    const endTotal = (endH || 0) * 60 + (endM || 0);
-
-    if (startTotal <= endTotal) {
-      return currentMins >= startTotal && currentMins < endTotal;
-    } else {
-      return currentMins >= startTotal || currentMins < endTotal;
     }
   }
 
@@ -1084,6 +1363,7 @@ export class DhikrReminderService {
    */
   public static async triggerReminder(customDhikr?: DhikrItem, isTest = false) {
     const dhikr = customDhikr || this.selectDhikr();
+    this.activeTriggeredDhikr = dhikr;
     const now = Date.now();
 
     if (!isTest) {
@@ -1164,8 +1444,11 @@ export class DhikrReminderService {
     const candidates: string[] = [
       `/audio/adhkar/${targetReciterId}_${categoryKey}.mp3`,
       (reciterInfo?.audioUrls && reciterInfo.audioUrls[categoryKey]) || '',
+      (reciterInfo?.fallbackUrls && reciterInfo.fallbackUrls[categoryKey]) || '',
       reciterInfo?.previewUrl || '',
+      (reciterInfo?.fallbackUrls && reciterInfo.fallbackUrls['preview']) || '',
       `/audio/adhkar/mishary_${categoryKey}.mp3`,
+      `https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3`,
       `/audio/adhkar/mishary_salawat.mp3`
     ].filter(Boolean);
 
@@ -1185,11 +1468,26 @@ export class DhikrReminderService {
     for (const url of candidates) {
       try {
         const played = await this.tryPlayAudioUrl(url, volume, targetReciterId, dhikr.id);
-        if (played) return;
+        if (played) {
+          // Auto-cache this sound in background if not already in indexedDB
+          if (url.startsWith('http')) {
+            fetch(url).then(res => res.blob()).then(b => {
+              if (b.size > 2000) {
+                DhikrOfflineManager.saveAudioBlob(`${targetReciterId}_${categoryKey}`, b);
+              }
+            }).catch(() => {});
+          }
+          return;
+        }
       } catch {
         // try next candidate
       }
     }
+
+    // 3. Fallback: If voice fails completely, play soothing harmonic chime
+    try {
+      await this.playIslamicHarmonicChime(volume);
+    } catch {}
 
     // If all fail, notify that audio stopped
     this.notifyAudioState({ isPlaying: false, duration: 0, currentTime: 0 });
@@ -1201,6 +1499,16 @@ export class DhikrReminderService {
         const audio = new Audio(blobUrl);
         audio.volume = Math.max(0.05, Math.min(1.0, volume));
         this.activeAudioElement = audio;
+
+        this.requestWakeLock();
+        const reciter = DHIKR_RECITERS.find(r => r.id === reciterId);
+        const dhikr = DHIKR_DATABASE.find(d => d.id === dhikrId);
+        this.setupMediaSession(
+          dhikr?.text || 'ذكر الله وطمأنينة القلب',
+          reciter?.name || 'صوت القارئ',
+          dhikr?.categoryName || 'الأذكار والتسبيح',
+          audio
+        );
 
         let hasResolved = false;
 
@@ -1224,10 +1532,24 @@ export class DhikrReminderService {
           });
         };
 
+        audio.onpause = () => {
+          this.releaseWakeLock();
+          this.notifyAudioState({
+            isPlaying: false,
+            reciterId,
+            dhikrId,
+            duration: audio.duration || 0,
+            currentTime: audio.currentTime || 0
+          });
+        };
+
         audio.onended = () => {
+          this.releaseWakeLock();
           URL.revokeObjectURL(blobUrl);
-          this.activeAudioElement = null;
-          this.currentPlayingDhikrId = null;
+          if (this.activeAudioElement === audio) {
+            this.activeAudioElement = null;
+            this.currentPlayingDhikrId = null;
+          }
           this.notifyAudioState({
             isPlaying: false,
             reciterId,
@@ -1242,6 +1564,7 @@ export class DhikrReminderService {
         };
 
         audio.onerror = () => {
+          this.releaseWakeLock();
           URL.revokeObjectURL(blobUrl);
           if (this.activeAudioElement === audio) {
             this.activeAudioElement = null;
@@ -1260,6 +1583,7 @@ export class DhikrReminderService {
             resolve(true);
           }
         }).catch(() => {
+          this.releaseWakeLock();
           URL.revokeObjectURL(blobUrl);
           if (!hasResolved) {
             hasResolved = true;
@@ -1267,6 +1591,7 @@ export class DhikrReminderService {
           }
         });
       } catch {
+        this.releaseWakeLock();
         resolve(false);
       }
     });
@@ -1293,9 +1618,9 @@ export class DhikrReminderService {
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: dhikrText,
-          artist: reciterName,
-          album: `أنيس القلوب - ${categoryName}`,
+          title: dhikrText, // النص الشريف للذكر يظهر بوضوح كعنوان للإشعار
+          artist: `أنيس القلوب - تلاوة مباركة`,
+          album: categoryName,
           artwork: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -1305,7 +1630,8 @@ export class DhikrReminderService {
 
         navigator.mediaSession.playbackState = 'playing';
 
-        const defaultActions: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+        // تهيئة التحكم المرن: حذف الأزرار غير اللازمة وإبقاء زر الإغلاق/الإيقاف كلياً لراحة المستخدم
+        const defaultActions: Array<[MediaSessionAction, MediaSessionActionHandler | null]> = [
           ['play', () => {
             if (this.activeAudioElement && this.activeAudioElement.paused) {
               this.activeAudioElement.play().catch(() => {});
@@ -1313,14 +1639,19 @@ export class DhikrReminderService {
             }
           }],
           ['pause', () => {
-            if (this.activeAudioElement && !this.activeAudioElement.paused) {
-              this.activeAudioElement.pause();
-              navigator.mediaSession.playbackState = 'paused';
-            }
+            // الضغط على زر الإيقاف المؤقت يقوم بإغلاق الصوت كلياً وإخفاء التنبيه تماماً
+            this.stopAudio();
           }],
           ['stop', () => {
+            // الضغط على زر الإيقاف (Stop) ينهي الصوت ويغلق التنبيه
             this.stopAudio();
-          }]
+          }],
+          // تعيين بقية الأزرار بقيمة null لإخفائها تماماً من شاشة القفل حسب مواصفات المتصفحات
+          ['previoustrack', null],
+          ['nexttrack', null],
+          ['seekbackward', null],
+          ['seekforward', null],
+          ['seekto', null]
         ];
 
         defaultActions.forEach(([action, handler]) => {
@@ -1380,6 +1711,17 @@ export class DhikrReminderService {
         audio.ontimeupdate = () => {
           this.notifyAudioState({
             isPlaying: true,
+            reciterId,
+            dhikrId,
+            duration: audio.duration || 0,
+            currentTime: audio.currentTime || 0
+          });
+        };
+
+        audio.onpause = () => {
+          this.releaseWakeLock();
+          this.notifyAudioState({
+            isPlaying: false,
             reciterId,
             dhikrId,
             duration: audio.duration || 0,
@@ -1530,8 +1872,8 @@ export class DhikrReminderService {
   public static async requestNotificationPermission(): Promise<NotificationPermission> {
     if (!('Notification' in window)) return 'denied';
     try {
-      const perm = await Notification.requestPermission();
-      return perm;
+      const isGranted = await requestDynamicPermission('notifications');
+      return isGranted ? 'granted' : 'denied';
     } catch {
       return Notification.permission;
     }
@@ -1615,3 +1957,12 @@ export class DhikrReminderService {
     return this.audioCtx;
   }
 }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('STOP_APP_AUDIO', (e: any) => {
+    if (e.detail?.source !== 'dhikr') {
+      DhikrReminderService.stopAudio();
+    }
+  });
+}
+

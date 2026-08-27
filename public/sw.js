@@ -190,11 +190,50 @@ self.addEventListener('message', (event) => {
       });
       cache.put('/offline-dhikr-settings.json', response);
     });
+  } else if (event.data.type === 'CHECK_PWA_UPDATE') {
+    checkPwaVersionAndNotify();
   } else if (event.data.type === 'TEST_DHIKR_NOTIFICATION') {
     // Test lock-screen & background notification immediately
     triggerDirectDhikrNotification(event.data.dhikr);
   }
 });
+
+// دالة فحص وتنبيه المستخدم بوجود تحديث جديد لنسخة المتصفح / PWA
+async function checkPwaVersionAndNotify() {
+  try {
+    const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const networkData = await res.json();
+    
+    const cache = await caches.open(RUNTIME_CACHE);
+    const cachedResponse = await cache.match('/version.json');
+    
+    let needsUpdate = false;
+    
+    if (cachedResponse) {
+      const cachedData = await cachedResponse.json();
+      if (networkData.timestamp && cachedData.timestamp && networkData.timestamp > cachedData.timestamp) {
+        needsUpdate = true;
+      }
+    } else {
+      // Save it for the first time
+      await cache.put('/version.json', new Response(JSON.stringify(networkData)));
+    }
+    
+    if (needsUpdate) {
+      await cache.put('/version.json', new Response(JSON.stringify(networkData)));
+      const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clientsList.forEach((client) => {
+        client.postMessage({
+          type: 'PWA_UPDATE_AVAILABLE',
+          versionInfo: networkData
+        });
+      });
+    }
+  } catch (err) {
+    console.warn('PWA version check failed:', err);
+  }
+}
 
 // دالة فحص وتنبيه المستخدم بوجود تحديث جديد لملف الـ APK
 async function checkApkVersionAndNotify(currentInstalledVersion) {
@@ -395,6 +434,15 @@ async function checkPrayerTimesAndNotify() {
     const nowTime = now.getTime();
 
     if (Array.isArray(scheduleData)) {
+      const SW_PRAYER_VERSES = [
+        "۞ إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا ۞",
+        "۞ وَأَقِمِ الصَّلَاةَ طَرَفَيِ النَّهَارِ وَزُلَفًا مِّنَ اللَّيْلِ ۚ إِنَّ الْحَسَنَاتِ يُذْهِبْنَ السَّيِّئَاتِ ۞",
+        "۞ يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ ۞",
+        "۞ أَقِمِ الصَّلَاةَ لِدُلُوكِ الشَّمْسِ إِلَىٰ غَسَقِ اللَّيْلِ وَقُرْآنَ الْفَجْرِ ۖ إِنَّ قُرْآنَ الْفَجْرِ كَانَ مَشْهُودًا ۞",
+        "۞ وَأَقِمِ الصَّلَاةَ لِذِكْرِي ۞"
+      ];
+      const randomVerse = SW_PRAYER_VERSES[Math.floor(Math.random() * SW_PRAYER_VERSES.length)];
+
       for (const day of scheduleData) {
         if (day.prayersList) {
           for (const prayer of day.prayersList) {
@@ -402,8 +450,8 @@ async function checkPrayerTimesAndNotify() {
             const timeDiff = Math.abs(nowTime - prayerTime);
 
             if (timeDiff <= 2 * 60 * 1000) {
-              await self.registration.showNotification(`حان الآن موعد أذان ${prayer.name}`, {
-                body: `الله أكبر، حان وقت صلاة ${prayer.name}. حان وقت لقاء الله وطمأنينة القلب.`,
+              await self.registration.showNotification(`🕌 حان الآن موعد أذان ${prayer.name}`, {
+                body: `${randomVerse}\n\nالله أكبر، حان وقت صلاة ${prayer.name}. حان وقت لقاء الله وطمأنينة القلب.`,
                 icon: '/icons/icon-192.png',
                 badge: '/icons/icon-192.png',
                 tag: `adhan-${prayer.name}-${now.toDateString()}`,
@@ -414,8 +462,7 @@ async function checkPrayerTimesAndNotify() {
                 dir: 'rtl',
                 lang: 'ar',
                 actions: [
-                  { action: 'stop-adhan', title: 'إيقاف الأذان' },
-                  { action: 'open-app', title: 'فتح التطبيق' }
+                  { action: 'stop-adhan', title: 'إيقاف وإغلاق ❌' }
                 ]
               });
 

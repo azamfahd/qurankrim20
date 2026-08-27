@@ -66,7 +66,7 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, onS
     localStorage.setItem('anis_pwa_installed', 'true');
     const link = document.createElement('a');
     link.href = '/app-release.apk';
-    link.download = 'anis-al-qulub.apk';
+    link.download = 'أنيس القلوب - القرآن الذكي.apk';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

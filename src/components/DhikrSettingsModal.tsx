@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, Bell, Volume2, Sparkles, Moon, Clock, 
+  X, Bell, Volume2, VolumeX, Sparkles, Clock, 
   Check, Play, Pause, CheckCircle2, 
   Settings2, Smartphone, ListFilter, Users,
-  Zap, BatteryCharging, ShieldCheck
+  Zap, BatteryCharging, ShieldCheck, Download,
+  Trash2, RefreshCw, HardDrive, CheckCircle
 } from 'lucide-react';
 import { DhikrReminderSettings, DhikrReciterInfo } from '../types';
 import { 
@@ -56,7 +57,10 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'reciters' | 'categories' | 'background'>('general');
   const [selectedVendor, setSelectedVendor] = useState<DeviceVendor>('samsung');
   const [isTestingLockScreen, setIsTestingLockScreen] = useState(false);
-  const [, setDownloadedReciters] = useState<{ [id: string]: boolean }>({});
+  const [downloadedReciters, setDownloadedReciters] = useState<{ [id: string]: boolean }>({});
+  const [downloadProgress, setDownloadProgress] = useState<{ [id: string]: number }>({});
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [allDownloadStatusText, setAllDownloadStatusText] = useState('');
   const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -72,23 +76,96 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
       setDailyStats(st);
     });
 
+    const unsubAudio = DhikrReminderService.subscribeToAudioState((state) => {
+      if (state.isPlaying && state.reciterId) {
+        setIsPlayingPreview(state.reciterId);
+      } else if (!state.isPlaying) {
+        setIsPlayingPreview(null);
+      }
+    });
+
     checkDownloadedStatuses();
 
     return () => {
       unsubSettings();
       unsubStats();
-      if (audioPlayer) {
-        audioPlayer.pause();
-      }
+      unsubAudio();
+      DhikrReminderService.stopAudio();
     };
   }, []);
 
   const checkDownloadedStatuses = async () => {
     const statusMap: { [id: string]: boolean } = {};
     for (const reciter of DHIKR_RECITERS) {
+      if (reciter.id === 'random') {
+        statusMap[reciter.id] = true;
+        continue;
+      }
       statusMap[reciter.id] = await DhikrOfflineManager.isReciterDownloaded(reciter.id);
     }
     setDownloadedReciters(statusMap);
+  };
+
+  const handleDownloadSingleReciter = async (reciterId: string, reciterName: string) => {
+    if (downloadProgress[reciterId] !== undefined && downloadProgress[reciterId] < 100) return;
+    
+    setDownloadProgress(prev => ({ ...prev, [reciterId]: 5 }));
+    if (onShowToast) onShowToast(`جاري تنزيل وتخزين تسجيلات ${reciterName}...`, 'info');
+
+    try {
+      const success = await DhikrOfflineManager.downloadReciterAudio(reciterId, (pct) => {
+        setDownloadProgress(prev => ({ ...prev, [reciterId]: pct }));
+      });
+
+      if (success) {
+        setDownloadedReciters(prev => ({ ...prev, [reciterId]: true }));
+        if (onShowToast) onShowToast(`تم تحميل صوتيات ${reciterName} بنجاح وجاهزة للعمل أوفلاين!`, 'success');
+      } else {
+        if (onShowToast) onShowToast(`تعذر تنزيل بعض ملفات ${reciterName}، يرجى المحاولة لاحقاً.`, 'error');
+      }
+    } catch (e) {
+      if (onShowToast) onShowToast(`حدث خطأ أثناء تنزيل الملفات، تأكد من الاتصال بالإنترنت.`, 'error');
+    } finally {
+      setTimeout(() => {
+        setDownloadProgress(prev => {
+          const next = { ...prev };
+          delete next[reciterId];
+          return next;
+        });
+      }, 1000);
+      checkDownloadedStatuses();
+    }
+  };
+
+  const handleDeleteSingleReciter = async (reciterId: string, reciterName: string) => {
+    const ok = await DhikrOfflineManager.deleteReciterAudio(reciterId);
+    if (ok) {
+      setDownloadedReciters(prev => ({ ...prev, [reciterId]: false }));
+      if (onShowToast) onShowToast(`تم حذف ملفات ${reciterName} من الذاكرة المحلية لتوفير المساحة.`, 'info');
+    }
+  };
+
+  const handleDownloadAllReciters = async () => {
+    if (isDownloadingAll) return;
+    setIsDownloadingAll(true);
+    setAllDownloadStatusText('بدء تنزيل كافة حزم القراء...');
+    if (onShowToast) onShowToast('بدء تنزيل وتسجيل كافة أصوات المشايخ للعمل بدون إنترنت...', 'info');
+
+    try {
+      const ok = await DhikrOfflineManager.downloadAllReciters((percent, name) => {
+        setAllDownloadStatusText(`جاري التحميل (${percent}%): ${name}`);
+      });
+      if (ok) {
+        await checkDownloadedStatuses();
+        if (onShowToast) onShowToast('اكتمل تحميل أصوات جميع المشايخ الكرام بنجاح!', 'success');
+      }
+    } catch (e) {
+      if (onShowToast) onShowToast('تعذر إكمال تحميل بعض الملفات، يرجى المحاولة ثانية.', 'error');
+    } finally {
+      setIsDownloadingAll(false);
+      setAllDownloadStatusText('');
+      checkDownloadedStatuses();
+    }
   };
 
   const handleToggleEnable = () => {
@@ -140,26 +217,23 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
   const handlePreviewReciter = async (reciter: DhikrReciterInfo) => {
     if (isPlayingPreview === reciter.id) {
-      if (audioPlayer) {
-        audioPlayer.pause();
-        setAudioPlayer(null);
-      }
+      DhikrReminderService.stopAudio();
       setIsPlayingPreview(null);
       return;
     }
 
-    if (audioPlayer) {
-      audioPlayer.pause();
-    }
-
+    // Stop any ongoing audio before starting new preview
+    DhikrReminderService.stopAudio();
     setIsPlayingPreview(reciter.id);
+
     const testDhikr = DHIKR_DATABASE[0]; // الصلاة على النبي
     const vol = (settings.volume ?? 85) / 100;
 
-    await DhikrReminderService.playRealReciterVoice(testDhikr, reciter.id, vol);
-    setTimeout(() => {
+    try {
+      await DhikrReminderService.playRealReciterVoice(testDhikr, reciter.id, vol);
+    } catch {
       setIsPlayingPreview(null);
-    }, 4000);
+    }
   };
 
   const toggleCustomDhikrSelection = (id: string) => {
@@ -183,7 +257,10 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/70 backdrop-blur-md"
-          onClick={onClose}
+          onClick={() => {
+            DhikrReminderService.stopAudio();
+            onClose();
+          }}
         />
 
         <motion.div
@@ -500,74 +577,64 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                     </div>
                   )}
                 </div>
-
-                {/* Quiet Hours (ساعات الهدوء) */}
-                <div className="bg-white/80 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Moon size={16} className="text-amber-500" />
-                      <div>
-                        <div className="text-sm font-bold">ساعات الهدوء أثناء النوم:</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          إيقاف التنبيه الصوتي تلقائياً في وقت النوم
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleUpdate({ quietHoursEnabled: !settings.quietHoursEnabled })}
-                      className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer relative ${settings.quietHoursEnabled ? 'bg-emerald-500' : 'bg-black/20 dark:bg-white/20'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${settings.quietHoursEnabled ? 'translate-x-[-1.25rem]' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-
-                  {settings.quietHoursEnabled && (
-                    <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/10 grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block mb-1">من الساعة:</span>
-                        <input
-                          type="time"
-                          value={settings.quietHoursStart || '23:00'}
-                          onChange={(e) => handleUpdate({ quietHoursStart: e.target.value })}
-                          className="w-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20 rounded-xl px-3 py-1.5 font-sans text-xs font-bold text-center"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block mb-1">إلى الساعة:</span>
-                        <input
-                          type="time"
-                          value={settings.quietHoursEnd || '06:00'}
-                          onChange={(e) => handleUpdate({ quietHoursEnd: e.target.value })}
-                          className="w-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20 rounded-xl px-3 py-1.5 font-sans text-xs font-bold text-center"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
             {/* 2. RECITERS TAB */}
             {activeTab === 'reciters' && (
               <div className="space-y-3">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
-                  <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold block mb-0.5">أصوات حقيقية نقية مدمجة:</span>
-                    <span>جميع أصوات المشايخ الكرام مدمجة محلياً في التطبيق وتعمل مباشرة بدون الحاجة لأي اتصال بالإنترنت.</span>
+                {/* Header Information and Batch Download Panel */}
+                <div className="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-slate-800 dark:text-amber-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <HardDrive size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block mb-0.5 text-sm text-slate-900 dark:text-amber-200">
+                        مكتبة أصوات كبار المشايخ (بدون إنترنت)
+                      </span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                        يمكنك تحميل وتخزين أصوات أي قارئ مباشرة على جهازك لتعمل الأذكار أوفلاين بدون أي انقطاع.
+                      </span>
+                    </div>
                   </div>
+
+                  <button
+                    onClick={handleDownloadAllReciters}
+                    disabled={isDownloadingAll}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer ${
+                      isDownloadingAll
+                        ? 'bg-amber-400/50 text-slate-800 cursor-not-allowed'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                    }`}
+                    title="تحميل أصوات كافة المشايخ للعمل بدون إنترنت"
+                  >
+                    {isDownloadingAll ? (
+                      <RefreshCw size={13} className="animate-spin" />
+                    ) : (
+                      <Download size={13} />
+                    )}
+                    <span>{isDownloadingAll ? 'جاري التحميل...' : 'تحميل جميع القراء'}</span>
+                  </button>
                 </div>
+
+                {isDownloadingAll && allDownloadStatusText && (
+                  <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-2 animate-pulse">
+                    <RefreshCw size={13} className="animate-spin text-emerald-500" />
+                    <span>{allDownloadStatusText}</span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-2.5">
                   {DHIKR_RECITERS.map((reciter) => {
                     const isSelected = (settings.reciterId || 'mishary') === reciter.id;
+                    const isDownloaded = downloadedReciters[reciter.id] || reciter.id === 'random';
+                    const currentProg = downloadProgress[reciter.id];
+                    const isCurrentlyDownloading = currentProg !== undefined;
 
                     return (
                       <div
                         key={reciter.id}
                         onClick={() => handleUpdate({ reciterId: reciter.id })}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
                             : 'bg-white/80 dark:bg-white/5 border-black/5 dark:border-white/10 hover:border-emerald-500/40'
@@ -579,38 +646,102 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                           </div>
 
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 font-arabic truncate">
                                 {reciter.name}
                               </h4>
-                              <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                <CheckCircle2 size={11} />
-                                <span>مدمج بالكامل</span>
-                              </span>
+                              
+                              {reciter.id !== 'random' && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
+                                  isDownloaded
+                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
+                                }`}>
+                                  {isDownloaded ? (
+                                    <>
+                                      <CheckCircle2 size={10} />
+                                      <span>جاهز أوفلاين</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download size={10} />
+                                      <span>متاح للتحميل</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+
+                              {reciter.sizeFormatted && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans">
+                                  ({reciter.sizeFormatted})
+                                </span>
+                              )}
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                               {reciter.title}
                             </p>
                           </div>
                         </div>
 
-                        {/* Action Buttons for this reciter: Preview */}
-                        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Action Buttons: Download / Delete / Preview */}
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center" onClick={(e) => e.stopPropagation()}>
+                          {reciter.id !== 'random' && (
+                            <>
+                              {isCurrentlyDownloading ? (
+                                <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5">
+                                  <RefreshCw size={12} className="animate-spin text-amber-600" />
+                                  <span>{currentProg}%</span>
+                                </div>
+                              ) : isDownloaded ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleDownloadSingleReciter(reciter.id, reciter.name)}
+                                    className="p-1.5 rounded-xl text-xs font-bold transition-all text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                    title="إعادة تحديث وتحميل الملفات الصوتية"
+                                  >
+                                    <RefreshCw size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSingleReciter(reciter.id, reciter.name)}
+                                    className="p-1.5 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-red-500 hover:bg-red-500/10"
+                                    title="حذف الملفات الصوتية من الذاكرة لتوفير المساحة"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleDownloadSingleReciter(reciter.id, reciter.name)}
+                                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-pointer"
+                                  title="تحميل صوتيات هذا القارئ للعمل أوفلاين"
+                                >
+                                  <Download size={13} />
+                                  <span>تحميل الصوت</span>
+                                </button>
+                              )}
+                            </>
+                          )}
+
                           <button
                             onClick={() => handlePreviewReciter(reciter)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                               isPlayingPreview === reciter.id
-                                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/40'
                                 : 'bg-black/5 dark:bg-white/10 text-slate-700 dark:text-slate-300 hover:bg-black/10 border-transparent'
                             }`}
-                            title="استماع لعينة من الصوت الحقيقي"
+                            title={isPlayingPreview === reciter.id ? 'إيقاف تشغيل الصوت' : 'استماع لعينة من الصوت الحقيقي'}
                           >
                             {isPlayingPreview === reciter.id ? (
-                              <Pause size={14} className="animate-pulse" />
+                              <>
+                                <VolumeX size={14} className="text-amber-950 animate-pulse" />
+                                <span>إيقاف المعاينة</span>
+                              </>
                             ) : (
-                              <Play size={14} />
+                              <>
+                                <Play size={14} />
+                                <span>معاينة الصوت</span>
+                              </>
                             )}
-                            <span>معاينة الصوت</span>
                           </button>
                         </div>
                       </div>
@@ -885,7 +1016,10 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={() => {
+                DhikrReminderService.stopAudio();
+                onClose();
+              }}
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-bold shadow-md cursor-pointer transition-all"
             >
               حفظ وإغلاق

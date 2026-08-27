@@ -26,6 +26,10 @@ if ('serviceWorker' in navigator) {
           // Trigger APK update check ONLY if user has previously installed an APK version
           const activeWorker = reg.active || navigator.serviceWorker.controller;
           if (activeWorker) {
+            // Check for PWA/Web version updates
+            activeWorker.postMessage({ type: 'CHECK_PWA_UPDATE' });
+            
+            // Check for APK version updates if applicable
             const installedVersion = localStorage.getItem('anis_apk_installed_version');
             if (installedVersion) {
               activeWorker.postMessage({

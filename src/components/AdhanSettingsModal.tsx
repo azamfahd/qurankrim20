@@ -1,3 +1,4 @@
+import { requestDynamicPermission } from "../services/permissionService";
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Volume2, VolumeX, Save, Bell, BellRing, Info, 
@@ -17,7 +18,7 @@ interface AdhanSettingsModalProps {
 }
 
 const defaultAdhanSettings: AdhanSettings = {
-  enabled: false,
+  enabled: true,
   muezzin: 'mishary',
   fajrEnabled: true,
   dhuhrEnabled: true,
@@ -65,7 +66,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   const [totalCachedBytes, setTotalCachedBytes] = useState<number>(0);
   const [downloadingMap, setDownloadingMap] = useState<Record<string, number>>({});
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  const isAutoDownloadingRef = useRef(false);
   
   const refreshOfflineStatus = async () => {
     try {
@@ -79,6 +79,44 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     }
   };
 
+  // Subscribe to Audio Engine state, Storage updates, and Download Manager tasks
+  useEffect(() => {
+    const unsubscribeAudio = AdhanAudioEngine.subscribe((state) => {
+      if (state.isPlaying) {
+        setPlayingMuezzinId(state.activeMuezzinId);
+      } else {
+        setPlayingMuezzinId(null);
+      }
+    });
+
+    const handleStorageUpdate = () => {
+      refreshOfflineStatus();
+    };
+    window.addEventListener('ADHAN_STORAGE_UPDATED', handleStorageUpdate);
+
+    const handleTasksUpdate = (tasks: any[]) => {
+      const isAll = tasks.some(t => t.id === 'adhan-all' && (t.status === 'downloading' || t.status === 'pending'));
+      setIsDownloadingAll(isAll);
+
+      const dMap: Record<string, number> = {};
+      tasks.forEach(t => {
+        if (t.type === 'adhan' && (t.status === 'downloading' || t.status === 'pending') && t.payload?.muezzinId) {
+          dMap[t.payload.muezzinId] = t.progress || 0;
+        }
+      });
+      setDownloadingMap(dMap);
+    };
+
+    DownloadManager.on('update', handleTasksUpdate);
+    handleTasksUpdate(DownloadManager.getTasks());
+
+    return () => {
+      unsubscribeAudio();
+      window.removeEventListener('ADHAN_STORAGE_UPDATED', handleStorageUpdate);
+      DownloadManager.off('update', handleTasksUpdate);
+    };
+  }, []);
+
   const handleDownloadAll = async (isAutoTrigger = false) => {
     DownloadManager.addTask({
       id: 'adhan-all',
@@ -88,16 +126,16 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       totalItems: MUEZZINS_LIST.length,
       execute: async (task, signal) => {
         const res = await AdhanOfflineManager.autoDownloadAllMuezzins((mId, p, done, total) => {
-          DownloadManager.updateProgress(task.id, done, total);
+          DownloadManager.updateProgress(task.id, done, total, Math.round((done / total) * 100));
         }, signal);
         if (res.success) {
-          refreshOfflineStatus();
+          await refreshOfflineStatus();
         }
       }
     });
     
     if (!isAutoTrigger) {
-      setToastMessage('تم بدء تحميل جميع الأصوات في الخلفية...');
+      setToastMessage('تم بدء تحميل جميع الأصوات للعمل بدون إنترنت...');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
     }
@@ -118,7 +156,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
             await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (p) => {
               DownloadManager.updateProgress(task.id, p, 100, p);
             }, signal);
-            refreshOfflineStatus();
+            await refreshOfflineStatus();
           }
         });
       }
@@ -131,7 +169,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     if (isOpen) {
       const currentAdhan = settings.adhanSettings || defaultAdhanSettings;
       setAdhan(currentAdhan);
-      setPlayingMuezzinId(null);
       checkNotificationPermission();
       
       refreshOfflineStatus().then((status) => {
@@ -194,13 +231,12 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   };
 
   const togglePreview = async (muezzinId: string) => {
-    if (playingMuezzinId === muezzinId) {
+    if (playingMuezzinId === muezzinId && AdhanAudioEngine.isPlaying()) {
       AdhanAudioEngine.stop();
       setPlayingMuezzinId(null);
       return;
     }
 
-    setPlayingMuezzinId(muezzinId);
     const result = await AdhanAudioEngine.play(
       muezzinId,
       adhan.volume,
@@ -210,7 +246,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
     if (!result.success) {
       setPlayingMuezzinId(null);
-      setToastMessage('تعذر تشغيل الصوت. يرجى التأكد من تحميل الملف أو الاتصال بالإنترنت.');
+      setToastMessage(result.error || 'تعذر تشغيل الصوت. يرجى التأكد من تحميل الملف أو الاتصال بالإنترنت.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
@@ -233,12 +269,12 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
         }, signal);
         
         if (result.success) {
-          refreshOfflineStatus();
+          await refreshOfflineStatus();
         }
       }
     });
 
-    setToastMessage(`تم إضافة ${muezzin.name} لقائمة التحميل`);
+    setToastMessage(`تم بدء تحميل أذان ${muezzin.name}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);
   };
@@ -275,7 +311,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       if ('Notification' in window) {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
           try {
-            await Notification.requestPermission();
+            await requestDynamicPermission('notifications');
           } catch {
             // Ignore permission request error
           }
@@ -376,9 +412,11 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                       const isChecked = e.target.checked;
                       setAdhan({...adhan, enabled: isChecked});
                       if (isChecked) {
-                        // Check if permission already granted or trigger smart permission modal
+                        // Check if permission already granted or trigger permission flow
                         if ('Notification' in window && Notification.permission !== 'granted') {
-                          setIsSmartPermOpen(true);
+                           requestDynamicPermission('notifications').then(() => {
+                             checkNotificationPermission();
+                           });
                         } else {
                           checkNotificationPermission();
                         }
@@ -462,13 +500,13 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
               </div>
 
               {/* Muezzin Voice Picker with Download per item */}
-              <div className={`space-y-2.5 transition-all duration-200 ${!adhan.enabled ? 'opacity-40 pointer-events-none' : ''}`}>
+              <div className="space-y-2.5 transition-all duration-200">
                 <div className="flex justify-between items-center px-1">
                   <h3 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                     <Volume2 size={16} className="text-[var(--color-gold)]" />
                     <span>صوت المؤذن المعتمد وتحميله محلياً</span>
                   </h3>
-                  <span className="text-[10px] sm:text-[11px] text-slate-500">اختر، استمع، وحمّل للعمل بدون نت</span>
+                  <span className="text-[10px] sm:text-[11px] text-slate-500">اختر، استمع للمعاينة، وحمّل للعمل بدون نت</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2.5">

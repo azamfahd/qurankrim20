@@ -1,3 +1,5 @@
+import { PermissionService } from "./permissionService";
+import { requestDynamicPermission } from "./permissionService";
 import { UserLocation } from '../types';
 
 export interface CityPreset {
@@ -192,7 +194,7 @@ export class LocationService {
     try {
       // 1. Try Browser Geolocation
       if ('geolocation' in navigator) {
-        const gpsLocation = await this.tryGpsLocation(7000);
+        const gpsLocation = await this.tryGpsLocation(7000, forceRefresh);
         if (gpsLocation) {
           this.saveLocation(gpsLocation);
           this.isDetecting = false;
@@ -253,7 +255,7 @@ export class LocationService {
       try {
         const status = await navigator.permissions.query({ name: 'geolocation' as any });
         if (status.state === 'granted') {
-          const freshGps = await this.tryGpsLocation(6000);
+          const freshGps = await this.tryGpsLocation(6000, false);
           if (freshGps) {
             this.saveLocation(freshGps);
           }
@@ -267,10 +269,19 @@ export class LocationService {
   /**
    * Attempts high accuracy GPS location with reverse geocoding
    */
-  public static async tryGpsLocation(timeoutMs = 7000): Promise<UserLocation | null> {
+  public static async tryGpsLocation(timeoutMs = 7000, allowPrompt = true): Promise<UserLocation | null> {
     if (!('geolocation' in navigator)) return null;
 
     try {
+      const permState = await PermissionService.checkPermission('location');
+      
+      if (permState !== 'granted') {
+        if (!allowPrompt) return null;
+        
+        const granted = await requestDynamicPermission('location');
+        if (!granted) return null;
+      }
+
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,

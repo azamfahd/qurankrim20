@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Volume2, VolumeX, X, Heart, CheckCircle2, 
-  Settings as SettingsIcon, Sparkles, BookOpen, Clock, Music
+  Settings as SettingsIcon, Sparkles, Clock, Music
 } from 'lucide-react';
 import { DhikrItem } from '../types';
 import { DhikrReminderService, DHIKR_RECITERS, DhikrAudioState } from '../services/dhikrReminderService';
@@ -17,19 +17,29 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
   const [hasRecited, setHasRecited] = useState(false);
   const [audioState, setAudioState] = useState<DhikrAudioState>({ isPlaying: false });
   const [progressPercent, setProgressPercent] = useState(100);
-  const [showVirtue, setShowVirtue] = useState(false);
 
   // Timer ref to manage countdown smoothly
   const autoDismissTimerRef = useRef<any>(null);
 
   // Subscribe to Dhikr Reminder triggers
   useEffect(() => {
+    // Check if there is an active triggered dhikr already active/playing on mount
+    const activeDhikr = DhikrReminderService.getActiveTriggeredDhikr();
+    if (activeDhikr) {
+      const settings = DhikrReminderService.getSettings();
+      if (settings.showFloatingBanner) {
+        setCurrentDhikr(activeDhikr);
+        setHasRecited(false);
+        setIsVisible(true);
+        setProgressPercent(100);
+      }
+    }
+
     const unsubscribeReminder = DhikrReminderService.subscribeToReminder((dhikr) => {
       const settings = DhikrReminderService.getSettings();
       if (settings.showFloatingBanner) {
         setCurrentDhikr(dhikr);
         setHasRecited(false);
-        setShowVirtue(false);
         setIsVisible(true);
         setProgressPercent(100);
 
@@ -41,7 +51,7 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
       }
     });
 
-    // Subscribe to Audio Playback State (to keep banner open while voice is playing)
+    // Subscribe to Audio Playback State
     const unsubscribeAudio = DhikrReminderService.subscribeToAudioState((state) => {
       setAudioState(state);
     });
@@ -55,7 +65,7 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
     };
   }, []);
 
-  // Smart Banner Lifecycle: Keep open during audio playback, then start grace reading timer
+  // Smart Banner Lifecycle
   useEffect(() => {
     if (!isVisible || !currentDhikr) {
       if (autoDismissTimerRef.current) {
@@ -65,13 +75,11 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
       return;
     }
 
-    // 1. If audio is still playing, keep banner open and do NOT dismiss!
     if (audioState.isPlaying) {
       if (autoDismissTimerRef.current) {
         clearInterval(autoDismissTimerRef.current);
         autoDismissTimerRef.current = null;
       }
-      // Calculate audio progress if available
       if (audioState.duration && audioState.duration > 0 && audioState.currentTime !== undefined) {
         const audioProgress = Math.min(100, Math.max(0, (audioState.currentTime / audioState.duration) * 100));
         setProgressPercent(100 - audioProgress);
@@ -81,7 +89,6 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
       return;
     }
 
-    // 2. Audio is not playing (or just completed). Start reading grace countdown
     const settings = DhikrReminderService.getSettings();
     const readingGraceSeconds = Math.max(8, settings.autoDismissSeconds || 12);
     const stepMs = 100;
@@ -112,9 +119,6 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
     };
   }, [isVisible, currentDhikr, audioState.isPlaying, audioState.currentTime, audioState.duration]);
 
-  /**
-   * تسجيل أداء الذكر والتسبيح وإيقاف الصوت تلقائياً
-   */
   const handleRecite = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentDhikr || hasRecited) return;
@@ -126,16 +130,12 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
       try { navigator.vibrate([40, 60, 40]); } catch {}
     }
 
-    // Give user visual acknowledgment of reward then dismiss
     setTimeout(() => {
       DhikrReminderService.stopAudio();
       setIsVisible(false);
     }, 1400);
   };
 
-  /**
-   * إعادة تشغيل الصوت الحقيقي للذكر
-   */
   const handleToggleAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentDhikr) return;
@@ -148,12 +148,8 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
     }
   };
 
-  /**
-   * إغلاق الشعار وإيقاف الصوت فوراً وتلقائياً
-   */
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Stop audio immediately as requested
     DhikrReminderService.stopAudio();
     setIsVisible(false);
   };
@@ -176,185 +172,114 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
     <AnimatePresence>
       <div 
         id="dhikr-floating-banner-container"
-        className="fixed top-3 sm:top-5 left-0 right-0 z-[70] flex justify-center px-3 sm:px-4 pointer-events-none"
+        className="fixed top-4 sm:top-6 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none"
       >
         <motion.div
           id="dhikr-floating-card"
-          initial={{ y: -50, opacity: 0, scale: 0.94 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -40, opacity: 0, scale: 0.94 }}
-          transition={{ type: 'spring', damping: 24, stiffness: 340 }}
-          className="pointer-events-auto w-full max-w-xl bg-slate-900/95 dark:bg-[#031d17]/95 backdrop-blur-2xl border border-amber-400/40 hover:border-amber-400/80 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.6)] text-white overflow-hidden relative transition-all"
+          initial={{ y: -50, opacity: 0, scale: 0.93, filter: 'blur(10px)' }}
+          animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          exit={{ y: -40, opacity: 0, scale: 0.93, filter: 'blur(10px)' }}
+          transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+          className="pointer-events-auto w-[92%] sm:w-[320px] bg-slate-950/95 backdrop-blur-xl border border-white/10 hover:border-amber-400/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.7),0_0_12px_rgba(245,158,11,0.05)] text-white overflow-hidden relative transition-all duration-300 group"
           dir="rtl"
         >
-          {/* Top Emerald-Gold Gradient Accent Glow */}
-          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-amber-400 via-emerald-400 to-amber-300 opacity-95"></div>
-
-          {/* Main Content Area */}
-          <div className="p-3.5 sm:p-4.5 space-y-2.5">
-            {/* Top Bar: Reciter & Category Badge + Audio Status + Controls */}
-            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-              {/* Right: Badge & Reciter */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div 
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shadow-inner shrink-0 border ${
-                    audioState.isPlaying 
-                      ? 'bg-amber-400/25 border-amber-300 animate-pulse text-amber-300' 
-                      : 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
-                  }`}
-                  title={currentReciter ? `بصوت: ${currentReciter.name}` : 'تنبيه الأذكار'}
-                >
-                  {audioState.isPlaying ? (
-                    <span className="text-base">🎙️</span>
-                  ) : (
-                    <span>{currentReciter?.avatar || (isSalawat ? '✨' : '🌿')}</span>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-amber-300/95 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-md">
-                      {isSalawat ? '✨ الصلاة على النبي ﷺ' : currentDhikr.categoryName}
-                    </span>
-
-                    {currentReciter && (
-                      <span className="text-[10px] text-emerald-200/80 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md truncate">
-                        {currentReciter.name}
-                      </span>
-                    )}
-
-                    {audioState.isPlaying && (
-                      <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                        <span>جاري تلاوة الذكر</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
+          {/* Subtle top light accent */}
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent"></div>
+          
+          <div className="p-2.5 flex flex-col gap-1.5 relative z-10">
+            {/* Header row: Status tag and control buttons */}
+            <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[11px] font-bold text-amber-400/95 tracking-wide truncate">
+                  {isSalawat ? '✨ الصلاة على النبي ﷺ' : currentDhikr.categoryName}
+                </span>
+                {audioState.isPlaying && (
+                  <span className="flex h-1.5 w-1.5 relative shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                  </span>
+                )}
               </div>
 
-              {/* Left: Top Actions (Settings & Close) */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {/* Audio Play/Stop Button */}
+              {/* Ultra-compact action group */}
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Done/Praise (سبحت) as a small elegant pill */}
                 <button
-                  id="dhikr-banner-audio-btn"
-                  onClick={handleToggleAudio}
-                  className={`p-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 border ${
-                    audioState.isPlaying
-                      ? 'bg-amber-400/25 border-amber-300 text-amber-300 hover:bg-amber-400/35'
-                      : 'bg-white/5 hover:bg-white/15 text-white/75 hover:text-white border-white/10'
+                  onClick={handleRecite}
+                  disabled={hasRecited}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all duration-300 flex items-center gap-1 border cursor-pointer ${
+                    hasRecited
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300 hover:scale-105 active:scale-95'
                   }`}
-                  title={audioState.isPlaying ? 'إيقاف الصوت' : 'إعادة سماع صوت القارئ'}
                 >
-                  {audioState.isPlaying ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                  {hasRecited ? (
+                    <CheckCircle2 size={11} className="text-emerald-400" />
+                  ) : (
+                    <Heart size={11} className="fill-amber-300 text-amber-300" />
+                  )}
+                  <span>{getPraiseLabel()}</span>
                 </button>
 
-                {/* Settings */}
+                {/* Audio play/mute button */}
+                <button
+                  onClick={handleToggleAudio}
+                  className={`p-1 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-center border cursor-pointer ${
+                    audioState.isPlaying
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border-white/10'
+                  }`}
+                  title={audioState.isPlaying ? 'إيقاف الصوت' : 'سماع'}
+                >
+                  {audioState.isPlaying ? <VolumeX size={11} /> : <Volume2 size={11} />}
+                </button>
+
+                {/* Settings (if available) */}
                 {onOpenSettings && (
                   <button
-                    id="dhikr-banner-settings-btn"
-                    onClick={() => { 
-                      DhikrReminderService.stopAudio();
-                      setIsVisible(false); 
-                      onOpenSettings(); 
-                    }}
-                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors border border-white/10"
-                    title="تخصيص القارئ والأذكار"
+                    onClick={() => { DhikrReminderService.stopAudio(); setIsVisible(false); onOpenSettings(); }}
+                    className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors border border-white/10 cursor-pointer"
+                    title="تخصيص"
                   >
-                    <SettingsIcon size={15} />
+                    <SettingsIcon size={11} />
                   </button>
                 )}
 
-                {/* Close Button - Automatically stops audio & dismisses banner */}
+                {/* Close Button */}
                 <button
-                  id="dhikr-banner-close-btn"
                   onClick={handleClose}
-                  className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 transition-colors border border-red-500/20"
-                  title="إغلاق الشعار وإيقاف الصوت"
+                  className="p-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 transition-all duration-300 border border-red-500/20 cursor-pointer"
+                  title="إغلاق"
                 >
-                  <X size={16} />
+                  <X size={11} />
                 </button>
               </div>
             </div>
 
-            {/* Middle: Full Dhikr Text Display (No Line Clamping!) */}
+            {/* Dhikr text: centered, medium-small size, elegant line spacing */}
             <div 
-              className="py-1 cursor-pointer select-none"
+              className="py-1 cursor-pointer select-none" 
               onClick={handleRecite}
             >
-              <div className="text-sm sm:text-base md:text-lg font-bold text-slate-50 dark:text-amber-50/95 font-arabic leading-relaxed text-right tracking-wide">
+              <div className="text-[13px] sm:text-[13.5px] font-bold text-slate-100 font-arabic leading-relaxed text-center tracking-wide hover:text-amber-200 transition-colors duration-200">
                 {currentDhikr.text}
               </div>
-
-              {/* Virtue & Source (Expandable / Visible) */}
+              
               {currentDhikr.virtue && (
-                <div className="mt-2 bg-black/25 dark:bg-emerald-950/40 border border-emerald-500/20 rounded-xl p-2 sm:p-2.5 text-[11px] sm:text-xs text-emerald-200/90 flex items-start gap-2">
-                  <Sparkles size={14} className="text-amber-300 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <span className="font-bold text-amber-300 block mb-0.5">فضل الذكر:</span>
-                    <span>{currentDhikr.virtue}</span>
-                    {currentDhikr.source && (
-                      <span className="text-white/45 block text-[10px] mt-1 font-sans">
-                        [ {currentDhikr.source} ]
-                      </span>
-                    )}
-                  </div>
+                <div className="mt-1.5 text-[9.5px] text-emerald-300/80 leading-normal text-center border-t border-white/5 pt-1 truncate max-w-full">
+                  💡 {currentDhikr.virtue}
                 </div>
               )}
             </div>
-
-            {/* Bottom Actions: Recite/Ajer Button + Audio wave status */}
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <div className="text-[11px] text-white/50 flex items-center gap-1.5">
-                {audioState.isPlaying ? (
-                  <span className="text-amber-300/90 font-bold flex items-center gap-1">
-                    <Music size={12} className="animate-bounce" />
-                    <span>يستمر العرض حتى نهاية تلاوة الصوت</span>
-                  </span>
-                ) : (
-                  <span className="text-slate-300/70 flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>اضغط للتسبيح وتسجيل الذكر</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Recite Pill Button */}
-              <button
-                id="dhikr-banner-recite-btn"
-                onClick={handleRecite}
-                disabled={hasRecited}
-                className={`flex items-center gap-1.5 text-xs sm:text-sm font-bold px-4 py-2 rounded-2xl transition-all cursor-pointer border shadow-md ${
-                  hasRecited
-                    ? 'bg-emerald-600 border-emerald-400 text-white'
-                    : isSalawat
-                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 border-amber-300 font-black scale-100 hover:scale-[1.02] active:scale-95'
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-400/50 scale-100 hover:scale-[1.02] active:scale-95'
-                }`}
-                title="تسجيل الذكر في ميزان حسناتك"
-              >
-                {hasRecited ? (
-                  <>
-                    <CheckCircle2 size={16} className="text-white animate-pulse" />
-                    <span>{getPraiseLabel()}</span>
-                  </>
-                ) : (
-                  <>
-                    <Heart size={15} className={isSalawat ? 'fill-slate-950 text-slate-950' : 'fill-amber-300 text-amber-300'} />
-                    <span>{getPraiseLabel()}</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
-          {/* Bottom Countdown & Audio Progress Bar */}
-          <div className="w-full bg-white/5 h-[3px] overflow-hidden">
+          {/* Smooth progress bar at the very bottom */}
+          <div className="w-full bg-white/5 h-[2px]">
             <div 
               className={`h-full transition-all ease-linear ${
                 audioState.isPlaying
-                  ? 'bg-gradient-to-r from-amber-400 via-emerald-400 to-amber-300 duration-200'
-                  : 'bg-gradient-to-r from-amber-400 via-emerald-400 to-emerald-500 duration-100'
+                  ? 'bg-amber-400 shadow-[0_0_6px_#fbbf24]'
+                  : 'bg-gradient-to-r from-amber-400 to-emerald-400'
               }`}
               style={{ width: `${progressPercent}%` }}
             />

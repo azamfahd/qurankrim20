@@ -28,6 +28,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [localSettings, setLocalSettings] = useState<UserSettings>({ ...settings });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // Sync state when settings prop or modal visibility changes
+  React.useEffect(() => {
+    if (isOpen) {
+      setLocalSettings({ ...settings });
+    }
+  }, [settings, isOpen]);
+
   const handleSave = () => {
     onSave(localSettings);
     onClose();
