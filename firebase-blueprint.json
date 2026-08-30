@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "User account information and app preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid"]
+    },
+    "user_data": {
+      "title": "User App Data",
+      "description": "Bookmarks, notes, and dhikr counts",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookmarks": { "type": "array", "items": { "type": "object" } },
+        "notes": { "type": "array", "items": { "type": "object" } },
+        "dhikrCounts": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  }
+}
