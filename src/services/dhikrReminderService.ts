@@ -1,3 +1,6 @@
+
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { requestDynamicPermission } from "./permissionService";
 import { DhikrItem, DhikrReminderSettings, DhikrReciterInfo } from '../types';
 
@@ -1244,6 +1247,66 @@ export class DhikrReminderService {
     }
 
     if (!this.settings.enabled) return;
+
+    
+    // Native Capacitor Background Dhikr Reminders
+    (async () => {
+      if (Capacitor.isNativePlatform() && this.settings.enabled) {
+        try {
+          await LocalNotifications.requestPermissions();
+
+          try {
+            await LocalNotifications.createChannel({
+              id: 'dhikr_channel',
+              name: 'تنبيهات الأذكار والتسبيح',
+              description: 'تذكير دوري بذكر الله والصلاة على النبي ﷺ',
+              importance: 4,
+              visibility: 1,
+              vibration: true
+            });
+          } catch (cErr) {
+            console.warn("Dhikr channel creation notice:", cErr);
+          }
+
+          const pending = await LocalNotifications.getPending();
+          if (pending && pending.notifications.length > 0) {
+            const dhikrIds = pending.notifications.filter(n => n.id >= 1000);
+            if (dhikrIds.length > 0) {
+              await LocalNotifications.cancel({ notifications: dhikrIds });
+            }
+          }
+          
+          const notifications = [];
+          let idCounter = 1000;
+          const now = Date.now();
+          const intervalMs = Math.max(5, this.settings.intervalMinutes) * 60 * 1000;
+          
+          // Schedule next 40 reminders (approx 10 hours if 15 mins)
+          for (let i = 1; i <= 40; i++) {
+            const item = DhikrReminderService.selectDhikr();
+            if (item) {
+              const categoryTitle = item.categoryName || 'تذكير بذكر الله';
+
+              notifications.push({
+                title: categoryTitle,
+                body: item.text.length > 70 ? item.text.substring(0, 70) + '...' : item.text,
+                id: idCounter++,
+                schedule: { at: new Date(now + i * intervalMs), allowWhileIdle: true },
+                channelId: 'dhikr_channel',
+                smallIcon: 'ic_stat_icon_config_sample',
+                extra: null
+              });
+            }
+          }
+          
+          if (notifications.length > 0) {
+            await LocalNotifications.schedule({ notifications });
+          }
+        } catch (e) {
+          console.warn("Failed to schedule background dhikr:", e);
+        }
+      }
+    })();
 
     this.intervalHandle = setInterval(() => {
       this.checkAndTriggerIfNeeded();

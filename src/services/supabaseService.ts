@@ -1,5 +1,36 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ChatSession, UserSettings, Bookmark } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+
+// Set up Deep Link Listener for Supabase Auth on Android
+if (Capacitor.isNativePlatform()) {
+  App.addListener('appUrlOpen', async (data) => {
+    try {
+      const client = getSupabase();
+      if (!client || !data.url) return;
+
+      const rawUrl = data.url;
+      if (rawUrl.includes('code=')) {
+        const urlObj = new URL(rawUrl.replace('#', '?'));
+        const code = urlObj.searchParams.get('code');
+        if (code) {
+          await client.auth.exchangeCodeForSession(code);
+        }
+      } else if (rawUrl.includes('access_token=') || rawUrl.includes('#access_token=')) {
+        const hash = rawUrl.includes('#') ? rawUrl.substring(rawUrl.indexOf('#') + 1) : rawUrl.substring(rawUrl.indexOf('?') + 1);
+        const paramsObj = new URLSearchParams(hash);
+        const access_token = paramsObj.get('access_token');
+        const refresh_token = paramsObj.get('refresh_token');
+        if (access_token && refresh_token) {
+          await client.auth.setSession({ access_token, refresh_token });
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase deep link callback notice:', e);
+    }
+  });
+}
 
 // Use directly from import.meta.env for Vite production compatibility, fallback to process.env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || '';
@@ -60,10 +91,14 @@ export class SupabaseService {
   static async signInWithGoogle() {
     const client = getSupabase();
     if (!client) throw new Error("Supabase client not initialized");
+    const redirectTo = Capacitor.isNativePlatform() 
+        ? 'com.anis.qulub://auth' 
+        : window.location.origin;
+        
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo
       }
     });
     if (error) throw error;

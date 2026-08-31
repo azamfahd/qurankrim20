@@ -1,3 +1,6 @@
+
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { requestDynamicPermission } from "./permissionService";
 import { Coordinates, CalculationMethod, PrayerTimes, Madhab, HighLatitudeRule } from 'adhan';
 import { UserLocation, AdhanSettings } from '../types';
@@ -33,8 +36,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'الكويت',
     audioUrls: [
       '/audio/adhan/mishary.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a1.mp3',
-      'https://cdn.islamic.network/audio/adhans/1.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a1.mp3'
     ]
   },
   {
@@ -44,8 +46,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'مكة المكرمة',
     audioUrls: [
       '/audio/adhan/al_mulla.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a2.mp3',
-      'https://cdn.islamic.network/audio/adhans/2.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a2.mp3'
     ]
   },
   {
@@ -55,8 +56,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'المدينة المنورة',
     audioUrls: [
       '/audio/adhan/madina.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a7.mp3',
-      'https://cdn.islamic.network/audio/adhans/7.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a7.mp3'
     ]
   },
   {
@@ -66,8 +66,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'مصر',
     audioUrls: [
       '/audio/adhan/abdulbasit.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a3.mp3',
-      'https://cdn.islamic.network/audio/adhans/3.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a3.mp3'
     ]
   },
   {
@@ -77,8 +76,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'السعودية',
     audioUrls: [
       '/audio/adhan/mansour.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a4.mp3',
-      'https://cdn.islamic.network/audio/adhans/4.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a4.mp3'
     ]
   },
   {
@@ -88,8 +86,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'السعودية',
     audioUrls: [
       '/audio/adhan/alghamdi.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a5.mp3',
-      'https://cdn.islamic.network/audio/adhans/5.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a5.mp3'
     ]
   },
   {
@@ -99,8 +96,7 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'الرياض',
     audioUrls: [
       '/audio/adhan/qatami.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a6.mp3',
-      'https://cdn.islamic.network/audio/adhans/6.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a6.mp3'
     ]
   },
   {
@@ -110,15 +106,14 @@ export const MUEZZINS_LIST: MuezzinInfo[] = [
     country: 'القدس الشريف',
     audioUrls: [
       '/audio/adhan/aqsa.mp3',
-      'https://cdn.aladhan.com/audio/adhans/a8.mp3',
-      'https://cdn.islamic.network/audio/adhans/8.mp3'
+      'https://cdn.aladhan.com/audio/adhans/a8.mp3'
     ]
   }
 ];
 
 const DB_NAME = 'anis_adhan_offline_storage_v1';
 const STORE_NAME = 'muezzin_audio_blobs';
-const CACHE_NAME = 'anis-adhan-cache-v1';
+const ADHAN_RUNTIME_CACHE = 'anis-al-qulub-runtime-v5';
 
 /**
  * Robust IndexedDB & Cache Storage Helper for 100% Offline Adhan Audio
@@ -163,7 +158,7 @@ export class AdhanOfflineManager {
   }
 
   /**
-   * Save audio blob into IndexedDB and Cache API
+   * Save audio blob into Cache API (Service Worker Cache) and IndexedDB
    */
   public static async saveMuezzinAudio(muezzinId: string, blob: Blob): Promise<boolean> {
     try {
@@ -172,27 +167,10 @@ export class AdhanOfflineManager {
         return false;
       }
 
-      const db = await this.getDB();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const item = {
-          id: muezzinId,
-          blob,
-          size: blob.size,
-          type: blob.type || 'audio/mpeg',
-          updatedAt: Date.now()
-        };
-        store.put(item);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Transaction aborted'));
-      });
-
-      // Also mirror into Cache Storage for service worker compatibility
+      // 1. Primary Save to Cache Storage (Cache API) for Service Worker offline serving
       if (typeof caches !== 'undefined') {
         try {
-          const cache = await caches.open(CACHE_NAME);
+          const cache = await caches.open(ADHAN_RUNTIME_CACHE);
           const response = new Response(blob, {
             headers: {
               'Content-Type': 'audio/mpeg',
@@ -200,10 +178,42 @@ export class AdhanOfflineManager {
               'X-Cached-By': 'AnisAlQulub'
             }
           });
-          await cache.put(resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`), response);
+          const targetPath = resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`);
+          await cache.put(targetPath, response.clone());
+          await cache.put(`/audio/adhan/${muezzinId}.mp3`, response.clone());
+          
+          // Also cache remote CDN fallback URL for that muezzin if present
+          const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
+          if (muezzin && muezzin.audioUrls) {
+            for (const u of muezzin.audioUrls) {
+              await cache.put(u, response.clone()).catch(() => {});
+            }
+          }
         } catch (cacheErr) {
-          console.warn('Cache API mirror notice (IndexedDB preserved):', cacheErr);
+          console.warn('Cache API storage notice:', cacheErr);
         }
+      }
+
+      // 2. Mirror into IndexedDB for persistent blob records
+      try {
+        const db = await this.getDB();
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const item = {
+            id: muezzinId,
+            blob,
+            size: blob.size,
+            type: blob.type || 'audio/mpeg',
+            updatedAt: Date.now()
+          };
+          store.put(item);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(new Error('Transaction aborted'));
+        });
+      } catch (idbErr) {
+        console.warn('IndexedDB mirror notice:', idbErr);
       }
 
       if (typeof window !== 'undefined') {
@@ -233,9 +243,40 @@ export class AdhanOfflineManager {
   }
 
   /**
-   * Retrieve Blob for offline playback with auto-recovery from corrupted entries
+   * Retrieve Blob for offline playback directly from Cache API (Service Worker Cache) or IndexedDB
    */
   public static async getMuezzinBlob(muezzinId: string): Promise<Blob | null> {
+    // 1. First check Cache API (Service Worker cache storage)
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open(ADHAN_RUNTIME_CACHE);
+        const targetPath = resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`);
+        let cachedResp = await cache.match(targetPath);
+        if (!cachedResp) {
+          cachedResp = await cache.match(`/audio/adhan/${muezzinId}.mp3`);
+        }
+        if (!cachedResp) {
+          const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
+          if (muezzin && muezzin.audioUrls) {
+            for (const u of muezzin.audioUrls) {
+              cachedResp = await cache.match(u);
+              if (cachedResp) break;
+            }
+          }
+        }
+
+        if (cachedResp) {
+          const blob = await cachedResp.blob();
+          if (this.isValidAudioBlob(blob)) {
+            return blob;
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('Cache API lookup notice:', cacheErr);
+      }
+    }
+
+    // 2. Fallback to IndexedDB
     try {
       const db = await this.getDB();
       const item = await new Promise<any>((resolve) => {
@@ -248,6 +289,13 @@ export class AdhanOfflineManager {
 
       if (item && item.blob) {
         if (this.isValidAudioBlob(item.blob)) {
+          // Re-sync into Cache API if missing in Cache
+          if (typeof caches !== 'undefined') {
+            caches.open(ADHAN_RUNTIME_CACHE).then(cache => {
+              const resp = new Response(item.blob, { headers: { 'Content-Type': 'audio/mpeg' } });
+              cache.put(resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`), resp);
+            }).catch(() => {});
+          }
           return item.blob;
         } else {
           // Auto-clean corrupted entry
@@ -266,6 +314,27 @@ export class AdhanOfflineManager {
    * Get all downloaded muezzin IDs and total size
    */
   public static async getAllDownloadedStatus(): Promise<{ downloadedIds: string[]; totalSizeBytes: number }> {
+    const validIdsSet = new Set<string>();
+    let totalSize = 0;
+
+    // Check Cache API
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open(ADHAN_RUNTIME_CACHE);
+        for (const m of MUEZZINS_LIST) {
+          const res = await cache.match(resolveAudioPath(`/audio/adhan/${m.id}.mp3`)) || await cache.match(`/audio/adhan/${m.id}.mp3`);
+          if (res) {
+            const blob = await res.blob();
+            if (this.isValidAudioBlob(blob)) {
+              validIdsSet.add(m.id);
+              totalSize += blob.size;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Check IndexedDB
     try {
       const db = await this.getDB();
       const items = await new Promise<any[]>((resolve) => {
@@ -276,22 +345,19 @@ export class AdhanOfflineManager {
         req.onerror = () => resolve([]);
       });
 
-      const validIds: string[] = [];
-      let totalSize = 0;
-
       for (const it of items) {
         if (it && it.blob && this.isValidAudioBlob(it.blob)) {
-          validIds.push(it.id);
-          totalSize += it.blob.size;
+          if (!validIdsSet.has(it.id)) {
+            validIdsSet.add(it.id);
+            totalSize += it.blob.size;
+          }
         } else if (it && it.id) {
           this.deleteMuezzin(it.id).catch(() => {});
         }
       }
+    } catch {}
 
-      return { downloadedIds: validIds, totalSizeBytes: totalSize };
-    } catch {
-      return { downloadedIds: [], totalSizeBytes: 0 };
-    }
+    return { downloadedIds: Array.from(validIdsSet), totalSizeBytes: totalSize };
   }
 
   /**
@@ -299,23 +365,36 @@ export class AdhanOfflineManager {
    */
   public static async deleteMuezzin(muezzinId: string): Promise<boolean> {
     try {
-      const db = await this.getDB();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(muezzinId);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Transaction aborted'));
-      });
-
+      // 1. Delete from Cache API
       if (typeof caches !== 'undefined') {
         try {
-          const cache = await caches.open(CACHE_NAME);
+          const cache = await caches.open(ADHAN_RUNTIME_CACHE);
           await cache.delete(resolveAudioPath(`/audio/adhan/${muezzinId}.mp3`));
+          await cache.delete(`/audio/adhan/${muezzinId}.mp3`);
+          const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
+          if (muezzin && muezzin.audioUrls) {
+            for (const u of muezzin.audioUrls) {
+              await cache.delete(u).catch(() => {});
+            }
+          }
         } catch (e) {
           console.warn('Cache deletion notice:', e);
         }
+      }
+
+      // 2. Delete from IndexedDB
+      try {
+        const db = await this.getDB();
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.delete(muezzinId);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(new Error('Transaction aborted'));
+        });
+      } catch (idbErr) {
+        console.warn('IndexedDB delete notice:', idbErr);
       }
 
       if (typeof window !== 'undefined') {
@@ -364,7 +443,7 @@ export class AdhanOfflineManager {
           if (onProgress) onProgress(20 + i * 10);
           
           const fetchController = new AbortController();
-          const timeoutId = setTimeout(() => fetchController.abort(), 15000);
+          const timeoutId = setTimeout(() => fetchController.abort(), 60000);
           
           if (signal) {
             signal.addEventListener('abort', () => fetchController.abort());
@@ -475,6 +554,34 @@ export class AdhanOfflineManager {
       if (e.name === 'AbortError' || e.message === 'Aborted' || signal?.aborted || e.message?.includes('aborted')) throw e;
       console.warn("autoDownloadAllMuezzins notice:", e);
       return { success: false, totalDownloaded: 0 };
+    }
+  }
+
+  /**
+   * Seed all bundled local audio assets into IndexedDB & Cache storage on app initialization.
+   * This guarantees 100% offline playback from local storage even before user triggers any download.
+   */
+  public static async seedLocalAssets(): Promise<void> {
+    try {
+      for (const muezzin of MUEZZINS_LIST) {
+        const existing = await this.isMuezzinDownloaded(muezzin.id);
+        if (!existing.downloaded) {
+          const localPath = resolveAudioPath(`/audio/adhan/${muezzin.id}.mp3`);
+          try {
+            const resp = await fetch(localPath, { cache: 'force-cache' });
+            if (resp.ok) {
+              const blob = await resp.blob();
+              if (this.isValidAudioBlob(blob)) {
+                await this.saveMuezzinAudio(muezzin.id, blob);
+              }
+            }
+          } catch (fetchErr) {
+            // Ignore fetch errors during silent startup seeding
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("seedLocalAssets notice:", e);
     }
   }
 
@@ -821,7 +928,74 @@ export class AdhanAudioEngine {
         schedule30Days.push(daySchedule);
       }
 
-      localStorage.setItem('anis_offline_prayer_schedules', JSON.stringify(schedule30Days));
+      
+      // Native Capacitor Notification Scheduling
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await LocalNotifications.requestPermissions();
+          
+          // Create high importance notification channel with sound for Android 8+
+          try {
+            await LocalNotifications.createChannel({
+              id: 'adhan_channel',
+              name: 'تنبيهات الأذان ومواقيت الصلاة',
+              description: 'رفع الأذان والتنبيه بدخول وقت الصلاة',
+              importance: 5,
+              sound: 'mishary.mp3',
+              visibility: 1,
+              vibration: true
+            });
+          } catch (channelErr) {
+            console.warn("Channel creation notice:", channelErr);
+          }
+
+          // Cancel existing scheduled notifications to avoid duplicates
+          const pending = await LocalNotifications.getPending();
+          if (pending && pending.notifications.length > 0) {
+            const adhanIds = pending.notifications.filter(n => n.id < 1000);
+            if (adhanIds.length > 0) {
+              await LocalNotifications.cancel({ notifications: adhanIds });
+            }
+          }
+          
+          let idCounter = 1;
+          const notifications = [];
+          
+          for (const day of schedule30Days) {
+            const prayers = [
+              { name: 'الفجر', time: new Date(day.fajr) },
+              { name: 'الظهر', time: new Date(day.dhuhr) },
+              { name: 'العصر', time: new Date(day.asr) },
+              { name: 'المغرب', time: new Date(day.maghrib) },
+              { name: 'العشاء', time: new Date(day.isha) }
+            ];
+            
+            for (const prayer of prayers) {
+              if (prayer.time.getTime() > Date.now()) {
+                notifications.push({
+                  title: 'حان الآن موعد صلاة ' + prayer.name,
+                  body: 'حي على الصلاة، حي على الفلاح',
+                  id: idCounter++,
+                  schedule: { at: prayer.time, allowWhileIdle: true },
+                  sound: 'mishary.mp3',
+                  channelId: 'adhan_channel',
+                  smallIcon: 'ic_stat_icon_config_sample',
+                  actionTypeId: '',
+                  extra: null
+                });
+              }
+            }
+          }
+          
+          if (notifications.length > 0) {
+            // Schedule up to 60 prayer times in advance
+            await LocalNotifications.schedule({ notifications: notifications.slice(0, 60) });
+          }
+        } catch (e) {
+          console.warn("Failed to schedule native notifications:", e);
+        }
+      }
+localStorage.setItem('anis_offline_prayer_schedules', JSON.stringify(schedule30Days));
 
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({

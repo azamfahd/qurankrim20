@@ -9,7 +9,7 @@ import { Sidebar } from './components/Sidebar';
 import { DailyVerse } from './components/DailyVerse';
 import { PrayerTimesWidget } from './components/PrayerTimesWidget';
 import { AdhanNotificationBanner } from './components/AdhanNotificationBanner';
-import { calculateAccuratePrayerTimes, AdhanAudioEngine, MUEZZINS_LIST } from './services/adhanService';
+import { calculateAccuratePrayerTimes, AdhanAudioEngine, AdhanOfflineManager, MUEZZINS_LIST } from './services/adhanService';
 import { LocationService } from './services/locationService';
 import { LocationPromptBanner } from './components/LocationPromptBanner';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
@@ -211,6 +211,8 @@ const App: React.FC = () => {
 
   // Live Accurate Adhan & Dhikr Checker
   useEffect(() => {
+    AdhanAudioEngine.setupInteractionAudioUnlock();
+    AdhanOfflineManager.seedLocalAssets();
     DhikrReminderService.init(settings.dhikrReminderSettings);
   }, []);
 
@@ -269,6 +271,7 @@ const App: React.FC = () => {
           const muezzinName = muezzinObj?.name || 'الشيخ مشاري راشد العفاسي';
 
           if (adhanConfig.autoPlayLiveAdhan !== false) {
+            AdhanAudioEngine.unlockAudioContext();
             AdhanAudioEngine.play(muezzinId, adhanConfig.volume || 85, undefined, undefined, prayer.name);
           }
 
@@ -343,7 +346,7 @@ const App: React.FC = () => {
     }
   });
 
-  // Initialize Dexie IndexedDB Local Storage & load cached offline data
+  // Initialize Dexie IndexedDB Local Storage, SQLite Native bridge, and register auto-sync listeners
   useEffect(() => {
     LocalDatabaseService.init().then(async () => {
       const localSessions = await LocalDatabaseService.getAllSessions();
@@ -353,7 +356,13 @@ const App: React.FC = () => {
     }).catch(err => {
       console.warn('Local database initialization notice:', err);
     });
-  }, []);
+
+    // Start auto-sync on network reconnect & app visibility
+    SyncService.initAutoSync(
+      () => settings.uid,
+      () => settings
+    );
+  }, [settings]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

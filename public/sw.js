@@ -8,7 +8,13 @@ const PRECACHE_URLS = [
   '/manifest.json',
   '/app-icon.svg',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/apple-touch-icon-180x180.png',
+  '/icons/favicon-32x32.png',
+  '/icons/favicon-16x16.png'
 ];
 
 // Install Event: تخزين الملفات الأساسية بأمان بدون إلغاء التثبيت في حال تعثر ملف واحد
