@@ -39,8 +39,46 @@ type FilterCategory = 'all' | 'ulul_azm' | 'early' | 'israel' | 'arabia';
 export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, onShowToast }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('all');
-  const [selectedProphetId, setSelectedProphetId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'story' | 'miracles' | 'wisdoms' | 'quiz'>('story');
+  const [selectedProphetId, setSelectedProphetId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('anis_prophet_selected_id') || null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeTab, setActiveTab] = useState<'story' | 'miracles' | 'wisdoms' | 'quiz'>(() => {
+    try {
+      const saved = localStorage.getItem('anis_prophet_active_tab');
+      return (saved as any) || 'story';
+    } catch {
+      return 'story';
+    }
+  });
+
+  // Save state on change
+  useEffect(() => {
+    try {
+      if (selectedProphetId) {
+        localStorage.setItem('anis_prophet_selected_id', selectedProphetId);
+      } else {
+        localStorage.removeItem('anis_prophet_selected_id');
+      }
+      localStorage.setItem('anis_prophet_active_tab', activeTab);
+    } catch (e) {}
+  }, [selectedProphetId, activeTab]);
+
+  // Listen for hardware back request inside Prophets modal
+  useEffect(() => {
+    const handleProphetsBack = (e: CustomEvent) => {
+      if (selectedProphetId) {
+        setSelectedProphetId(null);
+        e.preventDefault();
+        if (e.detail && typeof e.detail.stopProp === 'function') e.detail.stopProp();
+      }
+    };
+    window.addEventListener('anis_back_prophet_detail', handleProphetsBack as EventListener);
+    return () => window.removeEventListener('anis_back_prophet_detail', handleProphetsBack as EventListener);
+  }, [selectedProphetId]);
   
   // Font Size scaling
   const [fontSizeLevel, setFontSizeLevel] = useState<number>(1); // 0 = small, 1 = normal, 2 = large, 3 = xl

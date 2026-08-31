@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './main-styles.css';
+import { SplashScreen } from '@capacitor/splash-screen';
+
+// Instantly dismiss native Capacitor splash screen to prevent duplicate or stretched icon
+try {
+  SplashScreen.hide().catch(() => {});
+} catch {}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

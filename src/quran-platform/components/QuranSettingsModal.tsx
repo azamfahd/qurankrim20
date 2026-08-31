@@ -797,13 +797,13 @@ export const QuranSettingsModal: React.FC = () => {
                   )}
 
                   <div className="space-y-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
-                    {khatmasList.map((item) => {
+                    {khatmasList.map((item, idx) => {
                       const curPg = item.currentPage || 1;
                       const pct = Math.round((curPg / 604) * 100);
 
                       return (
                         <div
-                          key={item.id}
+                          key={`${item.id || 'khatma'}-${idx}`}
                           className={`p-3 rounded-xl border transition-all text-right ${
                             item.isCompleted 
                               ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40' 

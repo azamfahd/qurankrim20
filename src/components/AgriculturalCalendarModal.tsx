@@ -1922,7 +1922,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 {currentRegionalMonth.whatToPlant.map((crop, idx) => (
-                                  <span key={idx} className="bg-white dark:bg-gray-900 text-emerald-900 dark:text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-200/80 dark:border-emerald-800 text-xs font-black shadow-3xs">
+                                  <span key={`${crop}-${idx}`} className="bg-white dark:bg-gray-900 text-emerald-900 dark:text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-200/80 dark:border-emerald-800 text-xs font-black shadow-3xs">
                                     {crop}
                                   </span>
                                 ))}
@@ -1949,7 +1949,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             {currentRegionalMonth.recommendations.map((rec, idx) => (
-                              <div key={idx} className="flex items-start gap-2.5 bg-stone-50/80 dark:bg-gray-900/70 p-3 rounded-xl border border-stone-200/70 dark:border-gray-800/80 transition-all hover:border-emerald-200 dark:hover:border-emerald-900">
+                              <div key={`${rec}-${idx}`} className="flex items-start gap-2.5 bg-stone-50/80 dark:bg-gray-900/70 p-3 rounded-xl border border-stone-200/70 dark:border-gray-800/80 transition-all hover:border-emerald-200 dark:hover:border-emerald-900">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
                                 <span className="text-xs font-bold text-stone-700 dark:text-stone-200 leading-relaxed">
                                   {rec}
@@ -2136,7 +2136,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                 <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 block">ماذا نزرع خلال شهر {details.himyariteMonth.name}؟</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {currentMonthPackage.whatToPlant.map((crop, i) => (
-                                    <span key={i} className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-900/30">
+                                    <span key={`${crop}-${i}`} className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-900/30">
                                       {crop}
                                     </span>
                                   ))}
@@ -2162,7 +2162,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                 <span className="text-[10px] font-black text-stone-400 dark:text-gray-500 block">أهم الأعمال والمهام الحقلية والمنزلية:</span>
                                 <div className="space-y-2">
                                   {currentMonthPackage.keyActions.map((action, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-[11px] leading-relaxed">
+                                    <div key={`${action.substring(0, 10)}-${i}`} className="flex items-start gap-2 text-[11px] leading-relaxed">
                                       <div className="p-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-md shrink-0 mt-0.5">
                                         <CheckCircle className="w-3.5 h-3.5" />
                                       </div>
@@ -3217,7 +3217,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {HADRAMOUT_SEASONS.map((h, idx) => (
-                              <div key={idx} className="p-3 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-200/50 dark:border-amber-900/30">
+                              <div key={`${h.season}-${idx}`} className="p-3 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-200/50 dark:border-amber-900/30">
                                 <h3 className="text-[11px] font-black text-amber-800 dark:text-amber-400">{h.season}</h3>
                                 <p className="text-[11px] font-bold text-stone-600 dark:text-gray-300 mt-1">{h.desc}</p>
                                 <p className="text-[10px] text-amber-700/80 dark:text-amber-500/80 mt-1 font-bold">النجوم: {h.stars}</p>
@@ -3489,7 +3489,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                             <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 block">ماذا نزرع خلال الشهر؟</span>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {pkg.whatToPlant.map((item: string, i: number) => (
-                                <span key={i} className="bg-white dark:bg-gray-900 text-stone-800 dark:text-stone-200 px-2 py-0.5 rounded-md text-[11px] font-bold border border-emerald-200/60 dark:border-emerald-800">
+                                <span key={`${item}-${i}`} className="bg-white dark:bg-gray-900 text-stone-800 dark:text-stone-200 px-2 py-0.5 rounded-md text-[11px] font-bold border border-emerald-200/60 dark:border-emerald-800">
                                   {item}
                                 </span>
                               ))}

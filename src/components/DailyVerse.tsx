@@ -83,7 +83,7 @@ export const DailyVerse: React.FC<DailyVerseProps> = ({ onOpenQuran }) => {
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={verse.text}
+          key={`${verse.surah}-${verse.ayah}-${verse.text}`}
           initial={{ opacity: 0, scale: 0.98, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: -8 }}

@@ -47,11 +47,39 @@ const getIcon = (iconName: string) => {
 };
 
 const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline = true, onShowToast }) => {
-  const [selectedCategory, setSelectedCategory] = useState<MiracleCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<MiracleCategory | null>(() => {
+    try {
+      const savedId = localStorage.getItem('anis_miracle_selected_category_id');
+      if (savedId) {
+        return miraclesData.find(c => c.id === savedId) || null;
+      }
+    } catch {}
+    return null;
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    try {
+      if (selectedCategory) {
+        localStorage.setItem('anis_miracle_selected_category_id', selectedCategory.id);
+      } else {
+        localStorage.removeItem('anis_miracle_selected_category_id');
+      }
+    } catch (e) {}
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    const handleMiraclesBack = () => {
+      if (selectedCategory) {
+        setSelectedCategory(null);
+      }
+    };
+    window.addEventListener('anis_back_miracle_detail', handleMiraclesBack);
+    return () => window.removeEventListener('anis_back_miracle_detail', handleMiraclesBack);
+  }, [selectedCategory]);
 
   // Cleanup audio on unmount or close
   useEffect(() => {
@@ -380,7 +408,7 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
                 >
                   {selectedCategory.miracles.map((miracle, index) => (
                     <div 
-                      key={miracle.id}
+                      key={`${miracle.id}-${index}`}
                       className="bg-white dark:bg-gray-900 rounded-2xl border border-stone-200 dark:border-gray-800 shadow-sm overflow-hidden"
                     >
                       <div className="p-5 sm:p-6 space-y-5">

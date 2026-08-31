@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DownloadManager } from '../../services/DownloadManager';
 import { getCleanSurahName } from './AyahMarker';
 
+import { MediaSessionService } from '../../services/mediaSessionService';
+
 export const RECITERS = [
   { id: 'ar.faresabbad', name: 'فارس عباد', sub: 'مرتل' },
   { id: 'ar.alafasy', name: 'مشاري راشد العفاسي', sub: 'العفاسي' },
@@ -391,23 +393,24 @@ const QuranAudioPlayer = () => {
   }, [playingAyahNumber, rangeStart, surahData, isAudioPlaying, currentSurah, continuousPlay]);
 
   useEffect(() => {
-    if ('mediaSession' in navigator && surahData) {
+    if (surahData) {
       const activeAyah = playingAyahNumber || rangeStart;
-      navigator.mediaSession.metadata = new MediaMetadata({
+      MediaSessionService.updateMetadata({
         title: `سورة ${getCleanSurahName(surahData.name)} - آية ${activeAyah}`,
         artist: selectedReciterObj.name,
-        album: 'القرآن الكريم - المرتل',
-        artwork: [
-          { src: 'https://cdn-icons-png.flaticon.com/512/3233/3233519.png', sizes: '512x512', type: 'image/png' }
-        ]
+        album: 'القرآن الكريم - رفيقك القرآني'
+      }, {
+        onPlay: () => handlersRef.current.play(),
+        onPause: () => handlersRef.current.pause(),
+        onPrevious: () => handlersRef.current.prev(),
+        onNext: () => handlersRef.current.next()
       });
-
-      navigator.mediaSession.setActionHandler('play', () => handlersRef.current.play());
-      navigator.mediaSession.setActionHandler('pause', () => handlersRef.current.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', () => handlersRef.current.prev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => handlersRef.current.next());
     }
   }, [playingAyahNumber, rangeStart, surahData, reciter]);
+
+  useEffect(() => {
+    MediaSessionService.setPlaybackState(isAudioPlaying ? 'playing' : 'paused');
+  }, [isAudioPlaying]);
 
   const filteredReciters = RECITERS.filter(r => 
     r.name.includes(searchReciter) || r.sub.includes(searchReciter)

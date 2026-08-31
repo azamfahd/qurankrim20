@@ -4,6 +4,10 @@
  * with an informative UI trigger flow.
  */
 
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
+import { LocalNotifications } from '@capacitor/local-notifications';
+
 export type PermissionType = 'notifications' | 'location' | 'audio' | 'background';
 export type PermissionStateResult = 'granted' | 'denied' | 'prompt' | 'unsupported';
 
@@ -36,6 +40,8 @@ export class PermissionService {
    */
   public static isAndroidWebView(): boolean {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+    if (Capacitor.isNativePlatform()) return true;
+
     const ua = navigator.userAgent || '';
     
     // Check for Android WebView indicators (wv, Version/X.X Chrome, TWA standalone, etc.)
@@ -54,6 +60,11 @@ export class PermissionService {
 
     try {
       if (type === 'notifications') {
+        if (Capacitor.isNativePlatform()) {
+          const status = await LocalNotifications.checkPermissions();
+          return status.display === 'granted' ? 'granted' : status.display === 'denied' ? 'denied' : 'prompt';
+        }
+
         if (!('Notification' in window)) return 'unsupported';
         try {
           const perm = Notification.permission;
@@ -66,6 +77,11 @@ export class PermissionService {
       }
 
       if (type === 'location') {
+        if (Capacitor.isNativePlatform()) {
+          const status = await Geolocation.checkPermissions();
+          return status.location === 'granted' ? 'granted' : status.location === 'denied' ? 'denied' : 'prompt';
+        }
+
         if (!('geolocation' in navigator)) return 'unsupported';
         if ('permissions' in navigator && navigator.permissions?.query) {
           try {
@@ -97,6 +113,11 @@ export class PermissionService {
     if (typeof window === 'undefined') return false;
 
     if (type === 'notifications') {
+      if (Capacitor.isNativePlatform()) {
+        const status = await LocalNotifications.requestPermissions();
+        return status.display === 'granted';
+      }
+
       if (!('Notification' in window)) return true; // Audio still works
       
       // If already granted, return true immediately
@@ -152,6 +173,11 @@ export class PermissionService {
     }
 
     if (type === 'location') {
+      if (Capacitor.isNativePlatform()) {
+        const status = await Geolocation.requestPermissions();
+        return status.location === 'granted' || status.coarseLocation === 'granted';
+      }
+
       if (!('geolocation' in navigator)) return false;
       return new Promise<boolean>((resolve) => {
         navigator.geolocation.getCurrentPosition(

@@ -436,11 +436,11 @@ const QuranStats: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          {khatmasList.map((khatma) => {
+          {khatmasList.map((khatma, idx) => {
             const percent = Math.min(100, Math.round((khatma.currentPage / khatma.totalPages) * 100));
             return (
               <div 
-                key={khatma.id}
+                key={`${khatma.id || 'khatma'}-${idx}`}
                 className={`p-5 rounded-2xl border transition-all ${khatma.isCompleted ? 'bg-emerald-50/50 border-emerald-200' : 'bg-gray-50/60 border-gray-100'}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

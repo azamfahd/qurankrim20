@@ -392,49 +392,63 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
             <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
               
               {/* Main Master Switch */}
-              <div className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-800/80 to-amber-500/10 dark:from-slate-800/90 dark:to-slate-800/40 p-4 rounded-2xl border-2 border-emerald-500/25 dark:border-emerald-500/30 shadow-2xs flex items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-xs sm:text-sm text-[var(--color-primary-dark)] dark:text-emerald-300">تفعيل صوت الأذان والتنبيهات</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${adhan.enabled ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                      {adhan.enabled ? 'مفعل' : 'معطل'}
-                    </span>
+              <div className="bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-800/80 to-amber-500/10 dark:from-slate-800/90 dark:to-slate-800/40 p-4 rounded-2xl border-2 border-emerald-500/25 dark:border-emerald-500/30 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-xs sm:text-sm text-[var(--color-primary-dark)] dark:text-emerald-300">التحكم في الأذان والإشعارات</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${adhan.enabled ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                        {adhan.enabled ? 'مفعل' : 'معطل'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">تشغيل وإيقاف صوت الأذان والإشعارات التلقائية عند دخول أوقات الصلاة</p>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">تشغيل صوت الأذان تلقائياً عند دخول وقت كل صلاة مع إشعار بالدعاء</p>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={adhan.enabled} 
+                      onChange={async (e) => {
+                        const isChecked = e.target.checked;
+                        setAdhan({...adhan, enabled: isChecked});
+                        if (isChecked) {
+                          if ('Notification' in window && Notification.permission !== 'granted') {
+                             requestDynamicPermission('notifications').then(() => {
+                               checkNotificationPermission();
+                             });
+                          } else {
+                            checkNotificationPermission();
+                          }
+                          if (adhan.muezzin) {
+                            ensureSelectedMuezzinDownloaded(adhan.muezzin);
+                          }
+                          setToastMessage('تم تفعيل صوت وتنبيهات الأذان بنجاح!');
+                          setShowToast(true);
+                          setTimeout(() => setShowToast(false), 3000);
+                        } else {
+                          setToastMessage('تم تعطيل صوت الأذان والتنبيهات.');
+                          setShowToast(true);
+                          setTimeout(() => setShowToast(false), 2500);
+                        }
+                      }} 
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[var(--color-primary)]"></div>
+                  </label>
                 </div>
 
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only peer" 
-                    checked={adhan.enabled} 
-                    onChange={async (e) => {
-                      const isChecked = e.target.checked;
-                      setAdhan({...adhan, enabled: isChecked});
-                      if (isChecked) {
-                        // Check if permission already granted or trigger permission flow
-                        if ('Notification' in window && Notification.permission !== 'granted') {
-                           requestDynamicPermission('notifications').then(() => {
-                             checkNotificationPermission();
-                           });
-                        } else {
-                          checkNotificationPermission();
-                        }
-                        if (adhan.muezzin) {
-                          ensureSelectedMuezzinDownloaded(adhan.muezzin);
-                        }
-                        setToastMessage('تم تفعيل صوت وتنبيهات الأذان بنجاح!');
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 3000);
-                      } else {
-                        setToastMessage('تم تعطيل صوت الأذان والتنبيهات.');
-                        setShowToast(true);
-                        setTimeout(() => setShowToast(false), 2500);
-                      }
-                    }} 
-                  />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[var(--color-primary)]"></div>
-                </label>
+                {/* Quick Test Button */}
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">اختبار التنبيه والصوت الآن:</span>
+                  <button
+                    type="button"
+                    onClick={handleQuickTest}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] hover:bg-[var(--color-primary)] hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
+                  >
+                    {isTestingQuickAlert ? <Square size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}
+                    <span>{isTestingQuickAlert ? 'إيقاف التجربة' : 'تجربة الأذان والإشعار'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Offline Storage Status Banner */}
@@ -735,23 +749,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                 </div>
               </div>
 
-              {/* Troubleshooting / Battery Optimization Warning */}
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-900/30 border border-amber-500/40 flex items-start gap-3 text-amber-900 dark:text-amber-200 text-xs mt-2">
-                <div className="p-1.5 bg-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
-                  <AlertTriangle size={16} />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <p className="font-bold text-xs">لضمان عمل الأذان والشاشة مقفلة (هام جداً):</p>
-                  <p className="text-[11px] leading-relaxed opacity-90 mb-1">
-                    إذا كان الأذان لا يعمل في الخلفية أو عند قفل الهاتف، فهذا بسبب نظام <strong>"تحسين البطارية"</strong> الخاص بجهازك والذي يقتل التطبيقات.
-                  </p>
-                  <ul className="list-disc list-inside text-[10px] space-y-0.5 pr-1 font-medium opacity-80">
-                    <li>اذهب إلى إعدادات الهاتف (Settings) ⬅️ التطبيقات</li>
-                    <li>ابحث عن هذا التطبيق وادخل على إعدادات "البطارية"</li>
-                    <li>اختر <strong>"غير مقيّد" (Unrestricted)</strong> أو أوقف تحسين البطارية.</li>
-                  </ul>
-                </div>
-              </div>
+
             </div>
 
             {/* Footer Actions */}

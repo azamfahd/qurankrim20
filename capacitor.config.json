@@ -8,8 +8,10 @@
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 2000,
-      "backgroundColor": "#111827",
+      "launchShowDuration": 0,
+      "launchAutoHide": true,
+      "backgroundColor": "#022c22",
+      "androidScaleType": "CENTER_CROP",
       "showSpinner": false
     },
     "LocalNotifications": {

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, LogIn, LogOut, Database, RefreshCw, Cloud } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SupabaseService, getSupabase } from '../services/supabaseService';
+import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
+import { BatteryOptimizationGuideModal } from './BatteryOptimizationGuideModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,12 +22,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings, 
   onSave, 
   onShowToast,
-  onOpenLocationModal,
   isSyncing,
   lastSynced
 }) => {
   const [localSettings, setLocalSettings] = useState<UserSettings>({ ...settings });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showBatteryGuide, setShowBatteryGuide] = useState(false);
 
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
@@ -148,17 +149,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ) : (
                 <div className="space-y-4">
                   <p className="text-xs text-gray-600 leading-relaxed">قم بتسجيل الدخول لمزامنة إعداداتك، محفوظاتك، وتاريخ محادثاتك عبر جميع أجهزتك.</p>
+                  
+                  {/* Google Login Button */}
                   <button 
                     onClick={async () => {
                       if (isLoggingIn) return;
                       setIsLoggingIn(true);
                       try {
                         await SupabaseService.signInWithGoogle();
-                        // The page will redirect, so we don't necessarily need to set isLoggingIn(false) here
-                        // but it's good practice in case it returns without redirecting
                       } catch (err: any) {
                         console.error(err);
-                        onShowToast(err.message || 'فشل تسجيل الدخول باستخدام Google', 'error');
+                        onShowToast(err.message || 'فشل تسجيل الدخول', 'error');
                         setIsLoggingIn(false);
                       }
                     }}
@@ -173,7 +174,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {isLoggingIn ? 'جاري التحويل...' : 'تسجيل الدخول باستخدام Google'}
                   </button>
 
-                  <div className="relative flex items-center py-2">
+                  {/* Direct Link to published site for Web Sync */}
+                  <a
+                    href={PUBLISHED_WEB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Globe size={14} className="text-emerald-600" />
+                    <span>الموقع الرسمي: qurankrim20.netlify.app</span>
+                    <ExternalLink size={12} className="opacity-70" />
+                  </a>
+
+                  <div className="relative flex items-center py-1">
                     <div className="flex-grow border-t border-gray-100"></div>
                     <span className="flex-shrink mx-4 text-[10px] text-gray-400 font-bold uppercase">أو أدخل حسابك يدوياً</span>
                     <div className="flex-grow border-t border-gray-100"></div>
@@ -195,6 +208,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
             </section>
+
 
             {/* Profile Section */}
             <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
@@ -384,7 +398,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       
                       <optgroup label="🎙️ نخبة من قراء العالم الإسلامي" className="font-bold text-gray-800">
                         <option value="ar.ahmedajamy">أحمد بن علي العجمي</option>
-                        <option value="ar.faresabbad">فارس عباد</option>
                         <option value="ar.shaatree">أبو بكر الشاطري</option>
                         <option value="ar.hanirifai">هاني الرفاعي</option>
                       </optgroup>
@@ -508,7 +521,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 حفظ التغييرات
               </button>
               <button 
-                onClick={onClose}
+                onClick={onClose} 
                 className="px-6 py-3.5 bg-white border border-[var(--color-border)] rounded-2xl font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all"
               >
                 إلغاء
@@ -526,7 +539,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </motion.div>
         </motion.div>
       )}
+
+      <BatteryOptimizationGuideModal
+        isOpen={showBatteryGuide}
+        onClose={() => setShowBatteryGuide(false)}
+        onShowToast={onShowToast}
+      />
     </AnimatePresence>
   );
 };
-

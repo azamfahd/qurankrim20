@@ -30,6 +30,7 @@ import { Suspense } from 'react';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { DhikrReminderService } from './services/dhikrReminderService';
 import { DhikrFloatingBanner } from './components/DhikrFloatingBanner';
+import { AppStatePreservation } from './services/appStatePreservation';
 
 // Lazy loaded modals for performance optimization with auto-retry on app updates
 const SettingsModal = lazyWithRetry(() => import('./components/SettingsModal'), 'SettingsModal');
@@ -47,7 +48,7 @@ const HijriCalendarModal = lazyWithRetry(() => import('./components/HijriCalenda
 const QiblaModal = lazyWithRetry(() => import('./components/QiblaModal'), 'QiblaModal');
 const ZakatCalculatorModal = lazyWithRetry(() => import('./components/ZakatCalculatorModal'), 'ZakatCalculatorModal');
 const ProphetsModal = lazyWithRetry(() => import('./components/ProphetsModal'), 'ProphetsModal');
-const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'));
+const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'), 'QuranPlatformModal');
 const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
 const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
 
@@ -135,34 +136,46 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isOfflineBannerDismissed, setIsOfflineBannerDismissed] = useState(false);
   
+  // Restore active view state for instant resume upon app re-opening / multitasking
+  const initialPreservedState = useRef(AppStatePreservation.getSavedState()).current;
+  
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAdhanSettingsOpen, setIsAdhanSettingsOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isTasbihOpen, setIsTasbihOpen] = useState(false);
-  const [isDhikrReminderOpen, setIsDhikrReminderOpen] = useState(false);
-  const [isQuranPlatformOpen, setIsQuranPlatformOpen] = useState(false);
-  const [quranInitialState, setQuranInitialState] = useState<{ surah?: number, ayah?: number, view?: any }>({});
+  const [isSettingsOpen, setIsSettingsOpen] = useState(() => initialPreservedState?.activeView === 'settings');
+  const [isAdhanSettingsOpen, setIsAdhanSettingsOpen] = useState(() => initialPreservedState?.activeView === 'adhan_settings');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(() => initialPreservedState?.activeView === 'history');
+  const [isTasbihOpen, setIsTasbihOpen] = useState(() => initialPreservedState?.activeView === 'tasbih');
+  const [isDhikrReminderOpen, setIsDhikrReminderOpen] = useState(() => initialPreservedState?.activeView === 'dhikr_settings');
+  const [isQuranPlatformOpen, setIsQuranPlatformOpen] = useState(() => initialPreservedState?.activeView === 'quran');
+  const [quranInitialState, setQuranInitialState] = useState<{ surah?: number, ayah?: number, view?: any }>(() => {
+    if (initialPreservedState?.activeView === 'quran' && initialPreservedState.details) {
+      return {
+        surah: initialPreservedState.details.quranSurah,
+        ayah: initialPreservedState.details.quranAyah,
+        view: initialPreservedState.details.quranView
+      };
+    }
+    return {};
+  });
 
   const openQuran = (surah?: number, ayah?: number, view: any = 'index') => {
     setQuranInitialState({ surah, ayah, view });
     setIsQuranPlatformOpen(true);
   };
-  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
-  const [isAdhkarOpen, setIsAdhkarOpen] = useState(false);
-  const [isNamesOfAllahOpen, setIsNamesOfAllahOpen] = useState(false);
-  const [isQiblaOpen, setIsQiblaOpen] = useState(false);
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(() => initialPreservedState?.activeView === 'bookmarks');
+  const [isAdhkarOpen, setIsAdhkarOpen] = useState(() => initialPreservedState?.activeView === 'adhkar');
+  const [isNamesOfAllahOpen, setIsNamesOfAllahOpen] = useState(() => initialPreservedState?.activeView === 'names_of_allah');
+  const [isQiblaOpen, setIsQiblaOpen] = useState(() => initialPreservedState?.activeView === 'qibla');
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [showLocationBanner, setShowLocationBanner] = useState(false);
   const [locationBannerData, setLocationBannerData] = useState<{ location?: UserLocation; isHighAccuracy?: boolean }>({});
-  const [isZakatOpen, setIsZakatOpen] = useState(false);
-  const [isHijriOpen, setIsHijriOpen] = useState(false);
-  const [isAgriCalendarOpen, setIsAgriCalendarOpen] = useState(false);
-  const [isMiraclesOpen, setIsMiraclesOpen] = useState(false);
-  const [isProphetsOpen, setIsProphetsOpen] = useState(false);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isZakatOpen, setIsZakatOpen] = useState(() => initialPreservedState?.activeView === 'zakat');
+  const [isHijriOpen, setIsHijriOpen] = useState(() => initialPreservedState?.activeView === 'hijri');
+  const [isAgriCalendarOpen, setIsAgriCalendarOpen] = useState(() => initialPreservedState?.activeView === 'agri_calendar');
+  const [isMiraclesOpen, setIsMiraclesOpen] = useState(() => initialPreservedState?.activeView === 'miracles');
+  const [isProphetsOpen, setIsProphetsOpen] = useState(() => initialPreservedState?.activeView === 'prophets');
+  const [isAboutOpen, setIsAboutOpen] = useState(() => initialPreservedState?.activeView === 'about');
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(() => initialPreservedState?.activeView === 'feedback');
   const [apkUpdateInfo, setApkUpdateInfo] = useState<{ version: string; releaseNotes?: string; sizeFormatted?: string } | null>(null);
   const [isApkUpdateBannerOpen, setIsApkUpdateBannerOpen] = useState(false);
   const [hijriOffset, setHijriOffset] = useState<number>(() => {
@@ -240,8 +253,10 @@ const App: React.FC = () => {
       }
     };
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker && typeof navigator.serviceWorker.addEventListener === 'function') {
+      try {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      } catch (e) {}
     }
 
     const checkAdhan = () => {
@@ -315,8 +330,10 @@ const App: React.FC = () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pageshow', handleFocus);
       window.removeEventListener('pointerdown', handlePointerDown);
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker && typeof navigator.serviceWorker.removeEventListener === 'function') {
+        try {
+          navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+        } catch (e) {}
       }
     };
   }, [settings.adhanSettings, settings.location]);
@@ -363,6 +380,143 @@ const App: React.FC = () => {
       () => settings
     );
   }, [settings]);
+
+  // Continuously persist the current active view and detailed sub-state
+  useEffect(() => {
+    let activeView: any = 'home';
+    if (isQuranPlatformOpen) activeView = 'quran';
+    else if (isTasbihOpen) activeView = 'tasbih';
+    else if (isAdhkarOpen) activeView = 'adhkar';
+    else if (isProphetsOpen) activeView = 'prophets';
+    else if (isMiraclesOpen) activeView = 'miracles';
+    else if (isNamesOfAllahOpen) activeView = 'names_of_allah';
+    else if (isQiblaOpen) activeView = 'qibla';
+    else if (isZakatOpen) activeView = 'zakat';
+    else if (isHijriOpen) activeView = 'hijri';
+    else if (isAgriCalendarOpen) activeView = 'agri_calendar';
+    else if (isSettingsOpen) activeView = 'settings';
+    else if (isAdhanSettingsOpen) activeView = 'adhan_settings';
+    else if (isDhikrReminderOpen) activeView = 'dhikr_settings';
+    else if (isHistoryOpen) activeView = 'history';
+    else if (isBookmarksOpen) activeView = 'bookmarks';
+    else if (isAboutOpen) activeView = 'about';
+    else if (isFeedbackOpen) activeView = 'feedback';
+
+    AppStatePreservation.saveState(activeView, {
+      quranSurah: quranInitialState.surah,
+      quranAyah: quranInitialState.ayah,
+      quranView: quranInitialState.view,
+    });
+  }, [
+    isQuranPlatformOpen,
+    isTasbihOpen,
+    isAdhkarOpen,
+    isProphetsOpen,
+    isMiraclesOpen,
+    isNamesOfAllahOpen,
+    isQiblaOpen,
+    isZakatOpen,
+    isHijriOpen,
+    isAgriCalendarOpen,
+    isSettingsOpen,
+    isAdhanSettingsOpen,
+    isDhikrReminderOpen,
+    isHistoryOpen,
+    isBookmarksOpen,
+    isAboutOpen,
+    isFeedbackOpen,
+    quranInitialState
+  ]);
+
+  // Register Capacitor App State listeners and Android Hardware Back Button logic
+  useEffect(() => {
+    const cleanupListeners = AppStatePreservation.initListeners(
+      () => {
+        // App is backgrounded / minimized to floating window -> flush active chat and state immediately
+        try {
+          localStorage.setItem('anis_active_chat', JSON.stringify(messages));
+          if (currentSessionId) {
+            localStorage.setItem('anis_active_session_id', currentSessionId);
+          }
+        } catch (e) {}
+      },
+      () => {
+        // App is resumed -> unlock audio context and check state
+        AdhanAudioEngine.unlockAudioContext();
+      }
+    );
+
+    const cleanupBack = AppStatePreservation.initHardwareBackButton(() => {
+      // 1. Check inside ProphetsModal detail
+      const prophetSelected = localStorage.getItem('anis_prophet_selected_id');
+      if (isProphetsOpen && prophetSelected) {
+        window.dispatchEvent(new CustomEvent('anis_back_prophet_detail'));
+        return true;
+      }
+
+      // 2. Check inside MiraclesModal detail
+      const miracleSelected = localStorage.getItem('anis_miracle_selected_category_id');
+      if (isMiraclesOpen && miracleSelected) {
+        window.dispatchEvent(new CustomEvent('anis_back_miracle_detail'));
+        return true;
+      }
+
+      // 3. Close open modal or sidebar step by step
+      if (isLocationModalOpen) { setIsLocationModalOpen(false); return true; }
+      if (isInstallModalOpen) { setIsInstallModalOpen(false); return true; }
+      if (isApkUpdateBannerOpen) { setIsApkUpdateBannerOpen(false); return true; }
+      if (isFeedbackOpen) { setIsFeedbackOpen(false); return true; }
+      if (isAboutOpen) { setIsAboutOpen(false); return true; }
+      if (isDhikrReminderOpen) { setIsDhikrReminderOpen(false); return true; }
+      if (isAdhanSettingsOpen) { setIsAdhanSettingsOpen(false); return true; }
+      if (isSettingsOpen) { setIsSettingsOpen(false); return true; }
+      if (isHistoryOpen) { setIsHistoryOpen(false); return true; }
+      if (isBookmarksOpen) { setIsBookmarksOpen(false); return true; }
+      if (isAgriCalendarOpen) { setIsAgriCalendarOpen(false); return true; }
+      if (isHijriOpen) { setIsHijriOpen(false); return true; }
+      if (isZakatOpen) { setIsZakatOpen(false); return true; }
+      if (isQiblaOpen) { setIsQiblaOpen(false); return true; }
+      if (isNamesOfAllahOpen) { setIsNamesOfAllahOpen(false); return true; }
+      if (isMiraclesOpen) { setIsMiraclesOpen(false); return true; }
+      if (isProphetsOpen) { setIsProphetsOpen(false); return true; }
+      if (isAdhkarOpen) { setIsAdhkarOpen(false); return true; }
+      if (isTasbihOpen) { setIsTasbihOpen(false); return true; }
+      if (isQuranPlatformOpen) { setIsQuranPlatformOpen(false); return true; }
+      if (isSidebarOpen) { setIsSidebarOpen(false); return true; }
+
+      // No modal open (Home screen) -> return false so AppStatePreservation calls CapacitorApp.minimizeApp()!
+      return false;
+    });
+
+    return () => {
+      cleanupListeners();
+      cleanupBack();
+    };
+  }, [
+    isLocationModalOpen,
+    isInstallModalOpen,
+    isApkUpdateBannerOpen,
+    isFeedbackOpen,
+    isAboutOpen,
+    isDhikrReminderOpen,
+    isAdhanSettingsOpen,
+    isSettingsOpen,
+    isHistoryOpen,
+    isBookmarksOpen,
+    isAgriCalendarOpen,
+    isHijriOpen,
+    isZakatOpen,
+    isQiblaOpen,
+    isNamesOfAllahOpen,
+    isMiraclesOpen,
+    isProphetsOpen,
+    isAdhkarOpen,
+    isTasbihOpen,
+    isQuranPlatformOpen,
+    isSidebarOpen,
+    messages,
+    currentSessionId
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1130,7 +1284,7 @@ const App: React.FC = () => {
           
           <div className="flex flex-col gap-6 flex-1">
             {messages.map((msg, index) => (
-              <div key={msg.id} id={`msg-${msg.id}`} className={`message-row ${msg.type} ${index === messages.length - 1 && msg.type === 'ai' ? 'flex-1 flex-col' : ''}`}>
+              <div key={`${msg.id || 'msg'}-${index}`} id={`msg-${msg.id}`} className={`message-row ${msg.type} ${index === messages.length - 1 && msg.type === 'ai' ? 'flex-1 flex-col' : ''}`}>
                 {msg.type === 'user' ? (
                   <div className="flex justify-end w-full animate-fade-in px-4 sm:px-0 mt-4">
                     <div className="chat-bubble">

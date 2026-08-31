@@ -200,7 +200,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
                   <AnimatePresence>
                     {bookmarks.map((bookmark, index) => (
                       <motion.div 
-                        key={bookmark.id}
+                        key={`${bookmark.id || 'bm'}-${index}`}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}

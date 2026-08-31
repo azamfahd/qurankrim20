@@ -9,14 +9,33 @@ interface EmotionFormProps {
 }
 
 export const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmit, isLoading, isOnline, variant }) => {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    try {
+      return localStorage.getItem('anis_chat_draft') || '';
+    } catch {
+      return '';
+    }
+  });
   const [isFocused, setIsFocused] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      if (text) {
+        localStorage.setItem('anis_chat_draft', text);
+      } else {
+        localStorage.removeItem('anis_chat_draft');
+      }
+    } catch (e) {}
+  }, [text]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (text.trim() && !isLoading && isOnline) {
       onSubmit(text.trim());
       setText('');
+      try {
+        localStorage.removeItem('anis_chat_draft');
+      } catch (e) {}
     }
   };
 

@@ -46,17 +46,42 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: 'dist',
         emptyOutDir: true,
-        chunkSizeWarningLimit: 1500,
+        chunkSizeWarningLimit: 1000,
+        cssCodeSplit: true,
+        minify: 'esbuild',
+        target: 'es2020',
         rollupOptions: {
           output: {
-            manualChunks: (id) => {
+            manualChunks(id) {
               if (id.includes('node_modules')) {
-                if (id.includes('framer-motion')) return 'vendor-motion';
-                if (id.includes('lucide-react')) return 'vendor-icons';
-                if (id.includes('@google/genai')) return 'vendor-ai';
-                if (id.includes('@supabase')) return 'vendor-db';
-                if (id.includes('adhan')) return 'vendor-adhan';
-                return 'vendor';
+                if (id.includes('react/') || id.includes('react-dom/') || id.includes('scheduler/')) {
+                  return 'vendor-react';
+                }
+                if (id.includes('framer-motion')) {
+                  return 'vendor-motion';
+                }
+                if (id.includes('lucide-react')) {
+                  return 'vendor-icons';
+                }
+                if (id.includes('recharts') || id.includes('d3-')) {
+                  return 'vendor-charts';
+                }
+                if (id.includes('@supabase') || id.includes('dexie')) {
+                  return 'vendor-db';
+                }
+                if (id.includes('@google/genai')) {
+                  return 'vendor-ai';
+                }
+                if (id.includes('adhan')) {
+                  return 'vendor-adhan';
+                }
+                return 'vendor-deps';
+              }
+              if (id.includes('src/data/')) {
+                return 'data-islamic-reference';
+              }
+              if (id.includes('src/quran-platform/data/')) {
+                return 'data-quran-platform';
               }
             }
           }

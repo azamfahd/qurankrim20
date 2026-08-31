@@ -68,25 +68,34 @@
 </head>
   <body>
     <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #022c22 0%, #043d2e 40%, #065f46 75%, #022c22 100%); color: #fdfbf7; font-family: 'Cairo', system-ui, sans-serif; text-align: center; padding: 1.5rem; user-select: none;">
-        <div style="position: relative; width: 110px; height: 110px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
-          <div style="position: absolute; inset: -8px; background: radial-gradient(circle, rgba(212, 175, 55, 0.4) 0%, transparent 70%); border-radius: 50%; filter: blur(8px);"></div>
-          <img src="/app-icon.svg" alt="أنيس القلوب" style="position: relative; width: 96px; height: 96px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4)); object-fit: contain;" />
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #064e3b 0%, #022c22 70%, #011a14 100%); color: #fdfbf7; font-family: 'Cairo', system-ui, sans-serif; text-align: center; padding: 1.5rem; user-select: none;">
+        <div style="position: relative; width: 120px; height: 120px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center;">
+          <!-- Circular ambient gold glow -->
+          <div style="position: absolute; inset: -12px; background: radial-gradient(circle, rgba(212, 175, 55, 0.45) 0%, rgba(212, 175, 55, 0.1) 50%, transparent 70%); border-radius: 50%; filter: blur(10px); animation: pulseGlow 2.5s ease-in-out infinite alternate;"></div>
+          
+          <!-- Circular Golden Border Container -->
+          <div style="position: relative; width: 110px; height: 110px; border-radius: 50%; padding: 3px; background: linear-gradient(135deg, #fef08a 0%, #d4af37 50%, #854d0e 100%); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center;">
+            <img src="/app-icon.svg" alt="أنيس القلوب" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: inset 0 0 10px rgba(0,0,0,0.6);" />
+          </div>
         </div>
-        <h1 style="margin: 0 0 0.5rem 0; font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #f1e5ac, #d4af37, #fef3c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em;">
+        <h1 style="margin: 0 0 0.5rem 0; font-size: 1.65rem; font-weight: 800; background: linear-gradient(to right, #ffffff, #fef08a, #d4af37, #fef08a, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
           أنيس القلوب
         </h1>
-        <p style="margin: 0; font-size: 0.9rem; color: #a7f3d0; opacity: 0.9;">
+        <p style="margin: 0; font-size: 0.95rem; color: #a7f3d0; opacity: 0.95; font-weight: 500;">
           رفيقك القرآني للتدبر والمواساة
         </p>
-        <div style="margin-top: 2rem; width: 42px; height: 3px; background: rgba(212, 175, 55, 0.3); border-radius: 3px; overflow: hidden; position: relative;">
-          <div style="position: absolute; top: 0; bottom: 0; width: 50%; background: #d4af37; border-radius: 3px; animation: splashPulse 1.2s ease-in-out infinite alternate;"></div>
+        <div style="margin-top: 2rem; width: 50px; height: 3.5px; background: rgba(212, 175, 55, 0.2); border-radius: 4px; overflow: hidden; position: relative;">
+          <div style="position: absolute; top: 0; bottom: 0; width: 45%; background: linear-gradient(90deg, #d4af37, #fef08a); border-radius: 4px; animation: splashPulse 1.2s ease-in-out infinite alternate;"></div>
         </div>
       </div>
       <style>
         @keyframes splashPulse {
-          0% { left: -20%; width: 30%; }
-          100% { left: 90%; width: 30%; }
+          0% { left: -30%; width: 35%; }
+          100% { left: 95%; width: 35%; }
+        }
+        @keyframes pulseGlow {
+          0% { opacity: 0.6; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1.05); }
         }
       </style>
     </div>

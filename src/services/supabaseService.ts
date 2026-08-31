@@ -2,11 +2,23 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ChatSession, UserSettings, Bookmark } from '../types';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { SyncQueueService } from './syncQueueService';
+
+// Initialize Sync Queue Engine on module load
+SyncQueueService.init();
+
+// Official published web URL
+export const PUBLISHED_WEB_URL = 'https://qurankrim20.netlify.app';
 
 // Set up Deep Link Listener for Supabase Auth on Android
 if (Capacitor.isNativePlatform()) {
   App.addListener('appUrlOpen', async (data) => {
     try {
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.close().catch(() => {});
+      } catch {}
+
       const client = getSupabase();
       if (!client || !data.url) return;
 
@@ -32,24 +44,66 @@ if (Capacitor.isNativePlatform()) {
   });
 }
 
-// Use directly from import.meta.env for Vite production compatibility, fallback to process.env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_ANON_KEY : '') || '';
+// Default configured Supabase project credentials
+const DEFAULT_SUPABASE_URL = 'https://khdqwdndcilpfbuijmtz.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_LAihxpT6MWENehy06nXP1w_jsLFKKZ3';
+
+// Get Supabase credentials dynamically (supports environment variables, user configuration, and built-in defaults)
+export const getSupabaseConfig = () => {
+  let url = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || DEFAULT_SUPABASE_URL;
+  let key = import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_ANON_KEY : '') || DEFAULT_SUPABASE_ANON_KEY;
+  
+  // Allow user override from localStorage if not configured in build
+  try {
+    const storedUrl = localStorage.getItem('supabase_custom_url');
+    const storedKey = localStorage.getItem('supabase_custom_key');
+    if (storedUrl && storedKey) {
+      url = storedUrl;
+      key = storedKey;
+    }
+  } catch {}
+
+  return { url: url.trim(), key: key.trim() };
+};
+
+// Save Supabase credentials locally
+export const saveSupabaseConfig = (url: string, key: string) => {
+  try {
+    if (url && key) {
+      localStorage.setItem('supabase_custom_url', url.trim());
+      localStorage.setItem('supabase_custom_key', key.trim());
+    } else {
+      localStorage.removeItem('supabase_custom_url');
+      localStorage.removeItem('supabase_custom_key');
+    }
+    // Reset instance to re-initialize with new credentials
+    supabaseInstance = null;
+  } catch (e) {
+    console.error('Failed to save Supabase config to storage:', e);
+  }
+};
 
 // Lazy initialization of Supabase client
 let supabaseInstance: SupabaseClient | null = null;
 
 export const getSupabase = (): SupabaseClient | null => {
-  // Check for availability
-  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'undefined' || supabaseAnonKey === 'undefined') {
+  const { url, key } = getSupabaseConfig();
+
+  if (!url || !key || url === 'undefined' || key === 'undefined') {
     return null;
   }
 
   if (!supabaseInstance) {
     try {
       // Validate URL format before creating client
-      const finalUrl = supabaseUrl.startsWith('http') ? supabaseUrl : `https://${supabaseUrl}`;
-      supabaseInstance = createClient(finalUrl, supabaseAnonKey);
+      const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+      supabaseInstance = createClient(finalUrl, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
     } catch (e) {
       console.error('Failed to initialize Supabase:', e);
       return null;
@@ -90,18 +144,47 @@ export class SupabaseService {
 
   static async signInWithGoogle() {
     const client = getSupabase();
-    if (!client) throw new Error("Supabase client not initialized");
-    const redirectTo = Capacitor.isNativePlatform() 
+    const isNative = Capacitor.isNativePlatform();
+
+    if (!client) {
+      // If in native app and Supabase credentials not set, open the published site directly
+      if (isNative) {
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({ url: `${PUBLISHED_WEB_URL}?action=login` });
+          return { url: `${PUBLISHED_WEB_URL}?action=login` };
+        } catch {
+          window.open(`${PUBLISHED_WEB_URL}?action=login`, '_system');
+          return { url: `${PUBLISHED_WEB_URL}?action=login` };
+        }
+      }
+      throw new Error("قاعدة بيانات Supabase غير متصلة. يرجى إدخال بيانات الربط في الإعدادات أو فتح الموقع للمزامنة.");
+    }
+
+    const redirectTo = isNative 
         ? 'com.anis.qulub://auth' 
-        : window.location.origin;
+        : (window.location.origin.includes('localhost') ? window.location.origin : PUBLISHED_WEB_URL);
         
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo
+        redirectTo,
+        skipBrowserRedirect: isNative // In native app, we open in system browser to avoid Google WebView block
       }
     });
+
     if (error) throw error;
+
+    // In native Android APK, use system browser to authenticate securely with Google
+    if (isNative && data?.url) {
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: data.url });
+      } catch (e) {
+        window.open(data.url, '_system');
+      }
+    }
+
     return data;
   }
 
@@ -127,11 +210,16 @@ export class SupabaseService {
   static async saveSessions(userId: string, sessions: ChatSession[]): Promise<void> {
     if (!userId) return;
     const client = getSupabase();
-    if (!client) return;
+    if (!client || !navigator.onLine) {
+      for (const session of sessions) {
+        await SyncQueueService.enqueue('session', session, userId);
+      }
+      return;
+    }
 
     try {
       for (const session of sessions) {
-        await client
+        const { error } = await client
           .from(this.TABLE_SESSIONS)
           .upsert({
             id: session.id,
@@ -140,9 +228,15 @@ export class SupabaseService {
             preview: session.preview,
             messages: session.messages, // Pass object directly for JSONB compatibility
           });
+        if (error) {
+          await SyncQueueService.enqueue('session', session, userId);
+        }
       }
     } catch (error) {
       this.logError('saveSessions', error);
+      for (const session of sessions) {
+        await SyncQueueService.enqueue('session', session, userId);
+      }
     }
   }
 
@@ -175,7 +269,10 @@ export class SupabaseService {
   static async saveUserSettings(userId: string, settings: UserSettings): Promise<void> {
     if (!userId) return;
     const client = getSupabase();
-    if (!client) return;
+    if (!client || !navigator.onLine) {
+      await SyncQueueService.enqueue('settings', settings, userId);
+      return;
+    }
 
     try {
       const locationData = settings.location ? { ...settings.location } as any : {};
@@ -183,7 +280,7 @@ export class SupabaseService {
         locationData.analysisStyle = settings.analysisStyle;
       }
 
-      await client
+      const { error } = await client
         .from(this.TABLE_SETTINGS)
         .upsert({
           user_id: userId,
@@ -197,8 +294,13 @@ export class SupabaseService {
           location: Object.keys(locationData).length > 0 ? locationData : null,
           last_updated: settings.lastUpdated || new Date().toISOString()
         });
+
+      if (error) {
+        await SyncQueueService.enqueue('settings', settings, userId);
+      }
     } catch (error) {
       this.logError('saveUserSettings', error);
+      await SyncQueueService.enqueue('settings', settings, userId);
     }
   }
 

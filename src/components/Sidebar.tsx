@@ -101,10 +101,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               
               <div className="flex items-center gap-3.5 relative z-10">
                 <div 
-                  className="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-black text-xl shadow-xl transform hover:rotate-6 transition-transform shrink-0"
+                  className="w-12 h-12 rounded-full text-white flex items-center justify-center font-black text-xl shadow-xl transform hover:scale-105 transition-transform shrink-0"
                   style={{
                     background: 'linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)',
-                    border: '1px solid rgba(255, 245, 200, 0.8)'
+                    border: '1.5px solid rgba(255, 245, 200, 0.9)',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4)'
                   }}
                 >
                   <span className="text-[#022c22] drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)]">
