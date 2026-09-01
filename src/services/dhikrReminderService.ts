@@ -40,12 +40,12 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       preview: '/audio/adhkar/mishary_preview.mp3'
     },
     fallbackUrls: {
-      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3',
-      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/5429.mp3',
+      salawat: 'https://everyayah.com/data/Alafasy_128kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Alafasy_128kbps/071010.mp3',
       baqiyat: 'https://everyayah.com/data/Alafasy_128kbps/087001.mp3',
-      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/2179.mp3',
-      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/262.mp3',
-      preview: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3'
+      hawqala: 'https://everyayah.com/data/Alafasy_128kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Alafasy_128kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Alafasy_128kbps/033056.mp3'
     },
     isBuiltIn: true
   },
@@ -1260,8 +1260,9 @@ export class DhikrReminderService {
               id: 'dhikr_channel',
               name: 'تنبيهات الأذكار والتسبيح',
               description: 'تذكير دوري بذكر الله والصلاة على النبي ﷺ',
-              importance: 4,
+              importance: 5,
               visibility: 1,
+              sound: 'mishary_salawat.mp3',
               vibration: true
             });
           } catch (cErr) {
@@ -1286,6 +1287,10 @@ export class DhikrReminderService {
             const item = DhikrReminderService.selectDhikr();
             if (item) {
               const categoryTitle = item.categoryName || 'تذكير بذكر الله';
+              let soundFile = 'mishary_salawat.mp3';
+              if (item.category === 'istighfar') soundFile = 'mishary_istighfar.mp3';
+              else if (item.category === 'baqiyat') soundFile = 'mishary_baqiyat.mp3';
+              else if (item.category === 'hawqala') soundFile = 'mishary_hawqala.mp3';
 
               notifications.push({
                 title: categoryTitle,
@@ -1293,6 +1298,7 @@ export class DhikrReminderService {
                 id: idCounter++,
                 schedule: { at: new Date(now + i * intervalMs), allowWhileIdle: true },
                 channelId: 'dhikr_channel',
+                sound: this.settings.soundType === 'silent' ? undefined : soundFile,
                 smallIcon: 'ic_stat_icon_config_sample',
                 extra: null
               });

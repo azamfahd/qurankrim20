@@ -194,10 +194,15 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings>(() => {
     try {
       const saved = localStorage.getItem('anis_settings');
+      let base = DEFAULT_SETTINGS;
       if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        base = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
       }
-      return DEFAULT_SETTINGS;
+      const savedAdhan = localStorage.getItem('anis_adhan_settings');
+      if (savedAdhan) {
+        base.adhanSettings = { ...(base.adhanSettings || DEFAULT_SETTINGS.adhanSettings), ...JSON.parse(savedAdhan) };
+      }
+      return base;
     } catch (e) {
       return DEFAULT_SETTINGS;
     }
@@ -287,7 +292,16 @@ const App: React.FC = () => {
 
           if (adhanConfig.autoPlayLiveAdhan !== false) {
             AdhanAudioEngine.unlockAudioContext();
-            AdhanAudioEngine.play(muezzinId, adhanConfig.volume || 85, undefined, undefined, prayer.name);
+            AdhanAudioEngine.play(
+              muezzinId, 
+              adhanConfig.volume || 85, 
+              () => {
+                // Auto-close banner or mark finished when adhan ends
+                setIsLiveAdhanBannerOpen(false);
+              }, 
+              undefined, 
+              prayer.name
+            );
           }
 
           // High-priority Android TWA / PWA / Web notification with Action buttons
@@ -804,6 +818,11 @@ const App: React.FC = () => {
   useEffect(() => {
     chatSessionRef.current = null;
     localStorage.setItem('anis_settings', JSON.stringify(settings));
+    if (settings.adhanSettings) {
+      try {
+        localStorage.setItem('anis_adhan_settings', JSON.stringify(settings.adhanSettings));
+      } catch (e) {}
+    }
     if (settings.location) {
       try {
         localStorage.setItem('anis_saved_location', JSON.stringify(settings.location));
@@ -1692,6 +1711,7 @@ const App: React.FC = () => {
         onSave={setSettings}
         onShowToast={showToast}
         onOpenLocationModal={() => setIsLocationModalOpen(true)}
+        onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
         isSyncing={isSyncing}
         lastSynced={lastSynced}
       />

@@ -23,20 +23,46 @@ if (Capacitor.isNativePlatform()) {
       if (!client || !data.url) return;
 
       const rawUrl = data.url;
-      if (rawUrl.includes('code=')) {
-        const urlObj = new URL(rawUrl.replace('#', '?'));
-        const code = urlObj.searchParams.get('code');
-        if (code) {
-          await client.auth.exchangeCodeForSession(code);
-        }
-      } else if (rawUrl.includes('access_token=') || rawUrl.includes('#access_token=')) {
-        const hash = rawUrl.includes('#') ? rawUrl.substring(rawUrl.indexOf('#') + 1) : rawUrl.substring(rawUrl.indexOf('?') + 1);
-        const paramsObj = new URLSearchParams(hash);
-        const access_token = paramsObj.get('access_token');
-        const refresh_token = paramsObj.get('refresh_token');
-        if (access_token && refresh_token) {
-          await client.auth.setSession({ access_token, refresh_token });
-        }
+      console.log('App received deep link URL:', rawUrl);
+
+      let code: string | null = null;
+      let accessToken: string | null = null;
+      let refreshToken: string | null = null;
+
+      // Extract from query string (?...)
+      const qIndex = rawUrl.indexOf('?');
+      if (qIndex !== -1) {
+        const queryStr = rawUrl.substring(qIndex + 1).split('#')[0];
+        const searchParams = new URLSearchParams(queryStr);
+        code = searchParams.get('code');
+        if (!accessToken) accessToken = searchParams.get('access_token');
+        if (!refreshToken) refreshToken = searchParams.get('refresh_token');
+      }
+
+      // Extract from hash fragment (#...)
+      const hIndex = rawUrl.indexOf('#');
+      if (hIndex !== -1) {
+        const hashStr = rawUrl.substring(hIndex + 1);
+        const hashParams = new URLSearchParams(hashStr);
+        if (!code) code = hashParams.get('code');
+        if (!accessToken) accessToken = hashParams.get('access_token');
+        if (!refreshToken) refreshToken = hashParams.get('refresh_token');
+      }
+
+      // Exchange code for session (PKCE)
+      if (code) {
+        const { data: sessionData, error } = await client.auth.exchangeCodeForSession(code);
+        if (error) console.error('Supabase code exchange error:', error);
+        else console.log('Supabase session established successfully via code:', sessionData);
+      } 
+      // Set session directly (Implicit Flow)
+      else if (accessToken && refreshToken) {
+        const { data: sessionData, error } = await client.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+        if (error) console.error('Supabase setSession error:', error);
+        else console.log('Supabase session established successfully via token:', sessionData);
       }
     } catch (e) {
       console.warn('Supabase deep link callback notice:', e);
@@ -162,8 +188,8 @@ export class SupabaseService {
     }
 
     const redirectTo = isNative 
-        ? 'com.anis.qulub://auth' 
-        : (window.location.origin.includes('localhost') ? window.location.origin : PUBLISHED_WEB_URL);
+        ? 'com.anisalqulub.app://auth' 
+        : (window.location.origin && !window.location.origin.includes('about:blank') ? window.location.origin : PUBLISHED_WEB_URL);
         
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',

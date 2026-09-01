@@ -61,13 +61,16 @@ function configureAndroid() {
   }
 
   // 4. Ensure deep link intent-filter inside MainActivity
-  if (!manifestContent.includes('android:scheme="com.anis.qulub"')) {
+  if (!manifestContent.includes('android:scheme="com.anisalqulub.app"')) {
+    // Remove old scheme if present
+    manifestContent = manifestContent.replace(/<intent-filter[\s\S]*?android:scheme="com\.anis\.qulub"[\s\S]*?<\/intent-filter>/g, '');
+
     const intentFilter = `
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.anis.qulub" android:host="auth" />
+                <data android:scheme="com.anisalqulub.app" android:host="auth" />
             </intent-filter>`;
     
     // Insert before closing tag of MainActivity </activity>
@@ -76,6 +79,46 @@ function configureAndroid() {
 
   fs.writeFileSync(manifestPath, manifestContent, 'utf8');
   console.log('✅ AndroidManifest.xml successfully configured with all required permissions and flags.');
+
+  // 5. Remove Splash Screen drawable & update styles to prevent duplicate splash image
+  try {
+    const resDir = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'res');
+    if (fs.existsSync(resDir)) {
+      // Clean splash drawables
+      const drawables = fs.readdirSync(resDir);
+      for (const d of drawables) {
+        if (d.startsWith('drawable')) {
+          const dPath = path.join(resDir, d);
+          const splashFiles = ['splash.png', 'splash.xml', 'splash.webp'];
+          for (const sf of splashFiles) {
+            const spPath = path.join(dPath, sf);
+            if (fs.existsSync(spPath)) {
+              fs.unlinkSync(spPath);
+              console.log(`🗑️ Removed native splash file: ${spPath}`);
+            }
+          }
+        }
+      }
+
+      // Update styles.xml to use transparent/clean background instead of @drawable/splash
+      const stylesFiles = [
+        path.join(resDir, 'values', 'styles.xml'),
+        path.join(resDir, 'values-night', 'styles.xml')
+      ];
+
+      for (const sPath of stylesFiles) {
+        if (fs.existsSync(sPath)) {
+          let sContent = fs.readFileSync(sPath, 'utf8');
+          sContent = sContent.replace(/<item name="android:background">@drawable\/splash<\/item>/g, '<item name="android:windowBackground">#022c22</item>');
+          sContent = sContent.replace(/<item name="android:windowBackground">@drawable\/splash<\/item>/g, '<item name="android:windowBackground">#022c22</item>');
+          fs.writeFileSync(sPath, sContent, 'utf8');
+          console.log(`✅ Updated styles at: ${sPath}`);
+        }
+      }
+    }
+  } catch (splashErr) {
+    console.warn('Splash cleanup notice:', splashErr);
+  }
 }
 
 try {

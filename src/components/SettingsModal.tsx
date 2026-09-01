@@ -12,6 +12,7 @@ interface SettingsModalProps {
   onSave: (settings: UserSettings) => void;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   onOpenLocationModal?: () => void;
+  onOpenAdhanSettings?: () => void;
   isSyncing?: boolean;
   lastSynced?: number | null;
 }
@@ -22,6 +23,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings, 
   onSave, 
   onShowToast,
+  onOpenLocationModal,
+  onOpenAdhanSettings,
   isSyncing,
   lastSynced
 }) => {
@@ -236,12 +239,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* Prayer Calculation Method Section */}
             <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
               <div className="absolute top-0 right-0 w-2 h-full bg-[var(--color-primary)] opacity-20 group-hover:opacity-100 transition-opacity"></div>
-              <h3 className="text-sm font-bold text-gray-800 mb-5 flex items-center gap-3">
-                <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
-                  <Sliders size={18} />
-                </div>
-                طريقة حساب مواقيت الصلاة
-              </h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-3">
+                  <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
+                    <Sliders size={18} />
+                  </div>
+                  طريقة حساب مواقيت الصلاة
+                </h3>
+                {onOpenAdhanSettings && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenAdhanSettings();
+                    }}
+                    className="text-xs font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1 cursor-pointer bg-[var(--color-primary-light)] px-3 py-1.5 rounded-xl transition-all hover:bg-[var(--color-primary-light)]/80"
+                  >
+                    <BellRing size={14} />
+                    <span>تخصيص الأذان والمؤذن</span>
+                  </button>
+                )}
+              </div>
 
               <div className="space-y-3">
                 <div className="relative group/select">

@@ -34,12 +34,19 @@ export const AdhanNotificationBanner: React.FC<AdhanNotificationBannerProps> = (
   const handleStop = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     AdhanAudioEngine.stop();
+    onClose();
   };
 
   const handleForcePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     AdhanAudioEngine.unlockAudioContext();
-    AdhanAudioEngine.play(muezzinId, volume, undefined, undefined, prayerName);
+    AdhanAudioEngine.play(
+      muezzinId, 
+      volume, 
+      () => onClose(), 
+      undefined, 
+      prayerName
+    );
   };
 
   return (
@@ -120,10 +127,13 @@ export const AdhanNotificationBanner: React.FC<AdhanNotificationBannerProps> = (
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isPlaying) {
+                    AdhanAudioEngine.stop();
+                  }
                   onClose();
                 }}
                 className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5 transition-colors cursor-pointer"
-                title="إغلاق النافذة"
+                title="إغلاق وإيقاف الأذان"
               >
                 <X size={13} />
               </button>

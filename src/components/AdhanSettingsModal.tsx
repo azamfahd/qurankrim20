@@ -55,7 +55,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   const [playingMuezzinId, setPlayingMuezzinId] = useState<string | null>(null);
   const [isSmartPermOpen, setIsSmartPermOpen] = useState(false);
   const [notificationPerm, setNotificationPerm] = useState<string>('default');
-  const [isTestingQuickAlert, setIsTestingQuickAlert] = useState(false);
 
   const checkNotificationPermission = () => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -182,53 +181,8 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     } else {
       AdhanAudioEngine.stop();
       setPlayingMuezzinId(null);
-      setIsTestingQuickAlert(false);
     }
   }, [isOpen, settings]);
-
-  const handleQuickTest = async () => {
-    if (isTestingQuickAlert) {
-      AdhanAudioEngine.stop();
-      setIsTestingQuickAlert(false);
-      return;
-    }
-
-    setIsTestingQuickAlert(true);
-    const mId = adhan.muezzin || 'mishary';
-    const mObj = MUEZZINS_LIST.find(m => m.id === mId) || MUEZZINS_LIST[0];
-
-    // Notification test
-    if ('Notification' in window && Notification.permission === 'granted') {
-      AdhanAudioEngine.dispatchPrayerNotification('صلاة تجريبية', mObj.name);
-    }
-
-    const res = await AdhanAudioEngine.play(
-      mId,
-      adhan.volume,
-      () => setIsTestingQuickAlert(false),
-      undefined,
-      'صلاة تجريبية'
-    );
-
-    if (res.success) {
-      setToastMessage(`تم إرسال إشعار تجريبي وتشغيل أذان (${mObj.name}) بنجاح!`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3500);
-
-      // Auto stop after 6 seconds
-      setTimeout(() => {
-        if (AdhanAudioEngine.isPlaying()) {
-          AdhanAudioEngine.stop();
-          setIsTestingQuickAlert(false);
-        }
-      }, 6000);
-    } else {
-      setIsTestingQuickAlert(false);
-      setToastMessage(res.error || 'تعذر تشغيل الصوت. يرجى التأكد من تحميل صوت المؤذن.');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3500);
-    }
-  };
 
   const togglePreview = async (muezzinId: string) => {
     if (playingMuezzinId === muezzinId && AdhanAudioEngine.isPlaying()) {
@@ -300,9 +254,9 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
     try {
       localStorage.setItem('anis_adhan_settings', JSON.stringify(adhan));
-      // Re-sync 30 days prayer schedule with chosen calculation method & location
+      // Re-sync 30 days prayer schedule with chosen calculation method, location & selected muezzin
       const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
-      AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod);
+      AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod, adhan.muezzin);
     } catch (e) {
       console.error("Local storage sync error:", e);
     }
@@ -435,19 +389,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     />
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[var(--color-primary)]"></div>
                   </label>
-                </div>
-
-                {/* Quick Test Button */}
-                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">اختبار التنبيه والصوت الآن:</span>
-                  <button
-                    type="button"
-                    onClick={handleQuickTest}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] hover:bg-[var(--color-primary)] hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
-                  >
-                    {isTestingQuickAlert ? <Square size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}
-                    <span>{isTestingQuickAlert ? 'إيقاف التجربة' : 'تجربة الأذان والإشعار'}</span>
-                  </button>
                 </div>
               </div>
 

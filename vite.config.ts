@@ -1,6 +1,35 @@
 import path from 'path';
+import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+
+function versionGeneratorPlugin() {
+  return {
+    name: 'version-generator-plugin',
+    buildStart() {
+      const publicDir = path.resolve(__dirname, 'public');
+      if (!fs.existsSync(publicDir)) {
+        fs.mkdirSync(publicDir, { recursive: true });
+      }
+      const versionData = {
+        version: "1.1.0",
+        timestamp: Date.now()
+      };
+      fs.writeFileSync(path.join(publicDir, 'version.json'), JSON.stringify(versionData, null, 2));
+    },
+    generateBundle() {
+      const versionData = {
+        version: "1.1.0",
+        timestamp: Date.now()
+      };
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify(versionData, null, 2)
+      });
+    }
+  };
+}
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -15,7 +44,8 @@ export default defineConfig(({ mode }) => {
         allowedHosts: true
       },
       plugins: [
-        react()
+        react(),
+        versionGeneratorPlugin()
       ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ''),

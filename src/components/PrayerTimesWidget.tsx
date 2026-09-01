@@ -71,13 +71,17 @@ export const PrayerTimesWidget: React.FC<PrayerTimesWidgetProps> = ({
 
     calc();
 
-    // Sync 30-day schedule once when location or method changes (not on every minute tick)
+    // Sync 30-day schedule once when location, method or muezzin changes (not on every minute tick)
     const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
-    AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, settings?.adhanSettings?.calculationMethod);
+    AdhanAudioEngine.sync30DaysPrayerScheduleLocally(
+      activeLocation, 
+      settings?.adhanSettings?.calculationMethod,
+      settings?.adhanSettings?.muezzin
+    );
 
     const interval = setInterval(calc, 60000); // refresh every minute
     return () => clearInterval(interval);
-  }, [settings?.location?.latitude, settings?.location?.longitude, settings?.location?.name, settings?.adhanSettings?.calculationMethod]);
+  }, [settings?.location?.latitude, settings?.location?.longitude, settings?.location?.name, settings?.adhanSettings?.calculationMethod, settings?.adhanSettings?.muezzin]);
 
   const requestLocation = async () => {
     setIsLoadingLocation(true);

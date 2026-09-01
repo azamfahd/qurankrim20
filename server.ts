@@ -5,10 +5,21 @@ import { Coordinates, CalculationMethod, PrayerTimes, Madhab } from "adhan";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true }));
+
+  // Root healthcheck endpoints for Cloud Run and load balancers
+  app.get(["/healthz", "/api/health"], (req, res) => {
+    res.status(200).json({ status: "ok", port: PORT, timestamp: new Date().toISOString() });
+  });
 
   // Serve static adhan audio files directly
   const audioPublicPath = path.join(process.cwd(), "public", "audio", "adhan");
+  if (!fs.existsSync(audioPublicPath)) {
+    fs.mkdirSync(audioPublicPath, { recursive: true });
+  }
   app.use("/audio/adhan", express.static(audioPublicPath, {
     maxAge: "30d",
     setHeaders: (res) => {
@@ -230,13 +241,29 @@ async function startServer() {
 
     app.use(express.static(distPath));
     app.get("*all", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(200).send("App is running. Dist bundle building...");
+      }
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   });
+
+  const shutdown = () => {
+    console.log("Shutting down server gracefully...");
+    server.close(() => {
+      console.log("HTTP server closed.");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 startServer();

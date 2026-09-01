@@ -39,6 +39,13 @@ export interface PreservedState {
 
 const STORAGE_KEY = 'anis_active_view_state';
 
+const safeRemoveEventListener = (target: any, type: string, handler: any) => {
+  if (!target || !handler || typeof target.removeEventListener !== 'function') return;
+  try {
+    target.removeEventListener(type, handler);
+  } catch (e) {}
+};
+
 const safeRemoveListener = (listener: any) => {
   if (!listener) return;
   try {
@@ -191,10 +198,10 @@ export const AppStatePreservation = {
     }
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('freeze', handleFreeze);
-      window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('focus', handleFocus);
+      safeRemoveEventListener(document, 'visibilitychange', handleVisibilityChange);
+      safeRemoveEventListener(window, 'freeze', handleFreeze);
+      safeRemoveEventListener(window, 'pagehide', handlePageHide);
+      safeRemoveEventListener(window, 'focus', handleFocus);
 
       safeRemoveListener(appStateListener);
       safeRemoveListener(pauseListener);
@@ -236,7 +243,7 @@ export const AppStatePreservation = {
     }
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      safeRemoveEventListener(window, 'popstate', handlePopState);
       safeRemoveListener(backButtonListener);
     };
   },

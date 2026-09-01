@@ -166,7 +166,12 @@ self.addEventListener('message', (event) => {
     }
   } else if (event.data.type === 'UPDATE_PRAYER_SCHEDULE') {
     caches.open(RUNTIME_CACHE).then((cache) => {
-      const response = new Response(JSON.stringify(event.data.data), {
+      const payload = {
+        schedule: Array.isArray(event.data.data) ? event.data.data : (event.data.data?.schedule || []),
+        muezzinId: event.data.muezzinId || 'mishary',
+        updatedAt: Date.now()
+      };
+      const response = new Response(JSON.stringify(payload), {
         headers: { 'Content-Type': 'application/json' }
       });
       cache.put('/offline-prayer-schedule.json', response);
@@ -435,7 +440,17 @@ async function checkPrayerTimesAndNotify() {
     const cachedResponse = await cache.match('/offline-prayer-schedule.json');
     if (!cachedResponse) return;
 
-    const scheduleData = await cachedResponse.json();
+    const rawData = await cachedResponse.json();
+    let scheduleData = null;
+    let targetMuezzinId = 'mishary';
+
+    if (Array.isArray(rawData)) {
+      scheduleData = rawData;
+    } else if (rawData && typeof rawData === 'object') {
+      scheduleData = rawData.schedule || [];
+      targetMuezzinId = rawData.muezzinId || 'mishary';
+    }
+
     const now = new Date();
     const nowTime = now.getTime();
 
@@ -476,7 +491,8 @@ async function checkPrayerTimesAndNotify() {
               clientsList.forEach(client => {
                 client.postMessage({
                   type: 'TRIGGER_ADHAN_NOTIFICATION',
-                  prayerName: prayer.name
+                  prayerName: prayer.name,
+                  muezzinId: targetMuezzinId
                 });
               });
               break;
