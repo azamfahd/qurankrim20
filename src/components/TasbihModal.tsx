@@ -218,6 +218,7 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="tasbih-modal-backdrop"
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           exit={{ opacity: 0 }}
@@ -225,6 +226,7 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
           onClick={onClose}
         >
           <motion.div 
+            key="tasbih-modal-container"
             initial={{ scale: 0.9, y: 20 }} 
             animate={{ scale: 1, y: 0 }} 
             exit={{ scale: 0.9, y: 20 }}
@@ -361,6 +363,7 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
               <AnimatePresence>
                 {showTargetCompleted && (
                   <motion.div
+                    key="tasbih-target-completed-toast"
                     initial={{ scale: 0.5, opacity: 0, y: -20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.5, opacity: 0, y: -20 }}
@@ -446,6 +449,7 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
             <AnimatePresence>
               {showResetConfirm && (
                 <motion.div
+                  key="tasbih-reset-all-backdrop"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
@@ -480,6 +484,7 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
             <AnimatePresence>
               {showAddModal && (
                 <motion.div
+                  key="tasbih-add-custom-modal"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}

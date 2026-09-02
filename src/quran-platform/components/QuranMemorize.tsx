@@ -685,7 +685,7 @@ const QuranMemorize: React.FC = () => {
 
     const rawWords = ayahObj.text.trim().split(/\s+/);
     const mappedWords = rawWords.map((word: string, index: number) => ({
-      id: `${index}_${word}`,
+      id: `${selectedWordAyahNum}_${index}_${word}_${Math.random().toString(36).substring(2, 6)}`,
       text: word
     }));
 
@@ -1676,7 +1676,7 @@ const QuranMemorize: React.FC = () => {
 
                         return (
                           <div
-                            key={i}
+                            key={`plan-day-${activePlan.id}-${i}`}
                             className={`p-3 rounded-xl border transition-all ${
                               isCompleted
                                 ? activePlan.isCertified
@@ -2245,7 +2245,7 @@ const QuranMemorize: React.FC = () => {
                               const isDayDone = activePlan.completedDays?.includes(i);
                               return (
                                 <button
-                                  key={i}
+                                  key={`sel-day-${activePlan.id}-${i}`}
                                   type="button"
                                   onClick={() => {
                                     setTestStartAyah(start);
@@ -2382,7 +2382,7 @@ const QuranMemorize: React.FC = () => {
                             <p className="text-[11px] text-gray-400 text-center py-3 font-medium">انقر الآيات المبعثرة بالأسفل لتنسيقها هنا بالتسلسل الصحيح...</p>
                           ) : (
                             userVerseOrder.map((v, idx) => (
-                              <div key={v.numberInSurah} className="p-2 bg-white rounded-lg border border-emerald-200 flex items-center justify-between text-xs shadow-2xs">
+                              <div key={`user-vo-${v.numberInSurah}`} className="p-2 bg-white rounded-lg border border-emerald-200 flex items-center justify-between text-xs shadow-2xs">
                                 <span className="font-bold text-emerald-800 shrink-0">.{idx + 1} آية {v.numberInSurah}</span>
                                 <span className="font-quran text-sm text-gray-800 text-right pr-2">{v.text}</span>
                               </div>
@@ -2402,7 +2402,7 @@ const QuranMemorize: React.FC = () => {
 
                             return (
                               <div
-                                key={v.numberInSurah}
+                                key={`shuffled-vo-${v.numberInSurah}`}
                                 onClick={() => setUserVerseOrder([...userVerseOrder, v])}
                                 className="p-2.5 bg-amber-50/90 hover:bg-amber-100 rounded-xl border border-amber-200 cursor-pointer text-right font-quran text-sm transition-all shadow-2xs flex items-center justify-between gap-2 group"
                               >
@@ -2770,7 +2770,7 @@ const QuranMemorize: React.FC = () => {
 
                   <AnimatePresence>
                     {showStagesStepper && (
-                      <motion.div
+                      <motion.div key="QuranMemorize-anim-1"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -2954,12 +2954,12 @@ const QuranMemorize: React.FC = () => {
                               {ayahWords.map((w, idx) => {
                                 if (idx === q.wordIndex) {
                                   return (
-                                    <span key={idx} className="bg-amber-300 border-2 border-dashed border-amber-500 text-amber-950 px-4 py-1 rounded-xl font-quran font-bold animate-pulse shadow-sm">
+                                    <span key={`hw-hidden-${q.ayahNum}-${idx}`} className="bg-amber-300 border-2 border-dashed border-amber-500 text-amber-950 px-4 py-1 rounded-xl font-quran font-bold animate-pulse shadow-sm">
                                       [ ❓ الكلمة المخفية ]
                                     </span>
                                   );
                                 }
-                                return <span key={idx}>{w}</span>;
+                                return <span key={`hw-word-${q.ayahNum}-${idx}`}>{w}</span>;
                               })}
                             </div>
 
@@ -2967,7 +2967,7 @@ const QuranMemorize: React.FC = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                               {q.options.map((option, optIdx) => (
                                 <button
-                                  key={optIdx}
+                                  key={`hw-opt-${q.ayahNum}-${optIdx}-${option}`}
                                   onClick={() => handleAnswerHiddenQuiz(option)}
                                   className="p-4 rounded-xl bg-white border-2 border-emerald-200 hover:border-emerald-500 hover:bg-emerald-50 font-quran text-xl text-gray-900 transition-all font-bold text-center shadow-sm hover:scale-[1.01]"
                                 >
@@ -3217,7 +3217,7 @@ const QuranMemorize: React.FC = () => {
 
                             return (
                               <motion.div
-                                key={v.numberInSurah}
+                                key={`user-vtest-${v.numberInSurah}`}
                                 initial={{ scale: 0.95, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 onClick={() => {
@@ -3298,7 +3298,7 @@ const QuranMemorize: React.FC = () => {
 
                         return (
                           <motion.div
-                            key={v.numberInSurah}
+                            key={`shuffled-vtest-${v.numberInSurah}`}
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => handleSelectVerseForOrdering(v)}
@@ -3407,7 +3407,7 @@ const QuranMemorize: React.FC = () => {
                             const isWordWrong = wordTestChecked && expectedWord && w.text !== expectedWord;
 
                             return (
-                              <div key={w.id} className="flex flex-col items-center">
+                              <div key={`user-wtest-${w.id}`} className="flex flex-col items-center">
                                 <span
                                   onClick={() => {
                                     if (!wordTestChecked) handleSelectWord(w);
@@ -3454,7 +3454,7 @@ const QuranMemorize: React.FC = () => {
 
                         return (
                           <motion.span
-                            key={w.id}
+                            key={`shuffled-wtest-${w.id}`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleSelectWord(w)}
@@ -3596,8 +3596,8 @@ const QuranMemorize: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {mistakesLog.map((log) => (
-                      <div key={log.id} className="p-4 rounded-2xl bg-red-50/50 border border-red-100 space-y-2">
+                    {mistakesLog.map((log, lIdx) => (
+                      <div key={log.id ? `${log.id}-${lIdx}` : `mlog-${lIdx}`} className="p-4 rounded-2xl bg-red-50/50 border border-red-100 space-y-2">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-red-800 bg-red-100 px-2.5 py-0.5 rounded-lg">
                             {log.surahName} - آية {log.ayahNumber} ({log.type})
@@ -3644,7 +3644,7 @@ const QuranMemorize: React.FC = () => {
       <AnimatePresence>
         {popupModalCard.isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
+            <motion.div key="QuranMemorize-anim-2"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}

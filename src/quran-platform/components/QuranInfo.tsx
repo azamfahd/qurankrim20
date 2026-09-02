@@ -104,7 +104,7 @@ const QuranInfo = () => {
             <div className="flex flex-wrap gap-2">
               {meta.titles.map((title, idx) => (
                 <span
-                  key={idx}
+                  key={`qi-title-${title}-${idx}`}
                   className="bg-amber-50 text-amber-900 border border-amber-200/80 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold shadow-2xs"
                 >
                   {title}
@@ -134,7 +134,7 @@ const QuranInfo = () => {
           <ul className="space-y-2.5">
             {meta.themes.map((theme, idx) => (
               <li
-                key={idx}
+                key={`qi-theme-${idx}-${theme.substring(0, 10)}`}
                 className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed"
               >
                 <span className="w-6 h-6 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
@@ -155,7 +155,7 @@ const QuranInfo = () => {
           <div className="space-y-2.5">
             {meta.virtues.map((virtue, idx) => (
               <div
-                key={idx}
+                key={`qi-virtue-${idx}-${virtue.substring(0, 10)}`}
                 className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 p-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed text-amber-900"
               >
                 <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-1" />
@@ -174,7 +174,7 @@ const QuranInfo = () => {
           <div className="space-y-2.5">
             {meta.practicalActions.map((action, idx) => (
               <div
-                key={idx}
+                key={`qi-action-${idx}-${action.substring(0, 10)}`}
                 className="flex items-start gap-3 bg-blue-50/70 border border-blue-200/60 p-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed text-blue-900"
               >
                 <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2"></span>

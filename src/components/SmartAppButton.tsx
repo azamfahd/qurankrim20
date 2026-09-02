@@ -181,11 +181,20 @@ export const SmartAppButton: React.FC<SmartAppButtonProps> = ({ variant = 'sideb
       {/* Clean Modal for Installation Instructions or App Open Info */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <motion.div
+            key="smart-app-button-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowModal(false)}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          >
             <motion.div
+              key="smart-app-button-modal-card"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
               className="w-full max-w-sm bg-slate-900 text-white rounded-3xl p-5 border border-amber-500/30 shadow-2xl relative overflow-hidden"
             >
               {/* Decorative top glow */}
@@ -329,7 +338,7 @@ export const SmartAppButton: React.FC<SmartAppButtonProps> = ({ variant = 'sideb
                 )}
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

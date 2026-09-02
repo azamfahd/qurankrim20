@@ -13,6 +13,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, disable
   
   const startYRef = useRef<number | null>(null);
   const isPullingRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
   
   // Smart threshold constants:
   // 1. minRevealThreshold (55px): Ignores small/accidental scrolling completely (system knows user doesn't want to refresh).
@@ -37,17 +38,21 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, disable
     const currentY = e.touches[0].clientY;
     const diff = currentY - startYRef.current;
 
-    if (diff > 0 && window.scrollY <= 1) {
-      // Natural rubber-band resistance
-      const dampedDistance = Math.min(diff * 0.5, maxPull);
-      setPullDistance(dampedDistance);
-    } else if (diff <= 0) {
-      setPullDistance(0);
-      isPullingRef.current = false;
-    }
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (diff > 0 && window.scrollY <= 1) {
+        // Natural rubber-band resistance
+        const dampedDistance = Math.min(diff * 0.5, maxPull);
+        setPullDistance(dampedDistance);
+      } else if (diff <= 0) {
+        setPullDistance(0);
+        isPullingRef.current = false;
+      }
+    });
   }, [isRefreshing]);
 
   const handleTouchEnd = useCallback(async () => {
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     if (!isPullingRef.current || isRefreshing) return;
     
     isPullingRef.current = false;
@@ -89,6 +94,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, disable
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);

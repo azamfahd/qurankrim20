@@ -890,7 +890,7 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
 
                 return (
                   <button
-                    key={optIdx}
+                    key={`qopt-${currentQ.id}-${optIdx}-${optionText}`}
                     onClick={() => !isDisabled && handleAnswer(optIdx)}
                     disabled={isAnswered || isDisabled}
                     className={`p-4 rounded-2xl border font-bold text-right text-sm sm:text-base transition-all duration-200 flex items-center justify-between gap-3 ${btnStyle}`}
@@ -1056,8 +1056,14 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
       {/* LEVEL UPGRADE CONFIRMATION MODAL */}
       <AnimatePresence>
         {showLevelUpgradeConfirm && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
+          <motion.div 
+            key="quiz-level-upgrade-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div key="IslamicQuizGame-anim-1"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -1114,7 +1120,7 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1176,8 +1182,14 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
           };
 
           return (
-            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-              <motion.div
+            <motion.div 
+              key="quiz-certificate-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+            >
+              <motion.div key="IslamicQuizGame-anim-2"
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1305,7 +1317,7 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
                   </button>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           );
         })()}
       </AnimatePresence>
@@ -1313,8 +1325,14 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
       {/* RESET GAME CONFIRMATION MODAL */}
       <AnimatePresence>
         {showResetConfirmModal && (
-          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <motion.div
+          <motion.div 
+            key="quiz-reset-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          >
+            <motion.div key="IslamicQuizGame-anim-3"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -1367,15 +1385,21 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* AI STATUS / OFFLINE NOTICE MODAL */}
       <AnimatePresence>
         {aiModalStatus && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
+          <motion.div 
+            key="quiz-ai-status-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div key="IslamicQuizGame-anim-4"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -1407,7 +1431,7 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

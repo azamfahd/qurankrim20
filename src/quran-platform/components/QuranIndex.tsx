@@ -183,7 +183,7 @@ const QuranIndex = () => {
       {/* Ultra-Compact Spiritual Header Bar (Collapsible on Scroll) */}
       <AnimatePresence>
         {!isScrolled && (
-          <motion.div 
+          <motion.div key="QuranIndex-anim-1" 
             initial={{ height: 0, opacity: 0, y: -10 }}
             animate={{ height: 'auto', opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -15, overflow: 'hidden' }}
@@ -325,7 +325,7 @@ const QuranIndex = () => {
         {activeTab === 'surahs' && (
           <AnimatePresence>
             {!isScrolled && (
-              <motion.div 
+              <motion.div key="QuranIndex-anim-2" 
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
@@ -494,7 +494,7 @@ const QuranIndex = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  key={i}
+                  key={`${b.surah}-${b.ayah}`}
                   onClick={() => handleBookmarkClick(b.surah, b.ayah)}
                   className="bg-white dark:bg-gray-900 border border-emerald-900/10 dark:border-gray-800 rounded-2xl p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-all group"
                 >

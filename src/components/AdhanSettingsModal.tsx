@@ -1,4 +1,4 @@
-import { requestDynamicPermission } from "../services/permissionService";
+import { requestDynamicPermission, PermissionService } from "../services/permissionService";
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Volume2, VolumeX, Save, Bell, BellRing, Info, 
@@ -53,6 +53,19 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [playingMuezzinId, setPlayingMuezzinId] = useState<string | null>(null);
+  const [engineState, setEngineState] = useState<{
+    isPlaying: boolean;
+    activeMuezzinId: string | null;
+    activePrayerName: string | null;
+    isLiveAdhan: boolean;
+    isPreview: boolean;
+  }>({
+    isPlaying: false,
+    activeMuezzinId: null,
+    activePrayerName: null,
+    isLiveAdhan: false,
+    isPreview: false
+  });
   const [isSmartPermOpen, setIsSmartPermOpen] = useState(false);
   const [notificationPerm, setNotificationPerm] = useState<string>('default');
 
@@ -81,7 +94,8 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   // Subscribe to Audio Engine state, Storage updates, and Download Manager tasks
   useEffect(() => {
     const unsubscribeAudio = AdhanAudioEngine.subscribe((state) => {
-      if (state.isPlaying) {
+      setEngineState(state);
+      if (state.isPreview && state.activeMuezzinId) {
         setPlayingMuezzinId(state.activeMuezzinId);
       } else {
         setPlayingMuezzinId(null);
@@ -184,7 +198,45 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     }
   }, [isOpen, settings]);
 
+  const handleSelectMuezzin = (muezzinId: string) => {
+    const updatedAdhan = { ...adhan, muezzin: muezzinId };
+    setAdhan(updatedAdhan);
+
+    // If an audio preview of another muezzin is playing, stop it cleanly
+    if (playingMuezzinId && playingMuezzinId !== muezzinId) {
+      AdhanAudioEngine.stop(false);
+      setPlayingMuezzinId(null);
+    }
+
+    try {
+      localStorage.setItem('anis_adhan_settings', JSON.stringify(updatedAdhan));
+      const fullSettingsStr = localStorage.getItem('anis_settings');
+      if (fullSettingsStr) {
+        const parsed = JSON.parse(fullSettingsStr);
+        parsed.adhanSettings = updatedAdhan;
+        localStorage.setItem('anis_settings', JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.warn("Storage sync error on muezzin select:", e);
+    }
+
+    // Immediately sync local schedule with the selected muezzin ID
+    const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
+    AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod, muezzinId);
+
+    if (adhan.enabled) {
+      ensureSelectedMuezzinDownloaded(muezzinId);
+    }
+  };
+
   const togglePreview = async (muezzinId: string) => {
+    if (engineState.isLiveAdhan) {
+      setToastMessage(`جاري رفع أذان صلاة ${engineState.activePrayerName || 'الصلاة'} التلقائي. تم إخفاء المعاينات المؤقتة لمنع التضارب.`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
     if (playingMuezzinId === muezzinId && AdhanAudioEngine.isPlaying()) {
       AdhanAudioEngine.stop();
       setPlayingMuezzinId(null);
@@ -195,7 +247,8 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       muezzinId,
       adhan.volume,
       () => setPlayingMuezzinId(null),
-      () => setPlayingMuezzinId(muezzinId)
+      () => setPlayingMuezzinId(muezzinId),
+      'معاينة'
     );
 
     if (!result.success) {
@@ -262,14 +315,13 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     }
 
     if (adhan.enabled) {
-      if ('Notification' in window) {
-        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-          try {
-            await requestDynamicPermission('notifications');
-          } catch {
-            // Ignore permission request error
-          }
+      try {
+        const permStatus = await PermissionService.checkPermission('notifications');
+        if (permStatus !== 'granted' && permStatus !== 'denied') {
+          await requestDynamicPermission('notifications');
         }
+      } catch {
+        // Ignore permission request error
       }
     }
 
@@ -300,6 +352,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="adhan-settings-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -307,6 +360,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
         >
           {/* Modal Card */}
           <motion.div 
+            key="adhan-settings-container"
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
@@ -464,6 +518,32 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                   <span className="text-[10px] sm:text-[11px] text-slate-500">اختر، استمع للمعاينة، وحمّل للعمل بدون نت</span>
                 </div>
 
+                {/* Active Live Adhan Notice Banner */}
+                {engineState.isLiveAdhan && (
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/20 to-amber-600/15 dark:from-amber-950/60 dark:to-amber-900/40 border-2 border-amber-500/40 text-amber-950 dark:text-amber-200 flex items-center justify-between gap-2.5 shadow-xs mb-3 animate-pulse">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Volume2 size={16} className="animate-bounce" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs sm:text-sm text-amber-900 dark:text-amber-200 truncate">
+                          جاري رفع أذان صلاة {engineState.activePrayerName || 'الصلاة'} تلقائياً 🕌
+                        </p>
+                        <p className="text-[10.5px] text-amber-800/90 dark:text-amber-300 truncate mt-0.5">
+                          تم إخفاء أزرار المعاينة مؤقتاً لتجنب أي تضارب وتأكيد تشغيل الأذان التلقائي بكفاءة
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => AdhanAudioEngine.stop(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-all shadow-xs active:scale-95 cursor-pointer"
+                    >
+                      إيقاف الأذان
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-2.5">
                   {MUEZZINS_LIST.map(m => {
                     const isSelected = adhan.muezzin === m.id;
@@ -475,12 +555,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                     return (
                       <div
                         key={m.id}
-                        onClick={() => {
-                          setAdhan({...adhan, muezzin: m.id});
-                          if (adhan.enabled) {
-                            ensureSelectedMuezzinDownloaded(m.id);
-                          }
-                        }}
+                        onClick={() => handleSelectMuezzin(m.id)}
                         className={`p-3 sm:p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                           isSelected 
                             ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-500 text-emerald-950 dark:text-emerald-200 shadow-2xs' 
@@ -543,22 +618,31 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                             </button>
                           )}
 
-                          {/* Audio Preview Button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePreview(m.id);
-                            }}
-                            className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                              isPlaying 
-                                ? 'bg-rose-500 text-white animate-pulse shadow-xs' 
-                                : 'bg-slate-100 dark:bg-slate-700 hover:bg-[var(--color-gold)]/20 text-slate-600 dark:text-slate-300 hover:text-[var(--color-primary)]'
-                            }`}
-                            title={isPlaying ? "إيقاف المعاينة" : "استماع لصوت الأذان"}
-                          >
-                            {isPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-                          </button>
+                          {/* Audio Preview Button OR Live Adhan Indicator */}
+                          {engineState.isLiveAdhan ? (
+                            (engineState.activeMuezzinId === m.id || (isSelected && !engineState.activeMuezzinId)) ? (
+                              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/40 text-amber-800 dark:text-amber-300 text-[10px] sm:text-xs font-bold shrink-0">
+                                <Volume2 size={13} className="animate-pulse text-amber-500 shrink-0" />
+                                <span>أذان حي يعمل</span>
+                              </div>
+                            ) : null
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePreview(m.id);
+                              }}
+                              className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                                isPlaying 
+                                  ? 'bg-rose-500 text-white animate-pulse shadow-xs' 
+                                  : 'bg-slate-100 dark:bg-slate-700 hover:bg-[var(--color-gold)]/20 text-slate-600 dark:text-slate-300 hover:text-[var(--color-primary)]'
+                              }`}
+                              title={isPlaying ? "إيقاف المعاينة" : "استماع لصوت الأذان"}
+                            >
+                              {isPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -738,6 +822,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
           <AnimatePresence>
             {showToast && (
               <motion.div 
+                key="adhan-settings-toast-banner"
                 initial={{ opacity: 0, y: -20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.9 }}

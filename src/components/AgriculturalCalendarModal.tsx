@@ -1400,13 +1400,13 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <motion.div key="AgriculturalCalendarModal-anim-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 bg-stone-100/90 dark:bg-stone-950/95 backdrop-blur-md overflow-hidden flex flex-col w-screen h-screen"
         >
-          <motion.div
+          <motion.div key="AgriculturalCalendarModal-anim-2"
             initial={{ y: '100%', opacity: 0.95 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.95 }}
@@ -1451,7 +1451,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
               <AnimatePresence initial={false}>
                 {showActionBar && (
-                  <motion.div
+                  <motion.div key="AgriculturalCalendarModal-anim-3"
                     initial={{ opacity: 0, height: 0, scaleY: 0, originY: 0 }}
                     animate={{ opacity: 1, height: 'auto', scaleY: 1, originY: 0 }}
                     exit={{ opacity: 0, height: 0, scaleY: 0, originY: 0 }}
@@ -1489,7 +1489,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                 onClick={() => setShowRegionMenu(false)} 
                               />
 
-                              <motion.div
+                              <motion.div key="AgriculturalCalendarModal-anim-4"
                                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -1996,7 +1996,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {details.marker.recommendations.map((rec, idx) => (
-                                <div key={idx} className="flex items-start gap-2 bg-stone-50/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-stone-150/60 dark:border-gray-800/80">
+                                <div key={`rec-${details.marker.manzil || 'm'}-${idx}`} className="flex items-start gap-2 bg-stone-50/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-stone-150/60 dark:border-gray-800/80">
                                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
                                   <span className="text-xs font-bold text-stone-700 dark:text-stone-200 leading-relaxed">
                                     {rec}
@@ -2242,7 +2242,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
                               return (
                                 <button
-                                  key={dayInfo.himyariteDayNumber}
+                                  key={`h-day-grid-${dayInfo.himyariteDayNumber}-${dayInfo.gregorianDate.toISOString().split('T')[0]}`}
                                   onClick={() => setSelectedDate(dayInfo.gregorianDate)}
                                   className={`p-2.5 rounded-xl border text-right transition-all flex flex-col justify-between relative group cursor-pointer ${
                                     dayInfo.isSelected 
@@ -2350,7 +2350,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
                                   return (
                                     <tr 
-                                      key={dayInfo.himyariteDayNumber}
+                                      key={`h-day-row-${dayInfo.himyariteDayNumber}-${dayInfo.gregorianDate.toISOString().split('T')[0]}`}
                                       onClick={() => setSelectedDate(dayInfo.gregorianDate)}
                                       className={`transition-all cursor-pointer ${
                                         dayInfo.isSelected
@@ -2719,7 +2719,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                 {/* Detailed Expandable Section */}
                                 <AnimatePresence>
                                   {isExpanded && (
-                                    <motion.div
+                                    <motion.div key="AgriculturalCalendarModal-anim-5"
                                       initial={{ opacity: 0, height: 0 }}
                                       animate={{ opacity: 1, height: 'auto' }}
                                       exit={{ opacity: 0, height: 0 }}
@@ -2939,7 +2939,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
                               return (
                                 <div 
-                                  key={idx}
+                                  key={`himy-${m.name}-${idx}`}
                                   className={`p-4 rounded-xl border text-right transition-all flex flex-col justify-between ${
                                     isCurrent 
                                       ? 'bg-gradient-to-br from-emerald-50/70 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-400 shadow-3xs' 
@@ -3033,7 +3033,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
                               return (
                                 <div 
-                                  key={idx}
+                                  key={`syr-${m.number}-${m.syriac}-${idx}`}
                                   className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between ${
                                     isCurrent 
                                       ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 shadow-3xs' 
@@ -3107,7 +3107,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
 
                               return (
                                 <div 
-                                  key={idx} 
+                                  key={`mark-${m.manzil}-${m.marker}-${idx}`} 
                                   className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between ${
                                     isCurrent 
                                       ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-400 shadow-3xs' 
@@ -3189,7 +3189,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {SEASONS_DATA.map((season, idx) => (
-                              <div key={idx} className="bg-white dark:bg-gray-950 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30 shadow-3xs flex flex-col space-y-3">
+                              <div key={`season-${season.title}-${idx}`} className="bg-white dark:bg-gray-950 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30 shadow-3xs flex flex-col space-y-3">
                                 <div className="border-b border-stone-100 dark:border-gray-800 pb-2">
                                   <h3 className="text-sm font-black text-emerald-800 dark:text-emerald-400">{season.title}</h3>
                                   <span className="text-[11px] font-bold text-stone-500 dark:text-gray-400 inline-block mt-1 bg-stone-100 dark:bg-gray-900 px-2 py-0.5 rounded-md">
@@ -3198,7 +3198,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                 </div>
                                 <div className="space-y-2.5 flex-1">
                                   {season.details.map((detail, dIdx) => (
-                                    <div key={dIdx} className="space-y-1">
+                                    <div key={`s-detail-${idx}-${dIdx}`} className="space-y-1">
                                       <h4 className="text-xs font-bold text-stone-800 dark:text-stone-200">{detail.subTitle}</h4>
                                       <p className="text-[11px] text-stone-600 dark:text-gray-400 leading-relaxed font-semibold">
                                         {detail.text}
@@ -3267,6 +3267,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
           <AnimatePresence>
             {showSources && (
               <motion.div
+                key="agri-calendar-sources-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -3274,6 +3275,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                 onClick={() => setShowSources(false)}
               >
                 <motion.div
+                  key="agri-calendar-sources-container"
                   initial={{ opacity: 0, scale: 0.95, y: 15 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -3359,6 +3361,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
           <AnimatePresence>
             {selectedDetailModal && (
               <motion.div
+                key="agri-calendar-detail-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -3366,6 +3369,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                 onClick={() => setSelectedDetailModal(null)}
               >
                 <motion.div
+                  key="agri-calendar-detail-container"
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}

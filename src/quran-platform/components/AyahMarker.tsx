@@ -291,7 +291,7 @@ export const AyahMarker: React.FC<AyahMarkerProps> = ({
             const by = center + (dy / len) * (radius - 3);
             return (
               <circle
-                key={idx}
+                key={`bead-ring-${idx}`}
                 cx={bx}
                 cy={by}
                 r="1.5"

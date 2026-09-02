@@ -31,6 +31,7 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 import { DhikrReminderService } from './services/dhikrReminderService';
 import { DhikrFloatingBanner } from './components/DhikrFloatingBanner';
 import { AppStatePreservation } from './services/appStatePreservation';
+import { NativeNotificationService } from './services/nativeNotificationService';
 
 // Lazy loaded modals for performance optimization with auto-retry on app updates
 const SettingsModal = lazyWithRetry(() => import('./components/SettingsModal'), 'SettingsModal');
@@ -211,7 +212,21 @@ const App: React.FC = () => {
   // Live Adhan monitoring state
   const [liveAdhanPrayer, setLiveAdhanPrayer] = useState<string | null>(null);
   const [isLiveAdhanBannerOpen, setIsLiveAdhanBannerOpen] = useState(false);
-  const lastTriggeredPrayerKeyRef = useRef<string>('');
+  const triggeredPrayersRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const now = new Date();
+      const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      const saved = sessionStorage.getItem('anis_triggered_prayers_' + dateKey);
+      if (saved) {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) {
+          list.forEach((k: string) => triggeredPrayersRef.current.add(k));
+        }
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const unsub = AdhanAudioEngine.subscribe((state) => {
@@ -219,8 +234,7 @@ const App: React.FC = () => {
         setLiveAdhanPrayer(state.activePrayerName);
         setIsLiveAdhanBannerOpen(true);
       } else if (!state.isPlaying) {
-        // Only close if it stopped playing (though we might want to let the user close it manually, 
-        // but if activePrayerName is null, it means it was stopped)
+        // Only close if it stopped playing
         setIsLiveAdhanBannerOpen(false);
       }
     });
@@ -230,7 +244,7 @@ const App: React.FC = () => {
   // Live Accurate Adhan & Dhikr Checker
   useEffect(() => {
     AdhanAudioEngine.setupInteractionAudioUnlock();
-    AdhanOfflineManager.seedLocalAssets();
+    AdhanOfflineManager.seedLocalAssets(settings.adhanSettings);
     DhikrReminderService.init(settings.dhikrReminderSettings);
   }, []);
 
@@ -250,7 +264,6 @@ const App: React.FC = () => {
       } else if (event.data.type === 'PWA_UPDATE_AVAILABLE') {
         showToast('تم إصدار تحديث جديد للتطبيق! قم بتحديث الصفحة للحصول على الميزات الجديدة.', 'success');
         setTimeout(() => {
-           // Provide an update notification banner if you want, but for now we can just show a toast
            if (window.confirm('تم العثور على تحديث جديد للبرنامج. هل ترغب بإعادة التحميل لتحديث الملفات الآن؟')) {
              window.location.reload();
            }
@@ -264,39 +277,52 @@ const App: React.FC = () => {
       } catch (e) {}
     }
 
+    let cachedSchedule: any = null;
+    let cachedScheduleDateKey = '';
+
     const checkAdhan = () => {
       const adhanConfig = settings.adhanSettings;
       if (!adhanConfig || !adhanConfig.enabled) return;
 
       const now = new Date();
-      const schedule = calculateAccuratePrayerTimes(settings.location, now, adhanConfig.calculationMethod);
       const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
       
-      schedule.prayersList.forEach(prayer => {
-        const isPrayerEnabled = adhanConfig[prayer.key] as boolean;
+      if (!cachedSchedule || cachedScheduleDateKey !== dateKey) {
+        cachedSchedule = calculateAccuratePrayerTimes(settings.location, now, adhanConfig.calculationMethod);
+        cachedScheduleDateKey = dateKey;
+      }
+      
+      const schedule = cachedSchedule;
+      if (!schedule || !schedule.prayersList) return;
+
+      const muezzinId = adhanConfig.muezzin || 'mishary';
+      const muezzinObj = MUEZZINS_LIST.find(m => m.id === muezzinId);
+      const muezzinName = muezzinObj?.name || 'الشيخ مشاري راشد العفاسي';
+
+      schedule.prayersList.forEach((prayer: any) => {
+        const isPrayerEnabled = adhanConfig[prayer.key as keyof typeof adhanConfig] as boolean;
         if (!isPrayerEnabled) return;
 
-        // Positive value means 'now' is after prayer time
+        // Positive value means 'now' is after prayer time (in minutes)
         const rawDiffMinutes = (now.getTime() - prayer.time.getTime()) / 60000; 
         const triggerKey = `${dateKey}_${prayer.name}`;
         
-        // Active prayer window (from 0 to 15 minutes after prayer start)
-        if (rawDiffMinutes >= -0.5 && rawDiffMinutes <= 15 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
-          lastTriggeredPrayerKeyRef.current = triggerKey;
+        // Exact Entry Window: 0 to 2.5 minutes after prayer time arrives
+        if (rawDiffMinutes >= 0 && rawDiffMinutes <= 2.5 && !triggeredPrayersRef.current.has(triggerKey)) {
+          triggeredPrayersRef.current.add(triggerKey);
+          try {
+            sessionStorage.setItem('anis_triggered_prayers_' + dateKey, JSON.stringify(Array.from(triggeredPrayersRef.current)));
+          } catch {}
+
           setLiveAdhanPrayer(prayer.name);
           setIsLiveAdhanBannerOpen(true);
-
-          const muezzinId = adhanConfig.muezzin || 'mishary';
-          const muezzinObj = MUEZZINS_LIST.find(m => m.id === muezzinId);
-          const muezzinName = muezzinObj?.name || 'الشيخ مشاري راشد العفاسي';
 
           if (adhanConfig.autoPlayLiveAdhan !== false) {
             AdhanAudioEngine.unlockAudioContext();
             AdhanAudioEngine.play(
               muezzinId, 
-              adhanConfig.volume || 85, 
+              adhanConfig.volume ?? 85, 
               () => {
-                // Auto-close banner or mark finished when adhan ends
                 setIsLiveAdhanBannerOpen(false);
               }, 
               undefined, 
@@ -307,15 +333,27 @@ const App: React.FC = () => {
           // High-priority Android TWA / PWA / Web notification with Action buttons
           AdhanAudioEngine.dispatchPrayerNotification(prayer.name, muezzinName);
         } 
-        // If prayer is already well past (more than 15 mins), mark it quietly without any annoying alert
-        else if (rawDiffMinutes > 15 && lastTriggeredPrayerKeyRef.current !== triggerKey) {
-          lastTriggeredPrayerKeyRef.current = triggerKey;
+        // Secondary Window (2.5 to 15 mins): opened slightly late - show banner and notification without blasting sound
+        else if (rawDiffMinutes > 2.5 && rawDiffMinutes <= 15 && !triggeredPrayersRef.current.has(triggerKey)) {
+          triggeredPrayersRef.current.add(triggerKey);
+          try {
+            sessionStorage.setItem('anis_triggered_prayers_' + dateKey, JSON.stringify(Array.from(triggeredPrayersRef.current)));
+          } catch {}
+
+          setLiveAdhanPrayer(prayer.name);
+          setIsLiveAdhanBannerOpen(true);
+
+          AdhanAudioEngine.dispatchPrayerNotification(prayer.name, muezzinName);
+        }
+        // If prayer is already well past (more than 15 mins), mark it quietly without any alert
+        else if (rawDiffMinutes > 15 && !triggeredPrayersRef.current.has(triggerKey)) {
+          triggeredPrayersRef.current.add(triggerKey);
         }
       });
     };
 
     checkAdhan();
-    const interval = setInterval(checkAdhan, 5000);
+    const interval = setInterval(checkAdhan, 10000);
 
     // Re-check instantly when app comes back to foreground or window receives focus
     const handleVisibilityChange = () => {
@@ -444,6 +482,8 @@ const App: React.FC = () => {
 
   // Register Capacitor App State listeners and Android Hardware Back Button logic
   useEffect(() => {
+    NativeNotificationService.initNativeListeners();
+
     const cleanupListeners = AppStatePreservation.initListeners(
       () => {
         // App is backgrounded / minimized to floating window -> flush active chat and state immediately
@@ -1152,6 +1192,7 @@ const App: React.FC = () => {
       <AnimatePresence>
         {!isOnline && !isOfflineBannerDismissed && (
           <motion.div 
+            key="app-offline-banner"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -1172,6 +1213,7 @@ const App: React.FC = () => {
 
         {showPromoBanner && !settings.isLoggedIn && (
           <motion.div
+            key="app-promo-banner"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
@@ -1254,6 +1296,7 @@ const App: React.FC = () => {
                 <AnimatePresence>
                   {isSyncing && (
                     <motion.div
+                      key="app-syncing-indicator"
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
@@ -1292,10 +1335,15 @@ const App: React.FC = () => {
              username={settings.username}
              isSyncing={isSyncing}
              lastSynced={lastSynced}
+             onOpenQuran={() => openQuran(undefined, undefined, 'index')}
+             onOpenAdhkar={() => setIsAdhkarOpen(true)}
+             onOpenPrayerTimes={() => setIsAdhanSettingsOpen(true)}
+             onOpenProphets={() => setIsProphetsOpen(true)}
+             onOpenInstallModal={() => setIsInstallModalOpen(true)}
            />
         )}
         
-        <main className={isChatStarted ? "w-full max-w-[1600px] mx-auto px-0 sm:px-4 flex flex-col" : "container flex flex-col"} style={{ 
+        <main className={isChatStarted ? "w-full max-w-4xl lg:max-w-5xl mx-auto px-2 sm:px-4 flex flex-col" : "container flex flex-col"} style={{ 
             flexGrow: 1, 
             paddingBottom: isChatStarted ? '140px' : '2rem', 
             paddingTop: isChatStarted ? '0' : '1rem' 
@@ -1303,7 +1351,7 @@ const App: React.FC = () => {
           
           <div className="flex flex-col gap-6 flex-1">
             {messages.map((msg, index) => (
-              <div key={`${msg.id || 'msg'}-${index}`} id={`msg-${msg.id}`} className={`message-row ${msg.type} ${index === messages.length - 1 && msg.type === 'ai' ? 'flex-1 flex-col' : ''}`}>
+              <div key={msg.id || `msg-${index}`} id={`msg-${msg.id || index}`} className={`message-row ${msg.type} ${index === messages.length - 1 && msg.type === 'ai' ? 'flex-1 flex-col' : ''}`}>
                 {msg.type === 'user' ? (
                   <div className="flex justify-end w-full animate-fade-in px-4 sm:px-0 mt-4">
                     <div className="chat-bubble">
@@ -1366,100 +1414,115 @@ const App: React.FC = () => {
 
           {!isChatStarted && state !== AppState.LOADING && (
              <div className="mt-4 w-full animate-slide-up">
-               {/* Prayer Times Widget */}
-               <div className="mb-5 mx-auto max-w-xl">
-                 <PrayerTimesWidget 
-                   settings={settings} 
-                   onUpdateSettings={setSettings} 
-                   onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
-                   onOpenLocationSettings={() => setIsLocationModalOpen(true)}
-                 />
-               </div>
-
-               <div className="mb-5 text-center relative">
-                 {/* 3D Decorative Element */}
-                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-40 h-40 opacity-30 pointer-events-none z-0 animate-float-3d perspective-1000">
-                    <div className="w-full h-full rounded-full bg-gradient-to-tr from-[var(--color-primary)] to-[var(--color-primary-light)] blur-2xl" style={{ transform: 'rotateX(12deg) rotateY(12deg)' }}></div>
-                 </div>
+               {/* Responsive Dual Dashboard: Split layout on Desktop (PC), Natural vertical stack on Mobile */}
+               <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-8 items-start">
                  
-                 <div className="relative z-10 flex flex-col items-center">
-                    {/* Noble Quran Direct Access 3D Jewel Button */}
-                    <div className="flex justify-center mb-5 w-full max-w-sm px-2">
-                      <button
-                        onClick={() => openQuran(undefined, undefined, "index")}
-                        className="group relative overflow-hidden inline-flex items-center justify-between gap-3.5 px-6 py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
-                        style={{
-                          background: "linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)",
-                          boxShadow: "0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
-                          border: "1px solid rgba(212, 175, 55, 0.65)"
-                        }}
-                        title="فتح فهرس المصحف الشريف لاختيار وتلاوة القرآن الكريم"
-                      >
-                        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-t-2xl"></div>
-                        <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
-
-                        <div className="flex items-center gap-3.5 relative z-10">
-                          <div 
-                            className="w-11 h-11 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                 {/* Right Column (RTL Core Interaction: Quran Gateway + Emotion Form + Prompt Suggestions) */}
+                 <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-7 flex flex-col">
+                   <div className="mb-5 text-center relative">
+                     {/* 3D Decorative Element */}
+                     <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-40 h-40 opacity-30 pointer-events-none z-0 animate-float-3d perspective-1000">
+                        <div className="w-full h-full rounded-full bg-gradient-to-tr from-[var(--color-primary)] to-[var(--color-primary-light)] blur-2xl" style={{ transform: 'rotateX(12deg) rotateY(12deg)' }}></div>
+                     </div>
+                     
+                     <div className="relative z-10 flex flex-col items-center">
+                        {/* Noble Quran Direct Access 3D Jewel Button */}
+                        <div className="flex justify-center mb-5 w-full max-w-sm lg:max-w-md px-2">
+                          <button
+                            onClick={() => openQuran(undefined, undefined, "index")}
+                            className="group relative overflow-hidden inline-flex items-center justify-between gap-3.5 px-6 py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
                             style={{
-                              background: "linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.8), inset 0 -2px 0 rgba(0,0,0,0.3)",
-                              border: "1px solid rgba(255, 245, 200, 0.8)"
+                              background: "linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)",
+                              boxShadow: "0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
+                              border: "1px solid rgba(212, 175, 55, 0.65)"
                             }}
+                            title="فتح فهرس المصحف الشريف لاختيار وتلاوة القرآن الكريم"
                           >
-                            <BookOpen size={22} className="text-[#022c22] drop-shadow-sm" />
-                          </div>
+                            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/20 via-white/5 to-transparent pointer-events-none rounded-t-2xl"></div>
+                            <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none"></div>
 
-                          <div className="text-right">
-                            <div className="flex items-center gap-2">
-                              <span className="text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                المصحف الشريف
-                              </span>
+                            <div className="flex items-center gap-3.5 relative z-10">
+                              <div 
+                                className="w-11 h-11 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                                style={{
+                                  background: "linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)",
+                                  boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.8), inset 0 -2px 0 rgba(0,0,0,0.3)",
+                                  border: "1px solid rgba(255, 245, 200, 0.8)"
+                                }}
+                              >
+                                <BookOpen size={22} className="text-[#022c22] drop-shadow-sm" />
+                              </div>
+
+                              <div className="text-right">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                    المصحف الشريف
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-amber-400/50 text-amber-200">قراءة</span>
+                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-emerald-400/50 text-emerald-200">تلاوة</span>
+                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-teal-400/50 text-teal-200">تفسير</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-amber-400/50 text-amber-200">قراءة</span>
-                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-emerald-400/50 text-emerald-200">تلاوة</span>
-                              <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-teal-400/50 text-teal-200">تفسير</span>
+
+                            <div className="relative z-10 mr-1 w-8 h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner shrink-0">
+                              <ArrowLeft size={18} />
                             </div>
-                          </div>
+                          </button>
                         </div>
 
-                        <div className="relative z-10 mr-1 w-8 h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner shrink-0">
-                          <ArrowLeft size={18} />
-                        </div>
-                      </button>
-                    </div>
+                        <h2 className="text-base sm:text-lg lg:text-xl font-bold text-white tracking-normal leading-relaxed drop-shadow-md">كيف يمكنني أن أؤنس قلبك اليوم بآيات الله؟</h2>
+                     </div>
+                   </div>
 
-                    <h2 className="text-base sm:text-lg font-bold text-white tracking-normal leading-relaxed drop-shadow-md">كيف يمكنني أن أؤنس قلبك اليوم بآيات الله؟</h2>
+                   {/* Primary Core Entry Control - Form & Prompt suggestions */}
+                   <div className="mb-6 max-w-3xl mx-auto w-full">
+                     <EmotionForm onSubmit={handleEmotionSubmit} isLoading={false} isOnline={isOnline} variant="centered" />
+                     
+                     <div className="mt-3 flex flex-wrap gap-2 max-w-2xl mx-auto px-2 sm:px-4 w-full justify-center select-none">
+                       {[
+                          "أشعر بضيق في صدري",
+                          "أريد آيات عن الصبر",
+                          "كيف أتوكل على الله؟",
+                          "أشعر بالقلق من المستقبل",
+                          "آيات تجلب السكينة"
+                        ].map((prompt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleEmotionSubmit(prompt)}
+                            className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 select-none cursor-pointer"
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                     </div>
+                   </div>
                  </div>
+
+                 {/* Left Column (RTL Companion Side: Prayer Times Widget & Daily Verse on Desktop) */}
+                 <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-5 flex flex-col gap-5 mb-5 lg:mb-0">
+                   {/* Prayer Times Widget */}
+                   <div className="w-full">
+                     <PrayerTimesWidget 
+                       settings={settings} 
+                       onUpdateSettings={setSettings} 
+                       onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
+                       onOpenLocationSettings={() => setIsLocationModalOpen(true)}
+                     />
+                   </div>
+
+                   {/* Daily Verse integrated in companion side on desktop */}
+                   <div className="w-full hidden lg:block">
+                     <DailyVerse onOpenQuran={openQuran} />
+                   </div>
+                 </div>
+
                </div>
 
-               {/* Primary Core Entry Control - Form & Prompt suggestions */}
-               <div className="mb-6 max-w-3xl mx-auto w-full">
-                 <EmotionForm onSubmit={handleEmotionSubmit} isLoading={false} isOnline={isOnline} variant="centered" />
-                 
-                 <div className="mt-3 flex flex-row flex-nowrap overflow-x-auto gap-2 max-w-2xl mx-auto px-4 w-full justify-start md:justify-center no-scrollbar pb-1 snap-x select-none">
-                   {[
-                      "أشعر بضيق في صدري",
-                      "أريد آيات عن الصبر",
-                      "كيف أتوكل على الله؟",
-                      "أشعر بالقلق من المستقبل",
-                      "آيات تجلب السكينة"
-                    ].map((prompt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleEmotionSubmit(prompt)}
-                        className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 snap-center select-none"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-
-               {/* Professional Status Grid Panels */}
-               <div className="max-w-xl mx-auto my-5">
+               {/* Professional Daily Verse Panel for mobile screens */}
+               <div className="lg:hidden max-w-xl mx-auto my-5">
                  <DailyVerse onOpenQuran={openQuran} />
                </div>
 

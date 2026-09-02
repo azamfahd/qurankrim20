@@ -1,4 +1,5 @@
-import { requestDynamicPermission } from "../services/permissionService";
+import { requestDynamicPermission, PermissionService } from "../services/permissionService";
+import { PlatformEnvironmentService } from "../services/platformEnvironmentService";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -30,16 +31,29 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
   const [testResult, setTestResult] = useState<{ status: 'idle' | 'success' | 'error'; message?: string }>({ status: 'idle' });
   const [isCached, setIsCached] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isLiveAdhanPlaying, setIsLiveAdhanPlaying] = useState(false);
 
   const currentMuezzinId = settings.adhanSettings?.muezzin || 'mishary';
   const currentMuezzin = MUEZZINS_LIST.find(m => m.id === currentMuezzinId) || MUEZZINS_LIST[0];
 
+  useEffect(() => {
+    const unsub = AdhanAudioEngine.subscribe(state => {
+      setIsLiveAdhanPlaying(state.isLiveAdhan);
+    });
+    return () => unsub();
+  }, []);
+
   // Check live permissions & audio cache status
   const checkStatus = async () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    } else {
-      setNotificationPermission('unsupported');
+    try {
+      const permStatus = await PermissionService.checkPermission('notifications');
+      setNotificationPermission((permStatus === 'prompt' ? 'default' : permStatus) as NotificationPermission);
+    } catch {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        setNotificationPermission(Notification.permission);
+      } else {
+        setNotificationPermission('unsupported' as NotificationPermission);
+      }
     }
 
     try {
@@ -103,6 +117,11 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
   };
 
   const handleTestInstantAlert = async () => {
+    if (isLiveAdhanPlaying) {
+      setTestResult({ status: 'error', message: 'جاري رفع الأذان التلقائي للصلاة الحالية. تم إيقاف التجربة الفورية لتجنب التضارب.' });
+      return;
+    }
+
     if (isTestingAlert) {
       AdhanAudioEngine.stop();
       setIsTestingAlert(false);
@@ -228,14 +247,14 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <motion.div key="AdhanBackgroundGuideModal-anim-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[110] flex items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden"
           onClick={onClose}
         >
-          <motion.div
+          <motion.div key="AdhanBackgroundGuideModal-anim-2"
             initial={{ opacity: 0, scale: 0.94, y: 25 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 25 }}
@@ -275,6 +294,39 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
 
             {/* Content Area */}
             <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 custom-scrollbar">
+
+              {/* Environment Smart Card */}
+              {(() => {
+                const env = PlatformEnvironmentService.getEnvironmentInfo();
+                return (
+                  <div className={`p-4 rounded-2xl border flex items-start gap-3 shadow-xs ${
+                    env.isNativeAPK
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200'
+                  }`}>
+                    <div className={`p-2 rounded-xl text-white shrink-0 mt-0.5 ${
+                      env.isNativeAPK ? 'bg-emerald-600' : 'bg-amber-600'
+                    }`}>
+                      <Smartphone size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs">بيئة التشغيل الحالية:</span>
+                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-md text-white ${
+                          env.isNativeAPK ? 'bg-emerald-600' : 'bg-amber-600'
+                        }`}>
+                          {env.nameAr}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed mt-1 opacity-90">
+                        {env.isNativeAPK
+                          ? 'أنت تستخدم تطبيق أندرويد المستقل (APK). تعمل التنبيهات والأصوات بنظام Notification Channels المباشر للنظام. يرجى التأكد من اختيار (غير مقتصر) في إعدادات البطارية بالأسفل لضمان استمرار عمل الصوت عند إغلاق الشاشة.'
+                          : 'أنت تستخدم التطبيق عبر متصفح الويب أو PWA. تشغيل الصوت التلقائي عند إغلاق التبويب مقيد بسياسات أمان المتصفح (Autoplay). يُنصح بإبقاء التبويب متاحاً أو تثبيت نسخة APK للحصول على أداء منبه كامل 100%.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 1. Notifications Permission Card */}
               <div className="bg-white dark:bg-slate-800/80 p-4 sm:p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
@@ -386,27 +438,34 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleTestInstantAlert}
-                    className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer shrink-0 ${
-                      isTestingAlert 
-                        ? 'bg-rose-600 text-white animate-pulse' 
-                        : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white'
-                    }`}
-                  >
-                    {isTestingAlert ? (
-                      <>
-                        <Square size={14} fill="currentColor" />
-                        <span>إيقاف التجربة</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play size={14} fill="currentColor" />
-                        <span>تجربة التنبيه الآن</span>
-                      </>
-                    )}
-                  </button>
+                  {isLiveAdhanPlaying ? (
+                    <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-bold shrink-0 animate-pulse">
+                      <Volume2 size={15} className="text-amber-500 shrink-0 animate-bounce" />
+                      <span>أذان حي يعمل الآن</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleTestInstantAlert}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer shrink-0 ${
+                        isTestingAlert 
+                          ? 'bg-rose-600 text-white animate-pulse' 
+                          : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white'
+                      }`}
+                    >
+                      {isTestingAlert ? (
+                        <>
+                          <Square size={14} fill="currentColor" />
+                          <span>إيقاف التجربة</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play size={14} fill="currentColor" />
+                          <span>تجربة التنبيه الآن</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 {/* Feedback Message */}
@@ -473,7 +532,7 @@ export const AdhanBackgroundGuideModal: React.FC<AdhanBackgroundGuideModalProps>
 
                   <ol className="space-y-2 text-xs text-slate-700 dark:text-slate-300 list-decimal list-inside pr-1 leading-relaxed">
                     {vendorGuides[selectedVendor].steps.map((step, idx) => (
-                      <li key={idx} className="marker:font-bold marker:text-emerald-600">
+                      <li key={`vstep-${selectedVendor}-${idx}`} className="marker:font-bold marker:text-emerald-600">
                         <span className="mr-1">{step}</span>
                       </li>
                     ))}

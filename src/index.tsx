@@ -10,6 +10,33 @@ try {
   SplashScreen.hide().catch(() => {});
 } catch {}
 
+// Global safety net: prevent aborted requests, audio play rejections, or minor DOM errors from freezing the app
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const msg = typeof reason === 'string' ? reason : reason?.message || '';
+    if (
+      reason?.name === 'AbortError' ||
+      msg.includes('aborted') ||
+      msg.includes('play() failed') ||
+      msg.includes('The play() request was interrupted') ||
+      msg.includes('user did not interact') ||
+      msg.includes('ResizeObserver loop')
+    ) {
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    if (
+      event.message?.includes('ResizeObserver loop') ||
+      event.message?.includes('Script error.')
+    ) {
+      event.preventDefault();
+    }
+  });
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

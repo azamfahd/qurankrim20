@@ -15,6 +15,7 @@ import {
   DHIKR_RECITERS, 
   DhikrDailyStats 
 } from '../services/dhikrReminderService';
+import { PermissionService } from '../services/permissionService';
 
 interface DhikrSettingsModalProps {
   isOpen: boolean;
@@ -64,9 +65,13 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
   const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
+    PermissionService.checkPermission('notifications').then((permStatus) => {
+      setNotificationPermission((permStatus === 'prompt' ? 'default' : permStatus) as NotificationPermission);
+    }).catch(() => {
+      if ('Notification' in window) {
+        setNotificationPermission(Notification.permission);
+      }
+    });
 
     const unsubSettings = DhikrReminderService.subscribeToSettings((s) => {
       setSettings(s);
@@ -194,7 +199,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
   const handleRequestNotification = async () => {
     const perm = await DhikrReminderService.requestNotificationPermission();
-    setNotificationPermission(perm);
+    setNotificationPermission(perm as NotificationPermission);
     if (perm === 'granted' && onShowToast) {
       onShowToast('تم تفعيل إشعارات النظام بالخلفية وشاشة القفل بنجاح!', 'success');
     }
@@ -247,26 +252,25 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
     handleUpdate({ selectedDhikrIds: nextList, category: 'custom' });
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      {isOpen && (
         <motion.div
+          key="dhikr-settings-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto bg-black/70 backdrop-blur-md"
           onClick={() => {
             DhikrReminderService.stopAudio();
             onClose();
           }}
-        />
-
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        >
+          <motion.div
+            key="dhikr-settings-container"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           className="relative w-full max-w-2xl bg-gradient-to-b from-[#fdfbf7] via-[#fefdfa] to-[#f7f3e8] dark:from-[#052e24] dark:via-[#02221b] dark:to-[#011712] rounded-3xl sm:rounded-[2.5rem] shadow-3xl border-2 border-[var(--color-gold)]/40 overflow-hidden flex flex-col max-h-[92vh] z-10"
           dir="rtl"
@@ -1026,7 +1030,8 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
             </button>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

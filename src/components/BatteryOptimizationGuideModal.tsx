@@ -4,6 +4,7 @@ import { X, ShieldCheck, BatteryCharging, BellRing, Smartphone, CheckCircle2, Al
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { AdhanAudioEngine } from '../services/adhanService';
+import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
 
 interface BatteryOptimizationGuideModalProps {
   isOpen: boolean;
@@ -123,6 +124,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="battery-opt-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -130,6 +132,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
           onClick={onClose}
         >
           <motion.div
+            key="battery-opt-modal-container"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -162,18 +165,35 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
             {/* Scrollable Content */}
             <div className="p-6 overflow-y-auto space-y-6">
 
-              {/* Status Banner */}
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl shrink-0 mt-0.5">
-                  <CheckCircle2 size={20} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-emerald-900 mb-1">نظام التنبيهات الدقيق (Offline-First) نشط</h3>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    يستخدم التطبيق تقنية <code>setExactAndAllowWhileIdle</code> المتقدمة برمجياً لرفع الأذان حتى لو كان الهاتف في جيبك والتطبيق مغلق.
-                  </p>
-                </div>
-              </div>
+              {/* Environment Identification Card */}
+              {(() => {
+                const env = PlatformEnvironmentService.getEnvironmentInfo();
+                return (
+                  <div className={`border rounded-2xl p-4 flex items-start gap-3 ${
+                    env.isNativeAPK
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200'
+                      : 'bg-blue-500/10 border-blue-500/30 text-blue-950 dark:text-blue-200'
+                  }`}>
+                    <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                      env.isNativeAPK ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                    }`}>
+                      <Smartphone size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-600 text-white">
+                          {env.nameAr}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed mt-1.5 opacity-90">
+                        {env.isNativeAPK 
+                          ? 'يعمل التطبيق كحزمة أندرويد مستقلة (APK). يتم جدولة الأذان والأذكار عبر القنوات الصوتية المباشرة للنظام (Notification Channels)، وتعمل حتى في حال إغلاق الشاشة.'
+                          : 'يعمل التطبيق كصفحة ويب / PWA. تفرض المتصفحات محددات على الصوت في الخلفية (Autoplay). نوصي بإلغاء قيود البطارية وتثبيت التطبيق للحصول على أفضل دقة.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-3">

@@ -32,7 +32,7 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm text-right" dir="rtl">
-        <motion.div
+        <motion.div key="SurahInfoModal-anim-1"
           initial={{ opacity: 0, scale: 0.92, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 15 }}
@@ -96,7 +96,7 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
                 <div className="flex flex-wrap gap-2">
                   {meta.titles.map((title, idx) => (
                     <span
-                      key={idx}
+                      key={`title-${title}-${idx}`}
                       className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 px-3 py-1 rounded-xl text-xs font-bold shadow-xs"
                     >
                       {title}
@@ -126,7 +126,7 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
               <ul className="space-y-2">
                 {meta.themes.map((theme, idx) => (
                   <li
-                    key={idx}
+                    key={`theme-${idx}-${theme.substring(0, 10)}`}
                     className="flex items-start gap-2.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 p-3 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed"
                   >
                     <span className="w-6 h-6 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
@@ -147,7 +147,7 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
               <div className="space-y-2">
                 {meta.virtues.map((virtue, idx) => (
                   <div
-                    key={idx}
+                    key={`virtue-${idx}-${virtue.substring(0, 10)}`}
                     className="flex items-start gap-2.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed text-amber-900 dark:text-amber-200"
                   >
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-1" />
@@ -166,7 +166,7 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
               <div className="space-y-2">
                 {meta.practicalActions.map((action, idx) => (
                   <div
-                    key={idx}
+                    key={`action-${idx}-${action.substring(0, 10)}`}
                     className="flex items-start gap-2.5 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 p-3 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed text-blue-900 dark:text-blue-200"
                   >
                     <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2"></span>

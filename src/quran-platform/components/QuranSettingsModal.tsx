@@ -334,7 +334,7 @@ export const QuranSettingsModal: React.FC = () => {
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-        <motion.div
+        <motion.div key="QuranSettingsModal-anim-1"
           initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -803,7 +803,7 @@ export const QuranSettingsModal: React.FC = () => {
 
                       return (
                         <div
-                          key={`${item.id || 'khatma'}-${idx}`}
+                          key={item.id || `khatma-${item.title || ''}-${idx}`}
                           className={`p-3 rounded-xl border transition-all text-right ${
                             item.isCompleted 
                               ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40' 

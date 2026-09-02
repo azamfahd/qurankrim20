@@ -154,7 +154,7 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
     setIsVisible(false);
   };
 
-  if (!isVisible || !currentDhikr) return null;
+  if (!currentDhikr) return null;
 
   const isSalawat = currentDhikr.category === 'prophet_salawat';
   const isIstighfar = currentDhikr.category === 'istighfar';
@@ -170,17 +170,15 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
 
   return (
     <AnimatePresence>
-      <div 
-        id="dhikr-floating-banner-container"
-        className="fixed top-4 sm:top-6 left-0 right-0 z-[9999] flex justify-center px-4 pointer-events-none"
-      >
+      {isVisible && (
         <motion.div
+          key="dhikr-floating-card"
           id="dhikr-floating-card"
           initial={{ y: -50, opacity: 0, scale: 0.93, filter: 'blur(10px)' }}
           animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ y: -40, opacity: 0, scale: 0.93, filter: 'blur(10px)' }}
           transition={{ type: 'spring', damping: 22, stiffness: 280 }}
-          className="pointer-events-auto w-[92%] sm:w-[320px] bg-slate-950/95 backdrop-blur-xl border border-white/10 hover:border-amber-400/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.7),0_0_12px_rgba(245,158,11,0.05)] text-white overflow-hidden relative transition-all duration-300 group"
+          className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto w-[92%] sm:w-[320px] bg-slate-950/95 backdrop-blur-xl border border-white/10 hover:border-amber-400/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.7),0_0_12px_rgba(245,158,11,0.05)] text-white overflow-hidden relative transition-all duration-300 group"
           dir="rtl"
         >
           {/* Subtle top light accent */}
@@ -285,7 +283,7 @@ export const DhikrFloatingBanner: React.FC<DhikrFloatingBannerProps> = ({ onOpen
             />
           </div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

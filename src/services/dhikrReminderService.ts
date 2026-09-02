@@ -1,7 +1,8 @@
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { requestDynamicPermission } from "./permissionService";
+import { requestDynamicPermission, PermissionService } from "./permissionService";
+import { NativeNotificationService } from "./nativeNotificationService";
 import { DhikrItem, DhikrReminderSettings, DhikrReciterInfo } from '../types';
 
 export const DEFAULT_DHIKR_SETTINGS: DhikrReminderSettings = {
@@ -1115,16 +1116,17 @@ export class DhikrReminderService {
     this.triggerReminder(dhikr, true);
 
     // 2. محاولة إرسال إشعار النظام الفعلي (شريط الإشعارات وشاشة القفل)
-    if (!('Notification' in window)) return true;
-
-    let permission = Notification.permission;
-    if (permission !== 'granted') {
-      try {
+    let permission: string = 'default';
+    try {
+      const permStatus = await PermissionService.checkPermission('notifications');
+      if (permStatus !== 'granted') {
         const isGranted = await requestDynamicPermission('notifications');
         permission = isGranted ? 'granted' : 'denied';
-      } catch (err) {
-        console.warn('Could not request notification permission for testing:', err);
+      } else {
+        permission = 'granted';
       }
+    } catch (err) {
+      console.warn('Could not request notification permission for testing:', err);
     }
 
     // حتى لو لم تكن صلاحية الإشعارات ممنوحة في بيئة التطوير (داخل iframe)،
@@ -1253,21 +1255,7 @@ export class DhikrReminderService {
     (async () => {
       if (Capacitor.isNativePlatform() && this.settings.enabled) {
         try {
-          await LocalNotifications.requestPermissions();
-
-          try {
-            await LocalNotifications.createChannel({
-              id: 'dhikr_channel',
-              name: 'تنبيهات الأذكار والتسبيح',
-              description: 'تذكير دوري بذكر الله والصلاة على النبي ﷺ',
-              importance: 5,
-              visibility: 1,
-              sound: 'mishary_salawat.mp3',
-              vibration: true
-            });
-          } catch (cErr) {
-            console.warn("Dhikr channel creation notice:", cErr);
-          }
+          await NativeNotificationService.setupAndroidChannels(this.settings.reciterId || 'mishary');
 
           const pending = await LocalNotifications.getPending();
           if (pending && pending.notifications.length > 0) {
@@ -1286,21 +1274,40 @@ export class DhikrReminderService {
           for (let i = 1; i <= 40; i++) {
             const item = DhikrReminderService.selectDhikr();
             if (item) {
-              const categoryTitle = item.categoryName || 'تذكير بذكر الله';
+              const isSalawat = item.category === 'prophet_salawat';
+              const isIstighfar = item.category === 'istighfar';
+              const title = isSalawat 
+                ? '✨ أنيس القلوب | صلِّ على النبي ﷺ' 
+                : isIstighfar 
+                ? '💧 أنيس القلوب | استغفار وتوبة' 
+                : `🌿 أنيس القلوب | ${item.categoryName || 'تذكير بذكر الله'}`;
+
               let soundFile = 'mishary_salawat.mp3';
               if (item.category === 'istighfar') soundFile = 'mishary_istighfar.mp3';
               else if (item.category === 'baqiyat') soundFile = 'mishary_baqiyat.mp3';
               else if (item.category === 'hawqala') soundFile = 'mishary_hawqala.mp3';
+              else if ((item.category as string) === 'tahsin') soundFile = 'mishary_tahsin.mp3';
+
+              const cleanVirtue = item.virtue ? item.virtue.trim() : '';
+              const fullBody = `« ${item.text} »${cleanVirtue ? '\n\n🤍 ' + cleanVirtue : ''}`;
 
               notifications.push({
-                title: categoryTitle,
-                body: item.text.length > 70 ? item.text.substring(0, 70) + '...' : item.text,
+                title: title,
+                body: `« ${item.text} »`,
+                largeBody: fullBody,
+                summaryText: item.categoryName || 'أذكار المسلم',
                 id: idCounter++,
                 schedule: { at: new Date(now + i * intervalMs), allowWhileIdle: true },
-                channelId: 'dhikr_channel',
+                channelId: 'dhikr_channel_v3',
                 sound: this.settings.soundType === 'silent' ? undefined : soundFile,
                 smallIcon: 'ic_stat_icon_config_sample',
-                extra: null
+                extra: { 
+                  type: 'dhikr', 
+                  dhikrItem: item, 
+                  soundType: this.settings.soundType, 
+                  volume: this.settings.volume, 
+                  reciterId: this.settings.reciterId 
+                }
               });
             }
           }
@@ -1901,15 +1908,53 @@ export class DhikrReminderService {
    * إرسال إشعار نظام بالخلفية
    */
   private static async sendSystemNotification(dhikr: DhikrItem) {
-    if (!('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
+    const permStatus = await PermissionService.checkPermission('notifications');
+    if (permStatus !== 'granted') return;
 
     const isSalawat = dhikr.category === 'prophet_salawat';
-    const title = isSalawat ? '✨ صلِّ على النبي ﷺ' : `🌿 ذكر الله تعالى - ${dhikr.categoryName}`;
-    const body = `${dhikr.text}\n\n${dhikr.virtue}`;
+    const isIstighfar = dhikr.category === 'istighfar';
+    
+    // Improve formatting and professionalism of title and body
+    const title = isSalawat 
+      ? '✨ أنيس القلوب | صلِّ على النبي ﷺ' 
+      : isIstighfar 
+      ? '💧 أنيس القلوب | استغفار' 
+      : `🌿 أنيس القلوب | ${dhikr.categoryName}`;
+      
+    // Format text nicely with quotes, truncate virtue if needed, and add small elegant footer
+    const cleanVirtue = dhikr.virtue ? dhikr.virtue.substring(0, 60) + (dhikr.virtue.length > 60 ? '...' : '') : '';
+    const body = `« ${dhikr.text} »\n${cleanVirtue ? '🤍 ' + cleanVirtue : ''}`;
 
     try {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      if (Capacitor.isNativePlatform()) {
+        const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
+        let soundFile = 'mishary_salawat.mp3';
+        if (dhikr.category === 'istighfar') soundFile = 'mishary_istighfar.mp3';
+        else if (dhikr.category === 'baqiyat') soundFile = 'mishary_baqiyat.mp3';
+        else if (dhikr.category === 'hawqala') soundFile = 'mishary_hawqala.mp3';
+        else if ((dhikr.category as string) === 'tahsin') soundFile = 'mishary_tahsin.mp3';
+
+        await LocalNotifications.schedule({
+          notifications: [{
+            title,
+            body: `« ${dhikr.text} »`,
+            largeBody: body,
+            summaryText: dhikr.categoryName || 'أذكار المسلم',
+            id: Date.now() % 100000,
+            schedule: { at: new Date(Date.now() + 100) },
+            channelId: 'dhikr_channel_v3',
+            sound: this.settings.soundType === 'silent' ? undefined : soundFile,
+            smallIcon: 'ic_stat_icon_config_sample',
+            extra: {
+              type: 'dhikr',
+              dhikrItem: dhikr,
+              soundType: this.settings.soundType,
+              volume: this.settings.volume,
+              reciterId: this.settings.reciterId
+            }
+          }]
+        });
+      } else if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         const reg = await navigator.serviceWorker.ready;
         if (reg && reg.showNotification) {
           await reg.showNotification(title, {
@@ -1938,13 +1983,12 @@ export class DhikrReminderService {
     }
   }
 
-  public static async requestNotificationPermission(): Promise<NotificationPermission> {
-    if (!('Notification' in window)) return 'denied';
+  public static async requestNotificationPermission(): Promise<string> {
     try {
       const isGranted = await requestDynamicPermission('notifications');
       return isGranted ? 'granted' : 'denied';
     } catch {
-      return Notification.permission;
+      return 'denied';
     }
   }
 

@@ -130,28 +130,27 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-        {/* Backdrop */}
+      {isOpen && (
         <motion.div 
+          key="manual-location-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-        />
-
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 20 }}
-          transition={{ type: "spring", stiffness: 350, damping: 28 }}
-          className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 z-10"
+          className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/60 backdrop-blur-md"
         >
+          {/* Modal Window */}
+          <motion.div
+            key="manual-location-container"
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 20 }}
+            transition={{ type: "spring", stiffness: 350, damping: 28 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 z-10"
+          >
           {/* Header */}
           <div className="relative p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
@@ -355,13 +354,15 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
                 </span>
               </button>
 
-              {showCustomCoords && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3"
-                >
+              <AnimatePresence>
+                {showCustomCoords && (
+                  <motion.div
+                    key="manual-location-custom-coords"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3"
+                  >
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 mb-1">اسم الموقع</label>
@@ -405,7 +406,8 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
                     حفظ وتطبيق الإحداثيات المخصصة
                   </button>
                 </motion.div>
-              )}
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Sync Notice */}
@@ -429,7 +431,8 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
             </button>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

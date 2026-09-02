@@ -167,28 +167,27 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden">
-        {/* Backdrop */}
+      {isOpen && (
         <motion.div
+          key="prophets-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-slate-950/70 backdrop-blur-md"
-        />
-
-        {/* Modal Main Panel */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl h-[84vh] md:h-[80vh] max-h-[780px] bg-[#FAF8F5] dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl sm:rounded-3xl shadow-2xl border border-amber-200/60 dark:border-slate-800 flex flex-col overflow-hidden dir-rtl animate-in fade-in-50 duration-200"
-          dir="rtl"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden bg-slate-950/70 backdrop-blur-md"
         >
+          {/* Modal Main Panel */}
+          <motion.div
+            key="prophets-modal-container"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-4xl h-[84vh] md:h-[80vh] max-h-[780px] bg-[#FAF8F5] dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl sm:rounded-3xl shadow-2xl border border-amber-200/60 dark:border-slate-800 flex flex-col overflow-hidden dir-rtl animate-in fade-in-50 duration-200"
+            dir="rtl"
+          >
           {/* Header */}
           <div className="px-4 sm:px-6 py-3 bg-gradient-to-r from-emerald-900 via-emerald-800 to-amber-900 text-white flex items-center justify-between border-b border-amber-500/20 shrink-0">
             <div className="flex items-center gap-3">
@@ -366,6 +365,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
             <AnimatePresence>
               {currentProphet && (
                 <motion.div
+                  key={`prophet-detail-${currentProphet.id}`}
                   initial={{ opacity: 0, x: 100 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 100 }}
@@ -514,7 +514,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                               <div className="border-t border-amber-150/40 dark:border-slate-850 pt-2 space-y-1.5">
                                 <span className="font-bold text-[10px] text-amber-700 dark:text-amber-400">حقائق وتفاصيل:</span>
                                 {currentProphet.keyFacts.map((fact, idx) => (
-                                  <div key={idx} className="flex justify-between text-[11px] py-1 border-b border-dashed border-amber-100/40 dark:border-slate-800/40 last:border-0">
+                                  <div key={`fact-${currentProphet.id}-${idx}`} className="flex justify-between text-[11px] py-1 border-b border-dashed border-amber-100/40 dark:border-slate-800/40 last:border-0">
                                     <span className="text-slate-500 dark:text-slate-400">{fact.label}</span>
                                     <span className="font-bold text-slate-800 dark:text-slate-200">{fact.value}</span>
                                   </div>
@@ -526,7 +526,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                                   <span className="font-bold text-[10px] text-amber-700 dark:text-amber-400 block mb-1">أبرز السور المفصّلة:</span>
                                   <div className="flex flex-wrap gap-1">
                                     {currentProphet.mainSurahs.map((surah, idx) => (
-                                      <span key={idx} className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100 dark:border-slate-700/60 text-amber-800 dark:text-amber-300">
+                                      <span key={`surah-${currentProphet.id}-${idx}-${surah}`} className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-100 dark:border-slate-700/60 text-amber-800 dark:text-amber-300">
                                         سورة {surah}
                                       </span>
                                     ))}
@@ -542,7 +542,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                           <div className="space-y-5">
                             {currentProphet.fullStory.map((chapter, idx) => (
                               <div 
-                                key={idx}
+                                key={`chap-${currentProphet.id}-${idx}-${chapter.title}`}
                                 className="bg-white dark:bg-slate-800/90 rounded-2xl p-5 shadow-2xs border border-amber-100/60 dark:border-slate-750/50 space-y-3"
                               >
                                 <h3 className="text-base sm:text-lg font-bold font-serif text-amber-800 dark:text-amber-300 border-b border-amber-100 dark:border-slate-700 pb-2.5 flex items-center gap-2">
@@ -593,7 +593,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {currentProphet.miracles.map((m, idx) => (
                                 <div 
-                                  key={idx}
+                                  key={`mir-${currentProphet.id}-${idx}`}
                                   className="bg-white dark:bg-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-2xs border border-amber-200/50 dark:border-slate-700 flex flex-col justify-between space-y-3"
                                 >
                                   <div>
@@ -639,7 +639,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                             <div className="grid grid-cols-1 gap-3">
                               {currentProphet.wisdomsAndLessons.map((wisdom, idx) => (
                                 <div 
-                                  key={idx}
+                                  key={`wis-${currentProphet.id}-${idx}`}
                                   className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-amber-100 dark:border-slate-700/70 shadow-2xs flex items-start gap-3"
                                 >
                                   <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
@@ -690,7 +690,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
 
                                 return (
                                   <button
-                                    key={idx}
+                                    key={`qopt-${currentProphet.id}-${idx}-${option}`}
                                     disabled={isQuizSubmitted}
                                     onClick={() => setQuizAnswerIndex(idx)}
                                     className={`w-full p-3.5 rounded-xl border text-right text-xs sm:text-sm transition-all flex items-center justify-between cursor-pointer ${btnStyle}`}
@@ -824,7 +824,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                         <div className="space-y-2">
                           {currentProphet.keyFacts.map((fact, idx) => (
                             <div 
-                              key={idx} 
+                              key={`kfact-${currentProphet.id}-${idx}`} 
                               className="bg-white dark:bg-slate-850/80 p-2.5 rounded-xl border border-amber-100/40 dark:border-slate-800 text-xs flex justify-between gap-2"
                             >
                               <span className="text-slate-500 dark:text-slate-400 font-medium">{fact.label}</span>
@@ -844,7 +844,7 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
                           <div className="flex flex-wrap gap-1.5">
                             {currentProphet.mainSurahs.map((surah, idx) => (
                               <span 
-                                key={idx}
+                                key={`msurah-${currentProphet.id}-${idx}-${surah}`}
                                 className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 text-[10px] font-bold shadow-2xs"
                               >
                                 سورة {surah}
@@ -899,7 +899,8 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
             </AnimatePresence>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

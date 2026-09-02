@@ -87,6 +87,7 @@ export const SmartPermissionModal: React.FC<SmartPermissionModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="smart-permission-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -94,6 +95,7 @@ export const SmartPermissionModal: React.FC<SmartPermissionModalProps> = ({
           onClick={onClose}
         >
           <motion.div
+            key="smart-permission-modal-container"
             initial={{ opacity: 0, scale: 0.92, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 15 }}

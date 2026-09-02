@@ -511,10 +511,15 @@ const QuranAudioPlayer = () => {
       </div>
 
       {/* Advanced Audio Settings Panel */}
-      {showSettings && createPortal(
+      {createPortal(
         <AnimatePresence>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          {showSettings && (
+          <motion.div 
+            key="quran-audio-settings-wrapper"
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+          >
             <motion.div
+              key="quran-audio-settings-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -522,6 +527,7 @@ const QuranAudioPlayer = () => {
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
             <motion.div
+              key="quran-audio-settings-container"
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -776,7 +782,8 @@ const QuranAudioPlayer = () => {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
+          )}
         </AnimatePresence>,
         document.body
       )}

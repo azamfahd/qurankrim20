@@ -119,7 +119,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
       });
       const selected = shortAyahs.length > 0 ? shortAyahs[Math.floor(Math.random() * shortAyahs.length)] : randomAyah;
       
-      const words = selected.text.split(/\s+/).map((w: string, i: number) => ({id: `w-${i}`, text: w}));
+      const words = selected.text.split(/\s+/).map((w: string, i: number) => ({id: `w-${selected.numberInSurah || currentLevel}-${i}-${Math.random().toString(36).substring(2, 6)}`, text: w}));
       setBridgeWords([...words].sort(() => Math.random() - 0.5));
       setBridgeOrder([]);
       setActiveQuestion({ type: 'bridge', ayah: selected, originalWords: words });
@@ -371,7 +371,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
             <div className="grid grid-cols-2 gap-4 w-full">
               {activeQuestion.options.map((opt: string, i: number) => (
                 <motion.button
-                  key={i}
+                  key={`opt1-${i}-${opt}`}
                   whileHover={{ scale: 1.04, translateY: -2 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => handleAnswer(opt, opt === activeQuestion.hiddenWord)}
@@ -411,7 +411,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
 
               {bridgeOrder.map((w, i) => (
                 <motion.div
-                  key={`bo-${i}`}
+                  key={`bo-${w.id || i}`}
                   initial={{ scale: 0, y: -20 }}
                   animate={{ scale: 1, y: 0 }}
                   className="bg-amber-100 text-amber-950 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-quran text-2xl sm:text-3xl font-bold border-2 border-amber-500 shadow-md"
@@ -482,7 +482,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
             <div className="space-y-4 w-full relative z-10">
               {activeQuestion.options.map((opt: any, i: number) => (
                 <motion.button
-                  key={i}
+                  key={`opt2-${i}-${opt.numberInSurah || opt.text || opt}`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleAnswer(opt, opt.numberInSurah === activeQuestion.ayah.numberInSurah)}
@@ -517,7 +517,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
             <div className="grid grid-cols-2 gap-4 w-full">
               {activeQuestion.options.map((opt: any, i: number) => (
                 <motion.button
-                  key={i}
+                  key={`opt3-${i}-${opt}`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleAnswer(opt, opt === activeQuestion.correct)}
@@ -551,7 +551,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
             <div className="space-y-3 w-full">
               {activeQuestion.options.map((opt: any, i: number) => (
                 <motion.button
-                  key={i}
+                  key={`opt4-${i}-${opt.numberInSurah || opt.text || opt}`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleAnswer(opt, opt.numberInSurah === activeQuestion.nextAyah.numberInSurah)}
@@ -605,7 +605,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
 
         <AnimatePresence>
           {gameState === 'success' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-6 text-center">
+            <motion.div key="QuranTreasureGame-anim-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-6 text-center">
               <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring" }} className="w-24 h-24 sm:w-28 sm:h-28 bg-emerald-500/20 border-4 border-emerald-400 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.5)] mb-4">
                 <Check className="w-14 h-14 sm:w-16 sm:h-16 text-emerald-400" />
               </motion.div>
@@ -632,7 +632,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
           )}
 
           {gameState === 'gameover' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-6 text-center">
+            <motion.div key="QuranTreasureGame-anim-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-6 text-center">
               <XCircle className="w-28 h-28 mb-4 text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.5)]" />
               <h2 className="text-3xl sm:text-4xl font-black mb-2 drop-shadow-md text-rose-300">نفدت المحاولات!</h2>
               <p className="text-lg font-bold opacity-90 mb-8 max-w-md leading-relaxed text-slate-300">لا تحزن، الطريق إلى الكنز المعرفي يتطلب الصبر والمحاولة مرة أخرى!</p>
@@ -643,7 +643,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
           )}
 
           {gameState === 'treasure' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-xl z-50 overflow-y-auto p-4 sm:p-6 flex flex-col items-center text-amber-300 text-center">
+            <motion.div key="QuranTreasureGame-anim-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/95 backdrop-blur-xl z-50 overflow-y-auto p-4 sm:p-6 flex flex-col items-center text-amber-300 text-center">
               <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }} className="relative mb-4 mt-2">
                 <div className="absolute inset-0 bg-amber-500 blur-3xl opacity-50 rounded-full"></div>
                 <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 sm:border-8 border-amber-400 shadow-[0_0_50px_rgba(245,158,11,0.7)] bg-gradient-to-b from-amber-950 via-slate-900 to-amber-950 flex items-center justify-center relative z-10">

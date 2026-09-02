@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
@@ -48,6 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="settings-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -55,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           onClick={onClose}
         >
           <motion.div 
+            key="settings-modal-container"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

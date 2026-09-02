@@ -285,7 +285,7 @@ const QuranReader = () => {
       {/* Reader Toolbar */}
       <AnimatePresence>
         {!isImmersive && (
-          <motion.div 
+          <motion.div key="QuranReader-anim-1" 
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -50, opacity: 0 }}
@@ -656,7 +656,7 @@ const QuranReader = () => {
 
               return (
                 <span 
-                  key={ayah.number}
+                  key={`${currentSurah}_${ayah.numberInSurah || ayah.number}`}
                   id={`ayah-${ayah.numberInSurah}`}
                   className={`inline transition-all duration-300 rounded relative px-1 ${isPlayingThisAyah ? 'bg-[var(--color-primary)]/20 dark:bg-[var(--color-primary)]/40 ring-2 ring-[var(--color-primary)] ring-offset-1 font-bold shadow-sm' : isActive ? (currentTheme.id === 'night' ? 'bg-[var(--color-primary)]/20' : 'bg-[var(--color-primary)]/10') : !isMemorizeMode ? (currentTheme.id === 'night' ? 'hover:bg-gray-800 cursor-pointer' : 'hover:bg-[var(--color-primary)]/5 cursor-pointer') : ''}`}
                   onClick={(e) => {
@@ -688,7 +688,7 @@ const QuranReader = () => {
           const isPlayingThis = playingAyahNumber === activeAyahMenu && isAudioPlaying && currentSurah === surahData?.number;
 
           return (
-            <motion.div
+            <motion.div key="QuranReader-anim-2"
               id="floating-ayah-reader-bar"
               initial={{ y: 80, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}

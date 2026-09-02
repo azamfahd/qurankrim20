@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Share, PlusSquare, Smartphone, Globe, CheckCircle2 } from 'lucide-react';
+import { X, Download, Share, PlusSquare, Smartphone, Globe, CheckCircle2, Monitor } from 'lucide-react';
 
 export const InstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [activeTab, setActiveTab] = useState<'apk' | 'pwa'>('apk');
 
   useEffect(() => {
@@ -25,15 +26,20 @@ export const InstallPrompt: React.FC = () => {
       return;
     }
 
-    // 3. Check for iOS (Safari doesn't support beforeinstallprompt)
+    // 3. Detect device platform
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isAndroidDevice = /android/.test(userAgent);
+    const isDesktopDevice = !isIosDevice && !isAndroidDevice;
+    setIsDesktop(isDesktopDevice);
     
     if (isIosDevice) {
       setIsIOS(true);
       setActiveTab('pwa'); // iOS only supports PWA Add to Home Screen
       const timer = setTimeout(() => setShowPrompt(true), 3000);
       return () => clearTimeout(timer);
+    } else if (isDesktopDevice) {
+      setActiveTab('pwa'); // Desktop defaults to PWA desktop application
     }
 
     // 4. Handle Android/Desktop via beforeinstallprompt
@@ -68,19 +74,23 @@ export const InstallPrompt: React.FC = () => {
 
   return (
     <div 
-      className="fixed left-4 right-4 md:left-auto md:right-6 md:w-[400px] bg-slate-900/95 text-white backdrop-blur-2xl rounded-3xl shadow-2xl border border-amber-500/30 p-5 z-[100] flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300"
+      className="fixed left-4 right-4 md:left-auto md:right-6 md:w-[420px] bg-slate-900/95 text-white backdrop-blur-2xl rounded-3xl shadow-2xl border border-amber-500/30 p-5 z-[100] flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300"
       style={{ bottom: 'calc(1.25rem + var(--safe-area-bottom, 0px))' }}
       dir="rtl"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-amber-700 text-white rounded-2xl flex items-center justify-center shadow-lg border border-amber-400/30">
-            <Smartphone size={22} className="text-amber-100" />
+          <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-amber-700 text-white rounded-2xl flex items-center justify-center shadow-lg border border-amber-400/30 shrink-0">
+            {isDesktop ? <Monitor size={22} className="text-amber-100" /> : <Smartphone size={22} className="text-amber-100" />}
           </div>
           <div>
-            <h4 className="font-black text-sm text-white">تثبيت تطبيق أنيس القلوب</h4>
-            <p className="text-xs text-amber-200/80 font-medium">تجربة مستقلة كاملة الشاشة بدون إنترنت</p>
+            <h4 className="font-black text-sm text-white">
+              {isDesktop ? 'تثبيت أنيس القلوب على الكمبيوتر' : 'تثبيت تطبيق أنيس القلوب'}
+            </h4>
+            <p className="text-xs text-amber-200/80 font-medium">
+              {isDesktop ? 'تطبيق مستقل لسطح المكتب بدون شريط المتصفح وبدون إنترنت' : 'تجربة مستقلة كاملة الشاشة بدون إنترنت'}
+            </p>
           </div>
         </div>
         <button 
@@ -92,9 +102,23 @@ export const InstallPrompt: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs Selector: APK (Primary) vs PWA (Secondary) */}
+      {/* Tabs Selector */}
       {!isIOS && (
         <div className="flex items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/60">
+          <button
+            type="button"
+            onClick={() => setActiveTab('pwa')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'pwa'
+                ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {isDesktop ? <Monitor size={14} /> : <Globe size={14} />}
+            <span>{isDesktop ? 'تطبيق الكمبيوتر (PWA)' : 'تطبيق الويب (PWA)'}</span>
+            {isDesktop && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-black">مُوصى به</span>}
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('apk')}
@@ -106,20 +130,7 @@ export const InstallPrompt: React.FC = () => {
           >
             <Smartphone size={14} />
             <span>تطبيق أندرويد (APK)</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">الأساسي</span>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setActiveTab('pwa')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'pwa'
-                ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Globe size={14} />
-            <span>تطبيق الويب (PWA)</span>
+            {!isDesktop && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">الأساسي</span>}
           </button>
         </div>
       )}
@@ -149,7 +160,9 @@ export const InstallPrompt: React.FC = () => {
               <span>تطبيق أندرويد مستقل (Native APK)</span>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              يعمل بملء الشاشة وبدون شريط متصفح، ويدعم التحديثات الحية الفورية مع الأذان والقبلة وتصفح المصحف.
+              {isDesktop 
+                ? 'يمكنك تحميل ملف الـ APK ونقله إلى هاتفك الأندرويد للتثبيت المباشر بدون متجر.' 
+                : 'يعمل بملء الشاشة وبدون شريط متصفح، ويدعم التحديثات الحية الفورية مع الأذان والقبلة وتصفح المصحف.'}
             </p>
           </div>
 
@@ -183,9 +196,13 @@ export const InstallPrompt: React.FC = () => {
       ) : (
         <div className="space-y-3">
           <div className="bg-slate-800/60 p-3 rounded-2xl border border-slate-700/40 text-xs text-slate-300 space-y-1">
-            <p className="font-bold text-amber-300">تطبيق الويب التقدمي (PWA):</p>
+            <p className="font-bold text-amber-300">
+              {isDesktop ? 'تطبيق الكمبيوتر المكتبي (Desktop PWA):' : 'تطبيق الويب التقدمي (PWA):'}
+            </p>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              إضافة سريعة لشاشة الهاتف الرئيسية بدون تحميل ملفات خارجية.
+              {isDesktop 
+                ? 'يفتح البرنامج في نافذة مستقلة أنيقة على شريط المهام وقائمة البدء، ويعمل بسرعة فائقة وبدون اتصال بالإنترنت.' 
+                : 'إضافة سريعة لشاشة الهاتف الرئيسية بدون تحميل ملفات خارجية.'}
             </p>
           </div>
 
@@ -195,11 +212,13 @@ export const InstallPrompt: React.FC = () => {
               className="w-full text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white px-4 py-3 rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-amber-300/30"
             >
               <Download size={16} />
-              <span>إضافة للشاشة الرئيسية كـ PWA</span>
+              <span>{isDesktop ? 'تثبيت البرنامج الآن على الكمبيوتر' : 'إضافة للشاشة الرئيسية كـ PWA'}</span>
             </button>
           ) : (
-            <p className="text-[11px] text-slate-400 text-center">
-              افتح قائمة المتصفح (⋮) ثم اختر <strong>"تثبيت التطبيق"</strong>
+            <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+              {isDesktop 
+                ? 'انقر على أيقونة التثبيت (⊕) في شريط عنوان المتصفح أو اختر "تثبيت أنيس القلوب" من قائمة المتصفح (⋮)' 
+                : 'افتح قائمة المتصفح (⋮) ثم اختر "تثبيت التطبيق"'}
             </p>
           )}
         </div>

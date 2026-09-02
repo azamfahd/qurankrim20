@@ -53,7 +53,7 @@ const QuranPlatformContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   };
 
   return (
-    <motion.div
+    <motion.div key="QuranPlatformModal-anim-1"
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
@@ -63,6 +63,7 @@ const QuranPlatformContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
       <AnimatePresence>
         {!(currentView === 'reader' && isImmersive) && (
           <motion.header
+            key="quran-platform-header"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

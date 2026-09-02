@@ -352,7 +352,7 @@ export const QuranPageViewer: React.FC = () => {
       {/* Integrated Minimal Page Header Bar */}
       <AnimatePresence>
         {(isHeaderVisible && !isImmersive) && (
-          <motion.div
+          <motion.div key="QuranPageViewer-anim-1"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -501,7 +501,7 @@ export const QuranPageViewer: React.FC = () => {
                         direction: 'rtl'
                       }}
                     >
-                      {ayahs.map((ayah: any) => {
+                      {ayahs.map((ayah: any, aIdx: number) => {
                         let text = ayah.text;
                         if (surah.number !== 1 && ayah.numberInSurah === 1 && text.startsWith('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ')) {
                           text = text.replace('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ', '');
@@ -514,7 +514,7 @@ export const QuranPageViewer: React.FC = () => {
 
                         return (
                           <span
-                            key={ayah.number}
+                            key={`${surah.number}_${ayah.numberInSurah || ayah.number || aIdx}`}
                             id={`page-ayah-${surah.number}-${ayah.numberInSurah}`}
                             onClick={(e) => {
                               if (isMemorizeMode) return;
@@ -638,7 +638,7 @@ export const QuranPageViewer: React.FC = () => {
           const isPlayingThis = playingAyahNumber === activeAyahNum && currentSurah === activeSurahNum && isAudioPlaying;
 
           return (
-            <motion.div
+            <motion.div key="QuranPageViewer-anim-2"
               id="floating-ayah-page-bar"
               initial={{ y: 80, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}

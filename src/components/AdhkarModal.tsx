@@ -194,6 +194,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="adhkar-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -201,6 +202,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
           onClick={onClose}
         >
           <motion.div 
+            key="adhkar-modal-container"
             initial={{ opacity: 0, scale: 0.96, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -593,6 +595,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
                             <AnimatePresence>
                               {isExpanded && (
                                 <motion.div
+                                  key={`dhikr-deep-reflection-${dhikr.id}`}
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: 'auto', opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
@@ -606,7 +609,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
                                         <strong className="block text-[11px] text-amber-800 dark:text-amber-300 mb-1">فوائد الذكر العميقة:</strong>
                                         <ul className="list-disc list-inside space-y-0.5 text-[11px]">
                                           {dhikr.benefits.map((b, i) => (
-                                            <li key={i}>{b}</li>
+                                            <li key={`dhikr-b-${dhikr.id || 'dhikr'}-${i}`}>{b}</li>
                                           ))}
                                         </ul>
                                       </div>
@@ -658,6 +661,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
             <AnimatePresence>
               {showResetConfirm && (
                 <motion.div
+                  key="adhkar-reset-backdrop"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -665,6 +669,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
                   onClick={() => setShowResetConfirm(false)}
                 >
                   <motion.div
+                    key="adhkar-reset-card"
                     initial={{ scale: 0.9, y: 10 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.9, y: 10 }}

@@ -11,22 +11,57 @@ function versionGeneratorPlugin() {
       if (!fs.existsSync(publicDir)) {
         fs.mkdirSync(publicDir, { recursive: true });
       }
+      const versionFile = path.join(publicDir, 'version.json');
+      let existingData: Record<string, unknown> = {};
+      try {
+        if (fs.existsSync(versionFile)) {
+          existingData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+        }
+      } catch {}
       const versionData = {
         version: "1.1.0",
+        ...existingData,
         timestamp: Date.now()
       };
-      fs.writeFileSync(path.join(publicDir, 'version.json'), JSON.stringify(versionData, null, 2));
+      fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
     },
-    generateBundle() {
-      const versionData = {
+    generateBundle(options: any, bundle: any) {
+      const publicDir = path.resolve(__dirname, 'public');
+      const versionFile = path.join(publicDir, 'version.json');
+      let versionData: Record<string, unknown> = {
         version: "1.1.0",
         timestamp: Date.now()
       };
+      try {
+        if (fs.existsSync(versionFile)) {
+          versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+        }
+      } catch {}
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify(versionData, null, 2)
       });
+
+      // Generate build-assets.json listing all emitted bundles and chunks for Service Worker precaching
+      const emittedFiles = Object.keys(bundle).map((fileName) => '/' + fileName);
+      const manifestList = [
+        '/',
+        '/index.html',
+        '/manifest.json',
+        '/version.json',
+        '/app-icon.svg',
+        '/fonts/local-fonts.css',
+        ...emittedFiles
+      ];
+      this.emitFile({
+        type: 'asset',
+        fileName: 'build-assets.json',
+        source: JSON.stringify(manifestList, null, 2)
+      });
+      try {
+        fs.writeFileSync(path.join(publicDir, 'build-assets.json'), JSON.stringify(manifestList, null, 2));
+      } catch {}
     }
   };
 }
@@ -56,6 +91,7 @@ export default defineConfig(({ mode }) => {
         'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || ''),
         'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || '')
       },
+      assetsInclude: ['**/*.woff2', '**/*.woff', '**/*.ttf', '**/*.mp3', '**/*.wav', '**/*.ogg', '**/*.svg', '**/*.json'],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, './src'),
@@ -76,12 +112,16 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: 'dist',
         emptyOutDir: true,
-        chunkSizeWarningLimit: 1000,
+        chunkSizeWarningLimit: 1500,
+        assetsInlineLimit: 4096,
         cssCodeSplit: true,
         minify: 'esbuild',
         target: 'es2020',
         rollupOptions: {
           output: {
+            entryFileNames: 'assets/[name]-[hash].js',
+            chunkFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash][extname]',
             manualChunks(id) {
               if (id.includes('node_modules')) {
                 if (id.includes('react/') || id.includes('react-dom/') || id.includes('scheduler/')) {
@@ -107,11 +147,9 @@ export default defineConfig(({ mode }) => {
                 }
                 return 'vendor-deps';
               }
-              if (id.includes('src/data/')) {
-                return 'data-islamic-reference';
-              }
-              if (id.includes('src/quran-platform/data/')) {
-                return 'data-quran-platform';
+              // Bundle all Adhkar, Surahs, Tafsir meta and Islamic knowledge into the core data bundle
+              if (id.includes('src/data/') || id.includes('src/quran-platform/data/')) {
+                return 'bundle-islamic-core-data';
               }
             }
           }

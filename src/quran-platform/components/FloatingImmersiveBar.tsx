@@ -111,6 +111,7 @@ export const FloatingImmersiveBar: React.FC = () => {
       <AnimatePresence mode="wait">
         {isExpanded ? (
           <motion.div
+            key="immersive-bar-expanded"
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -285,6 +286,7 @@ export const FloatingImmersiveBar: React.FC = () => {
           </motion.div>
         ) : (
           <motion.div
+            key="immersive-bar-collapsed"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}

@@ -21,7 +21,7 @@ interface DailyVerseProps {
   onOpenQuran?: (surah?: number, ayah?: number, view?: any) => void;
 }
 
-export const DailyVerse: React.FC<DailyVerseProps> = ({ onOpenQuran }) => {
+export const DailyVerse = React.memo<DailyVerseProps>(({ onOpenQuran }) => {
   const [verse, setVerse] = useState(VERSES[0]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -102,4 +102,4 @@ export const DailyVerse: React.FC<DailyVerseProps> = ({ onOpenQuran }) => {
       </AnimatePresence>
     </div>
   );
-};
+});

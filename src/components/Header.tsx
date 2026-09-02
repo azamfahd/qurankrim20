@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, User, Calendar, Moon, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Menu, User, Calendar, Moon, RefreshCw, BookOpen, Heart, Clock, Scroll, Monitor, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentHijriDate } from '../utils/hijri';
 
@@ -9,6 +9,11 @@ interface HeaderProps {
   username: string;
   isSyncing?: boolean;
   lastSynced?: number | null;
+  onOpenQuran?: () => void;
+  onOpenAdhkar?: () => void;
+  onOpenPrayerTimes?: () => void;
+  onOpenProphets?: () => void;
+  onOpenInstallModal?: () => void;
 }
 
 const toArabicNumbers = (str: string): string => {
@@ -19,10 +24,22 @@ const toArabicNumbers = (str: string): string => {
   return str.replace(/[0-9]/g, w => map[w] || w);
 };
 
-const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, username, isSyncing, lastSynced }) => {
+const Header = React.memo<HeaderProps>(({ 
+  onOpenSidebar, 
+  onOpenSettings, 
+  username, 
+  isSyncing, 
+  lastSynced,
+  onOpenQuran,
+  onOpenAdhkar,
+  onOpenPrayerTimes,
+  onOpenProphets,
+  onOpenInstallModal
+}) => {
   const [hijriDate, setHijriDate] = useState<string>('');
   const [gregorianDate, setGregorianDate] = useState<string>('');
   const [agriMonth, setAgriMonth] = useState<string>('');
+  const [isStandalone, setIsStandalone] = useState<boolean>(true);
 
   useEffect(() => {
     try {
@@ -40,6 +57,11 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
 
       const agriMonths = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"];
       setAgriMonth(agriMonths[today.getMonth()]);
+
+      const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         ('standalone' in window.navigator && (window.navigator as any).standalone) ||
+                         localStorage.getItem('anis_pwa_installed') === 'true';
+      setIsStandalone(Boolean(standalone));
     } catch (e) {
       console.error("Date formatting not supported", e);
     }
@@ -55,7 +77,7 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
       <div className="flex items-center gap-4">
         <button 
           onClick={onOpenSidebar}
-          className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all shadow-sm border border-white/10"
+          className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all shadow-sm border border-white/10 cursor-pointer active:scale-95"
           aria-label="القائمة"
         >
           <Menu size={22} />
@@ -76,10 +98,65 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
         </div>
       </div>
 
+      {/* Desktop Quick Nav Shortcuts for PC & Wide Screens */}
+      <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 shadow-inner">
+        {onOpenQuran && (
+          <button
+            onClick={onOpenQuran}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-200 hover:text-white hover:bg-white/15 transition-all cursor-pointer border border-transparent hover:border-amber-400/30"
+          >
+            <BookOpen size={14} className="text-amber-400" />
+            <span>المصحف</span>
+          </button>
+        )}
+
+        {onOpenAdhkar && (
+          <button
+            onClick={onOpenAdhkar}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-200 hover:text-white hover:bg-white/15 transition-all cursor-pointer border border-transparent hover:border-emerald-400/30"
+          >
+            <Heart size={14} className="text-emerald-400" />
+            <span>الأذكار</span>
+          </button>
+        )}
+
+        {onOpenPrayerTimes && (
+          <button
+            onClick={onOpenPrayerTimes}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-teal-200 hover:text-white hover:bg-white/15 transition-all cursor-pointer border border-transparent hover:border-teal-400/30"
+          >
+            <Clock size={14} className="text-teal-400" />
+            <span>مواقيت الصلاة</span>
+          </button>
+        )}
+
+        {onOpenProphets && (
+          <button
+            onClick={onOpenProphets}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-purple-200 hover:text-white hover:bg-white/15 transition-all cursor-pointer border border-transparent hover:border-purple-400/30"
+          >
+            <Scroll size={14} className="text-purple-300" />
+            <span>قصص الأنبياء</span>
+          </button>
+        )}
+
+        {!isStandalone && onOpenInstallModal && (
+          <button
+            onClick={onOpenInstallModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+            title="تثبيت كبرنامج للكمبيوتر (PWA)"
+          >
+            <Monitor size={14} className="text-amber-300" />
+            <span>تثبيت للكمبيوتر</span>
+          </button>
+        )}
+      </div>
+
       <div className="flex items-center gap-2">
         <AnimatePresence>
           {isSyncing && (
             <motion.div
+              key="header-syncing"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
@@ -94,7 +171,7 @@ const Header = React.memo<HeaderProps>(({ onOpenSidebar, onOpenSettings, usernam
 
         <button 
           onClick={onOpenSettings}
-          className="group flex items-center gap-3 pl-2 pr-1 py-1 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full transition-all shadow-sm hover:shadow-md"
+          className="group flex items-center gap-3 pl-2 pr-1 py-1 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full transition-all shadow-sm hover:shadow-md cursor-pointer"
         >
           <span className="text-sm font-bold text-white group-hover:text-[var(--color-gold-light)] transition-colors hidden sm:block pr-2">{username || 'ضيف'}</span>
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-dark)] border border-white/20 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">

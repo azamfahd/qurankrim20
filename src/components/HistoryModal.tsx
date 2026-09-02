@@ -191,6 +191,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="history-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -198,6 +199,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           onClick={onClose}
         >
           <motion.div 
+            key="history-modal-container"
             initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
@@ -287,7 +289,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                     const messageCount = session.messages?.length || 0;
                     return (
                       <motion.div
-                        key={`${session.id || 'session'}-${index}`}
+                        key={session.id || `session-${session.createdAt || session.updatedAt || session.date || index}`}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: Math.min(index * 0.04, 0.4) }}

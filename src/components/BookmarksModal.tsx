@@ -151,6 +151,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="bookmarks-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -158,6 +159,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
           onClick={onClose}
         >
           <motion.div 
+            key="bookmarks-modal-container"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -185,6 +187,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 custom-scrollbar">
               {bookmarks.length === 0 ? (
                 <motion.div 
+                  key="bookmarks-empty-state"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col items-center justify-center h-full text-center py-16"
@@ -200,7 +203,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
                   <AnimatePresence>
                     {bookmarks.map((bookmark, index) => (
                       <motion.div 
-                        key={`${bookmark.id || 'bm'}-${index}`}
+                        key={bookmark.id || `${bookmark.verse?.surahNumber || 0}_${bookmark.verse?.ayahNumber || 0}_${bookmark.dateAdded || index}`}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}

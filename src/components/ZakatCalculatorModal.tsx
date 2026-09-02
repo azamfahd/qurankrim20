@@ -260,6 +260,7 @@ export const ZakatCalculatorModal: React.FC<ZakatCalculatorModalProps> = ({ isOp
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="zakat-modal-backdrop"
           id="zakat-modal-overlay"
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
@@ -268,6 +269,7 @@ export const ZakatCalculatorModal: React.FC<ZakatCalculatorModalProps> = ({ isOp
           onClick={onClose}
         >
           <motion.div 
+            key="zakat-modal-container"
             id="zakat-modal-container"
             initial={{ scale: 0.94, y: 20 }} 
             animate={{ scale: 1, y: 0 }} 

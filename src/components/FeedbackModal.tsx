@@ -102,6 +102,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="feedback-modal-backdrop"
           id="feedback-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -110,6 +111,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
           onClick={onClose}
         >
           <motion.div
+            key="feedback-modal-container"
             id="feedback-modal-container"
             initial={{ scale: 0.95, y: 30 }}
             animate={{ scale: 1, y: 0 }}

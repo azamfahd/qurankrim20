@@ -440,7 +440,7 @@ const QuranStats: React.FC = () => {
             const percent = Math.min(100, Math.round((khatma.currentPage / khatma.totalPages) * 100));
             return (
               <div 
-                key={`${khatma.id || 'khatma'}-${idx}`}
+                key={khatma.id || `khatma-${khatma.title || ''}-${idx}`}
                 className={`p-5 rounded-2xl border transition-all ${khatma.isCompleted ? 'bg-emerald-50/50 border-emerald-200' : 'bg-gray-50/60 border-gray-100'}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -599,7 +599,7 @@ const QuranStats: React.FC = () => {
       <AnimatePresence>
         {showAddKhatmaModal && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div 
+            <motion.div key="QuranStats-anim-1" 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}

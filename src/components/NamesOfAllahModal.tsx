@@ -32,6 +32,7 @@ export const NamesOfAllahModal: React.FC<NamesOfAllahModalProps> = ({ isOpen, on
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="names-of-allah-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -39,6 +40,7 @@ export const NamesOfAllahModal: React.FC<NamesOfAllahModalProps> = ({ isOpen, on
           onClick={onClose}
         >
           <motion.div 
+            key="names-of-allah-container"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

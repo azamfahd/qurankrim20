@@ -31,7 +31,7 @@ interface SidebarProps {
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
+export const Sidebar = React.memo<SidebarProps>(({ 
   isOpen, 
   onClose, 
   onOpenSettings, 
@@ -327,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
     </AnimatePresence>
   );
-};
+});
 
 const VARIANT_MAP = {
   default: {

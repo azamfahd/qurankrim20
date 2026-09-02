@@ -255,7 +255,7 @@ export const QuranSearchWidget: React.FC<{
         {/* Suggestions Dropdown */}
         <AnimatePresence>
           {showSuggestions && suggestions.length > 0 && query.trim() && (
-            <motion.div
+            <motion.div key="QuranSearchWidget-anim-1"
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
@@ -263,7 +263,7 @@ export const QuranSearchWidget: React.FC<{
             >
               {suggestions.map((sug, idx) => (
                 <div
-                  key={idx}
+                  key={`sug-${sug.text}-${sug.category}-${idx}`}
                   onClick={() => {
                     if (sug.targetSurah) handleJumpToSurah(sug.targetSurah);
                     else if (sug.targetPage) handleJumpToPage(sug.targetPage);

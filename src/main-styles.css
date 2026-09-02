@@ -88,9 +88,21 @@ button, a, [role="button"] {
 
 .container {
   width: 100%;
-  max-w: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 2rem;
+  }
 }
 
 .btn-primary {
@@ -156,7 +168,7 @@ button, a, [role="button"] {
   padding: 1rem 1.25rem;
   border-radius: 1.5rem;
   border-bottom-left-radius: 0.25rem;
-  max-w: 85%;
+  max-width: 85%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -197,8 +209,15 @@ button, a, [role="button"] {
 
 @media (min-width: 640px) {
   .quick-actions-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
     gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.25rem;
   }
 }
 

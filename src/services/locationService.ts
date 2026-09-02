@@ -1,6 +1,8 @@
 import { PermissionService } from "./permissionService";
 import { requestDynamicPermission } from "./permissionService";
 import { UserLocation } from '../types';
+import { Geolocation as CapacitorGeolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 export interface CityPreset {
   country: string;
@@ -251,18 +253,16 @@ export class LocationService {
    * Refines location in the background if GPS permission is active
    */
   private static async refineLocationInBackground(): Promise<void> {
-    if ('permissions' in navigator && navigator.permissions.query) {
-      try {
-        const status = await navigator.permissions.query({ name: 'geolocation' as any });
-        if (status.state === 'granted') {
-          const freshGps = await this.tryGpsLocation(6000, false);
-          if (freshGps) {
-            this.saveLocation(freshGps);
-          }
+    try {
+      const permState = await PermissionService.checkPermission('location');
+      if (permState === 'granted') {
+        const freshGps = await this.tryGpsLocation(6000, false);
+        if (freshGps) {
+          this.saveLocation(freshGps);
         }
-      } catch (e) {
-        // Ignored
       }
+    } catch (e) {
+      // Ignored
     }
   }
 
@@ -270,7 +270,7 @@ export class LocationService {
    * Attempts high accuracy GPS location with reverse geocoding
    */
   public static async tryGpsLocation(timeoutMs = 7000, allowPrompt = true): Promise<UserLocation | null> {
-    if (!('geolocation' in navigator)) return null;
+    if (!Capacitor.isNativePlatform() && !('geolocation' in navigator)) return null;
 
     try {
       const permState = await PermissionService.checkPermission('location');
@@ -282,15 +282,29 @@ export class LocationService {
         if (!granted) return null;
       }
 
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
+      let latitude: number;
+      let longitude: number;
+
+      if (Capacitor.isNativePlatform()) {
+        const position = await CapacitorGeolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: timeoutMs,
           maximumAge: 180000
         });
-      });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      } else {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: timeoutMs,
+            maximumAge: 180000
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      }
 
-      const { latitude, longitude } = position.coords;
       let name = 'موقعك الحالي (GPS)';
 
       try {

@@ -91,8 +91,6 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
     };
   }, []);
 
-  if (!isOpen) return null;
-
   const toggleAudio = async (miracle: MiracleItem) => {
     if (!isOnline) {
       if (onShowToast) onShowToast("عذراً، التشغيل الصوتي يتطلب اتصالاً بالإنترنت.", 'info');
@@ -204,13 +202,24 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" dir="rtl">
+      {isOpen && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
+          key="miracles-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          dir="rtl"
+          onClick={onClose}
         >
+          <motion.div
+            key="miracles-modal-container"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
           {/* Header */}
           <div className="relative p-6 sm:p-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white shrink-0 overflow-hidden">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.8),transparent_50%)]"></div>
@@ -280,7 +289,7 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
                   {searchResults.length > 0 ? (
                     searchResults.map((miracle, index) => (
                       <div 
-                        key={`${miracle.id}-${index}`}
+                        key={miracle.id || `m-search-${index}`}
                         className="bg-white dark:bg-gray-900 rounded-2xl border border-stone-200 dark:border-gray-800 shadow-sm overflow-hidden"
                       >
                         <div className="p-5 sm:p-6 space-y-5">
@@ -408,7 +417,7 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
                 >
                   {selectedCategory.miracles.map((miracle, index) => (
                     <div 
-                      key={`${miracle.id}-${index}`}
+                      key={miracle.id || `m-cat-${index}`}
                       className="bg-white dark:bg-gray-900 rounded-2xl border border-stone-200 dark:border-gray-800 shadow-sm overflow-hidden"
                     >
                       <div className="p-5 sm:p-6 space-y-5">
@@ -485,7 +494,8 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
             </AnimatePresence>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

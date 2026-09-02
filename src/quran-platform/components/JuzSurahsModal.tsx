@@ -53,7 +53,7 @@ export const JuzSurahsModal: React.FC<JuzSurahsModalProps> = ({
   onSelectSurah,
   onSelectJuzStart,
 }) => {
-  if (!isOpen || !juz) return null;
+  if (!juz) return null;
 
   const range = JUZ_SURAH_RANGES[juz];
   if (!range) return null;
@@ -65,20 +65,25 @@ export const JuzSurahsModal: React.FC<JuzSurahsModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm text-right"
-        dir="rtl"
-      >
-        {/* Backdrop clickable space */}
-        <div className="absolute inset-0" onClick={onClose} />
-
+      {isOpen && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden relative z-10"
+          key="juz-surahs-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm text-right"
+          dir="rtl"
+          onClick={onClose}
         >
+          <motion.div
+            key="juz-surahs-modal-container"
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header */}
           <div className="relative p-5 bg-gradient-to-r from-[var(--color-primary-dark)] via-[#155e41] to-[var(--color-primary)] text-white shrink-0">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
@@ -156,7 +161,8 @@ export const JuzSurahsModal: React.FC<JuzSurahsModalProps> = ({
             })}
           </div>
         </motion.div>
-      </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };

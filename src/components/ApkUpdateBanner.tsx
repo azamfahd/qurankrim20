@@ -19,11 +19,11 @@ export const ApkUpdateBanner: React.FC<ApkUpdateBannerProps> = ({
   onUpdate,
   onDismiss
 }) => {
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
+      {isOpen && (
       <motion.div
+        key="apk-update-banner"
         initial={{ opacity: 0, y: -50, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -30, scale: 0.96 }}
@@ -108,6 +108,7 @@ export const ApkUpdateBanner: React.FC<ApkUpdateBannerProps> = ({
           </div>
         </div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };

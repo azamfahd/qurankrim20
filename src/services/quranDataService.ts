@@ -38,6 +38,22 @@ export class QuranDataService {
       return this.cache.get(cacheKey)!;
     }
 
+    // 1. Try local offline CacheStorage first
+    try {
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        const textCache = await caches.open('quran-text-api-v1');
+        const cachedRes = await textCache.match(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`);
+        if (cachedRes) {
+          const cachedJson = await cachedRes.json();
+          if (cachedJson?.data?.text) {
+            this.cache.set(cacheKey, cachedJson.data.text);
+            return cachedJson.data.text;
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Try network fetch with timeout
     try {
       const response = await this.fetchWithTimeout(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`, {}, 5000);
       const data = await response.json();

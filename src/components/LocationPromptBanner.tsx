@@ -18,11 +18,11 @@ export const LocationPromptBanner: React.FC<LocationPromptBannerProps> = ({
   isHighAccuracy,
   onOpenLocationSettings
 }) => {
-  if (!isVisible) return null;
-
   return (
     <AnimatePresence>
+      {isVisible && (
       <motion.div
+        key="location-prompt-banner"
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -72,6 +72,7 @@ export const LocationPromptBanner: React.FC<LocationPromptBannerProps> = ({
           </div>
         </div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };

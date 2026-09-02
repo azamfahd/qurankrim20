@@ -328,26 +328,27 @@ export default function AgriculturalWeatherModal({
     }
   };
 
-  if (!isOpen) return null;
-
   const currentWmo = weatherData ? getWMOWeatherDetails(weatherData.current.weatherCode) : null;
   const WeatherIcon = currentWmo ? currentWmo.icon : Sun;
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 bg-stone-950/70 backdrop-blur-md overflow-y-auto"
-      >
+      {isOpen && (
         <motion.div
-          initial={{ scale: 0.92, opacity: 0, y: 10 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 10 }}
-          className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-stone-200 dark:border-gray-800 flex flex-col overflow-hidden max-h-[92vh]"
-          dir="rtl"
+          key="agri-weather-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 bg-stone-950/70 backdrop-blur-md overflow-y-auto"
         >
+          <motion.div
+            key="agri-weather-modal-container"
+            initial={{ scale: 0.92, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.92, opacity: 0, y: 10 }}
+            className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-stone-200 dark:border-gray-800 flex flex-col overflow-hidden max-h-[92vh]"
+            dir="rtl"
+          >
           {/* Modal Header */}
           <div className="px-5 py-4 border-b border-stone-200 dark:border-gray-800 bg-gradient-to-r from-sky-500/10 via-emerald-500/10 to-transparent dark:from-sky-950/40 dark:via-emerald-950/30 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -586,6 +587,7 @@ export default function AgriculturalWeatherModal({
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }

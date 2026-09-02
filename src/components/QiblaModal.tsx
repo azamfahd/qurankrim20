@@ -309,6 +309,8 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
 
   // 6. تهيئة وإغلاق المودال
   useEffect(() => {
+    let timer: any = null;
+
     if (isOpen) {
       fetchLocation(false);
       hasReceivedSensorDataRef.current = false;
@@ -323,19 +325,13 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
         window.addEventListener('deviceorientation', handleOrientation, true);
 
         // مؤقت ذكي لمدة 1.8 ثانية للتأكد مما إذا كان الجهاز يمتلك مستشعر بوصلة مغناطيسية حقيقي أم لا
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           if (!hasReceivedSensorDataRef.current) {
             setSensorStatus('unsupported');
             // تنبيه المستخدم وتفعيل خيار تحديد القبلة عبر الموقع تلقائيًا كخيار بديل مع التنبيه
             setActiveTab('location');
           }
         }, 1800);
-
-        return () => {
-          clearTimeout(timer);
-          window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
-          window.removeEventListener('deviceorientation', handleOrientation, true);
-        };
       }
     } else {
       // إعادة ضبط جميع الحالات عند إغلاق النوافذ
@@ -349,6 +345,12 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
       setSensorStatus('detecting');
       setActiveTab('sensor');
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
   }, [isOpen, fetchLocation, handleOrientation]);
 
   // حساب أقصر مسار للدوران لتجنب الدوران المفاجئ 360 درجة عند تجاوز النقطة صفر
@@ -372,6 +374,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="qibla-modal-backdrop"
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           exit={{ opacity: 0 }}
@@ -379,6 +382,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
           onClick={onClose}
         >
           <motion.div 
+            key="qibla-modal-container"
             initial={{ scale: 0.92, y: 20 }} 
             animate={{ scale: 1, y: 0 }} 
             exit={{ scale: 0.92, y: 20 }}
@@ -589,6 +593,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
                       <AnimatePresence>
                         {isAligned && (
                           <motion.div 
+                            key="qibla-aligned-glow"
                             initial={{ scale: 0.8, opacity: 0 }} 
                             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }} 
                             exit={{ scale: 0.8, opacity: 0 }}
@@ -769,6 +774,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
                 <AnimatePresence>
                   {showCitySelector && (
                     <motion.div 
+                      key="qibla-city-selector"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
@@ -924,6 +930,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
             <AnimatePresence>
               {showCalibrationGuide && (
                 <motion.div 
+                  key="qibla-calibration-guide"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}

@@ -31,9 +31,9 @@ const renderHighlightedText = (text: string, highlightClass: string = "text-[var
   const parts = text.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <span key={index} className={highlightClass}>{part.slice(2, -2)}</span>;
+      return <span key={`hl-${index}-${part.slice(2, -2)}`} className={highlightClass}>{part.slice(2, -2)}</span>;
     }
-    return <span key={index}>{part}</span>;
+    return <span key={`txt-${index}-${part.slice(0, 10)}`}>{part}</span>;
   });
 };
 

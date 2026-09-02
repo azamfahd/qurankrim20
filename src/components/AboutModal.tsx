@@ -59,6 +59,7 @@ const InteractiveCard = ({
         <AnimatePresence>
           {expanded && (
             <motion.div
+              key="stage-card-expanded"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -102,6 +103,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="about-modal-backdrop"
           id="about-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -110,6 +112,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
           onClick={onClose}
         >
           <motion.div
+            key="about-modal-container"
             id="about-modal-container"
             initial={{ scale: 0.95, y: 20 }}
             animate={{ scale: 1, y: 0 }}

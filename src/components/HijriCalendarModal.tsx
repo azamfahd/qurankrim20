@@ -58,6 +58,7 @@ export const HijriCalendarModal: React.FC<HijriCalendarModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="hijri-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -65,6 +66,7 @@ export const HijriCalendarModal: React.FC<HijriCalendarModalProps> = ({
           onClick={onClose}
         >
           <motion.div 
+            key="hijri-modal-container"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

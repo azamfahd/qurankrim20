@@ -51,7 +51,7 @@ export const AdhanNotificationBanner: React.FC<AdhanNotificationBannerProps> = (
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div key="AdhanNotificationBanner-anim-1"
         initial={{ opacity: 0, y: -40, scale: 0.9, filter: 'blur(10px)' }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
         exit={{ opacity: 0, y: -30, scale: 0.95, filter: 'blur(5px)' }}
