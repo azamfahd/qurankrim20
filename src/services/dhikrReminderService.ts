@@ -971,6 +971,11 @@ export class DhikrReminderService {
       this.settings = initialSettings ? { ...DEFAULT_DHIKR_SETTINGS, ...initialSettings } : DEFAULT_DHIKR_SETTINGS;
     }
 
+    // Ensure showFloatingBanner is always boolean true if not explicitly false
+    if (this.settings.showFloatingBanner === undefined) {
+      this.settings.showFloatingBanner = true;
+    }
+
     if (!this.settings.reciterId || !DHIKR_RECITERS.some(r => r.id === this.settings.reciterId)) {
       this.settings.reciterId = 'mishary';
     }
@@ -978,6 +983,21 @@ export class DhikrReminderService {
     try {
       const last = localStorage.getItem('anis_dhikr_last_trigger');
       if (last) this.lastTriggerTimestamp = parseInt(last, 10) || 0;
+    } catch {}
+
+    // Check if the user launched the app from an OS or Web notification
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        const params = new URLSearchParams(window.location.search);
+        const source = params.get('source');
+        const dhikrId = params.get('dhikrId');
+        if (source === 'notification' || dhikrId) {
+          const targetDhikr = (dhikrId ? DHIKR_DATABASE.find(d => d.id === dhikrId) : null) || this.selectDhikr();
+          setTimeout(() => {
+            this.showDirectBanner(targetDhikr, false);
+          }, 800);
+        }
+      }
     } catch {}
 
     // Initialize BroadcastChannel for cross-tab coordination
@@ -1017,6 +1037,23 @@ export class DhikrReminderService {
   }
 
   /**
+   * إظهار بطاقة التذكير بالذكر مباشرة على الشاشة (مع إمكانية تشغيل الصوت اختيارياً)
+   */
+  public static showDirectBanner(customDhikr?: DhikrItem, playAudio: boolean = false) {
+    const dhikr = customDhikr || this.selectDhikr();
+    this.activeTriggeredDhikr = dhikr;
+
+    // إشعار مستمعي الواجهة فوراً لعرض البطاقة المنبثقة
+    this.listeners.forEach(cb => {
+      try { cb(dhikr); } catch (e) { console.warn('Dhikr listener error:', e); }
+    });
+
+    if (playAudio) {
+      this.playDhikrAlert(dhikr, this.settings);
+    }
+  }
+
+  /**
    * الاستماع للرسائل القادمة من Service Worker (شاشة القفل والخلفية)
    */
   public static initServiceWorkerListeners() {
@@ -1030,6 +1067,7 @@ export class DhikrReminderService {
         if (event.data.type === 'TRIGGER_DHIKR_ALERT') {
           const dhikr = event.data.dhikr;
           if (dhikr) {
+            this.activeTriggeredDhikr = dhikr;
             this.listeners.forEach(cb => {
               try { cb(dhikr); } catch {}
             });
@@ -1038,7 +1076,8 @@ export class DhikrReminderService {
           this.recordRecitation(event.data.category || 'all');
         } else if (event.data.type === 'SHOW_DHIKR_BANNER_DIRECT') {
           const dhikrData = event.data.data;
-          const found = DHIKR_DATABASE.find(d => d.id === dhikrData?.dhikrId) || DHIKR_DATABASE[0];
+          const found = (dhikrData?.dhikrId ? DHIKR_DATABASE.find(d => d.id === dhikrData.dhikrId) : null) || DHIKR_DATABASE[0];
+          this.activeTriggeredDhikr = found;
           this.listeners.forEach(cb => {
             try { cb(found); } catch {}
           });
@@ -1190,6 +1229,19 @@ export class DhikrReminderService {
   public static stopAudio() {
     this.releaseWakeLock();
     this.activeTriggeredDhikr = null;
+    
+    // Clear any stuck native dhikr notifications
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+        LocalNotifications.getDeliveredNotifications().then(delivered => {
+          const dhikrNotifs = delivered.notifications.filter(n => n.id >= 1000);
+          if (dhikrNotifs.length > 0) {
+            LocalNotifications.cancel({ notifications: dhikrNotifs });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     if (this.activeAudioElement) {
       try {
         this.activeAudioElement.pause();
@@ -1240,6 +1292,126 @@ export class DhikrReminderService {
   }
 
   /**
+   * الجدولة الدقيقة المسبقة (Android Local Notifications & Alarm Manager) لـ 30 يوماً
+   * لـ أذكار الصباح، المساء، الوتر، قيام الليل، وقراءة سورة الكهف يوم الجمعة
+   */
+  private static scheduleFixedAdhkarLocally() {
+    if (!this.settings.enabled) return;
+
+    (async () => {
+      if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+        try {
+          const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
+          
+          // clear existing fixed adhkar notifications (ID range 80000 - 89999)
+          const pending = await LocalNotifications.getPending();
+          if (pending && pending.notifications.length > 0) {
+            const fixedIds = pending.notifications.filter(n => n.id >= 80000 && n.id < 90000);
+            if (fixedIds.length > 0) {
+              await LocalNotifications.cancel({ notifications: fixedIds });
+            }
+          }
+
+          const notifications = [];
+          let idCounter = 80000;
+          const today = new Date();
+          const channelId = NativeNotificationService.getDhikrChannelId('general', this.settings.soundType === 'silent');
+          const soundFile = NativeNotificationService.getDhikrSound('general');
+
+          for (let i = 0; i < 30; i++) {
+            const currentDay = new Date(today);
+            currentDay.setDate(today.getDate() + i);
+
+            // 1. أذكار الصباح (7:00 AM)
+            const morningTime = new Date(currentDay);
+            morningTime.setHours(7, 0, 0, 0);
+            if (morningTime.getTime() > Date.now()) {
+              notifications.push({
+                title: '🌅 أنيس القلوب | أذكار الصباح',
+                body: 'حان الآن موعد أذكار الصباح، حصن نفسك ليوم مشرق ومبارك.',
+                largeBody: 'حان الآن موعد أذكار الصباح، حصن نفسك ليوم مشرق ومبارك.\n\nأَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ.',
+                summaryText: 'أذكار الصباح',
+                id: idCounter++,
+                schedule: { at: morningTime, allowWhileIdle: true },
+                channelId: channelId,
+                sound: this.settings.soundType === 'silent' ? undefined : soundFile,
+                smallIcon: 'ic_stat_icon_config_sample',
+                actionTypeId: 'DHIKR_ACTIONS',
+                extra: { type: 'dhikr_fixed', category: 'morning' }
+              });
+            }
+
+            // 2. أذكار المساء (5:00 PM)
+            const eveningTime = new Date(currentDay);
+            eveningTime.setHours(17, 0, 0, 0);
+            if (eveningTime.getTime() > Date.now()) {
+              notifications.push({
+                title: '🌇 أنيس القلوب | أذكار المساء',
+                body: 'حان الآن موعد أذكار المساء، اختم يومك بذكر الله وحصن ليلتك.',
+                largeBody: 'حان الآن موعد أذكار المساء، اختم يومك بذكر الله وحصن ليلتك.\n\nأَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ.',
+                summaryText: 'أذكار المساء',
+                id: idCounter++,
+                schedule: { at: eveningTime, allowWhileIdle: true },
+                channelId: channelId,
+                sound: this.settings.soundType === 'silent' ? undefined : soundFile,
+                smallIcon: 'ic_stat_icon_config_sample',
+                actionTypeId: 'DHIKR_ACTIONS',
+                extra: { type: 'dhikr_fixed', category: 'evening' }
+              });
+            }
+
+            // 3. صلاة الوتر وقيام الليل (2:00 AM) - next day morning basically
+            const witrTime = new Date(currentDay);
+            witrTime.setHours(2, 0, 0, 0);
+            if (witrTime.getTime() > Date.now()) {
+              notifications.push({
+                title: '🌌 أنيس القلوب | الوتر وقيام الليل',
+                body: 'صلاة الوتر جنة القلوب، لا تنسَ ركعة الوتر قبل أن تنام أو في جوف الليل.',
+                largeBody: 'ركعة واحدة في جوف الليل قد تغير قدرك وتضيء قبرك وتستجاب بها دعوتك. أوتر قبل أن تنام، أو قم في ثلث الليل الأخير.',
+                summaryText: 'صلاة الوتر',
+                id: idCounter++,
+                schedule: { at: witrTime, allowWhileIdle: true },
+                channelId: channelId,
+                sound: this.settings.soundType === 'silent' ? undefined : soundFile,
+                smallIcon: 'ic_stat_icon_config_sample',
+                actionTypeId: 'DHIKR_ACTIONS',
+                extra: { type: 'dhikr_fixed', category: 'witr' }
+              });
+            }
+
+            // 4. سورة الكهف (Friday 9:00 AM)
+            if (currentDay.getDay() === 5) {
+              const kahfTime = new Date(currentDay);
+              kahfTime.setHours(9, 0, 0, 0);
+              if (kahfTime.getTime() > Date.now()) {
+                notifications.push({
+                  title: '📖 أنيس القلوب | سورة الكهف',
+                  body: 'نور ما بين الجمعتين، لا تنسَ قراءة سورة الكهف.',
+                  largeBody: 'يوم الجمعة، عيد الأسبوع. من قرأ سورة الكهف في يوم الجمعة أضاء له من النور ما بين الجمعتين.\nلا تنسَ الإكثار من الصلاة على النبي ﷺ.',
+                  summaryText: 'سورة الكهف',
+                  id: idCounter++,
+                  schedule: { at: kahfTime, allowWhileIdle: true },
+                  channelId: channelId,
+                  sound: this.settings.soundType === 'silent' ? undefined : soundFile,
+                  smallIcon: 'ic_stat_icon_config_sample',
+                  actionTypeId: 'DHIKR_ACTIONS',
+                  extra: { type: 'dhikr_fixed', category: 'kahf' }
+                });
+              }
+            }
+          }
+
+          if (notifications.length > 0) {
+            await LocalNotifications.schedule({ notifications });
+          }
+        } catch (e) {
+          console.warn("Failed to schedule fixed adhkar:", e);
+        }
+      }
+    })();
+  }
+
+  /**
    * إعادة ضبط مؤقت التذكير التلقائي
    */
   private static restartIntervalTimer() {
@@ -1247,6 +1419,9 @@ export class DhikrReminderService {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
     }
+
+    // Schedule exact alarms for fixed sunnah adhkar
+    this.scheduleFixedAdhkarLocally();
 
     if (!this.settings.enabled) return;
 
@@ -1282,11 +1457,8 @@ export class DhikrReminderService {
                 ? '💧 أنيس القلوب | استغفار وتوبة' 
                 : `🌿 أنيس القلوب | ${item.categoryName || 'تذكير بذكر الله'}`;
 
-              let soundFile = 'mishary_salawat.mp3';
-              if (item.category === 'istighfar') soundFile = 'mishary_istighfar.mp3';
-              else if (item.category === 'baqiyat') soundFile = 'mishary_baqiyat.mp3';
-              else if (item.category === 'hawqala') soundFile = 'mishary_hawqala.mp3';
-              else if ((item.category as string) === 'tahsin') soundFile = 'mishary_tahsin.mp3';
+              const channelId = NativeNotificationService.getDhikrChannelId(item.category, this.settings.soundType === 'silent');
+              const soundFile = NativeNotificationService.getDhikrSound(item.category);
 
               const cleanVirtue = item.virtue ? item.virtue.trim() : '';
               const fullBody = `« ${item.text} »${cleanVirtue ? '\n\n🤍 ' + cleanVirtue : ''}`;
@@ -1298,7 +1470,7 @@ export class DhikrReminderService {
                 summaryText: item.categoryName || 'أذكار المسلم',
                 id: idCounter++,
                 schedule: { at: new Date(now + i * intervalMs), allowWhileIdle: true },
-                channelId: 'dhikr_channel_v3',
+                channelId: channelId,
                 sound: this.settings.soundType === 'silent' ? undefined : soundFile,
                 smallIcon: 'ic_stat_icon_config_sample',
                 extra: { 
@@ -1928,11 +2100,10 @@ export class DhikrReminderService {
     try {
       if (Capacitor.isNativePlatform()) {
         const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
-        let soundFile = 'mishary_salawat.mp3';
-        if (dhikr.category === 'istighfar') soundFile = 'mishary_istighfar.mp3';
-        else if (dhikr.category === 'baqiyat') soundFile = 'mishary_baqiyat.mp3';
-        else if (dhikr.category === 'hawqala') soundFile = 'mishary_hawqala.mp3';
-        else if ((dhikr.category as string) === 'tahsin') soundFile = 'mishary_tahsin.mp3';
+        await NativeNotificationService.setupAndroidChannels(this.settings.reciterId || 'mishary');
+
+        const channelId = NativeNotificationService.getDhikrChannelId(dhikr.category, this.settings.soundType === 'silent');
+        const soundFile = NativeNotificationService.getDhikrSound(dhikr.category);
 
         await LocalNotifications.schedule({
           notifications: [{
@@ -1940,9 +2111,9 @@ export class DhikrReminderService {
             body: `« ${dhikr.text} »`,
             largeBody: body,
             summaryText: dhikr.categoryName || 'أذكار المسلم',
-            id: Date.now() % 100000,
-            schedule: { at: new Date(Date.now() + 100) },
-            channelId: 'dhikr_channel_v3',
+            id: (Date.now() % 100000) + 50000,
+            schedule: { at: new Date(Date.now() + 200), allowWhileIdle: true },
+            channelId: channelId,
             sound: this.settings.soundType === 'silent' ? undefined : soundFile,
             smallIcon: 'ic_stat_icon_config_sample',
             extra: {

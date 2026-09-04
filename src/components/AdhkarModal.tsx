@@ -101,8 +101,12 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
       return prev;
     });
 
-    if (navigator.vibrate) {
-      navigator.vibrate(40);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(40);
+      }
+    } catch (e) {
+      // Ignore vibration errors inside iframe sandboxes
     }
   };
 
@@ -199,7 +203,11 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-2 sm:p-4 z-50" 
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div 
             key="adhkar-modal-container"

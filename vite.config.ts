@@ -4,6 +4,25 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 function versionGeneratorPlugin() {
+  function getFilesRecursively(dir: string, baseDir: string): string[] {
+    let results: string[] = [];
+    const list = fs.readdirSync(dir);
+    list.forEach((file) => {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      if (stat && stat.isDirectory()) {
+        results = results.concat(getFilesRecursively(filePath, baseDir));
+      } else {
+        // Exclude specific files if necessary, like sw.js itself to prevent recursion loop
+        if (file !== 'sw.js' && !file.endsWith('.map')) {
+          const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+          results.push(relativePath.startsWith('/') ? relativePath : '/' + relativePath);
+        }
+      }
+    });
+    return results;
+  }
+
   return {
     name: 'version-generator-plugin',
     buildStart() {
@@ -20,6 +39,8 @@ function versionGeneratorPlugin() {
       } catch {}
       const versionData = {
         version: "1.1.0",
+        updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
+        releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
         ...existingData,
         timestamp: Date.now()
       };
@@ -30,6 +51,8 @@ function versionGeneratorPlugin() {
       const versionFile = path.join(publicDir, 'version.json');
       let versionData: Record<string, unknown> = {
         version: "1.1.0",
+        updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
+        releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
         timestamp: Date.now()
       };
       try {
@@ -37,28 +60,40 @@ function versionGeneratorPlugin() {
           versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
         }
       } catch {}
+      
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify(versionData, null, 2)
       });
-
-      // Generate build-assets.json listing all emitted bundles and chunks for Service Worker precaching
+      
       const emittedFiles = Object.keys(bundle).map((fileName) => '/' + fileName);
-      const manifestList = [
+      
+      let publicFiles: string[] = [];
+      if (fs.existsSync(publicDir)) {
+         publicFiles = getFilesRecursively(publicDir, publicDir);
+      }
+      
+      // Ensure unique list and specific base files
+      const allAssets = new Set([
         '/',
         '/index.html',
-        '/manifest.json',
-        '/version.json',
-        '/app-icon.svg',
-        '/fonts/local-fonts.css',
+        ...publicFiles,
         ...emittedFiles
-      ];
+      ]);
+      
+      // Remove sw.js to prevent caching itself, and build-assets.json to avoid loop caching
+      allAssets.delete('/sw.js');
+      allAssets.delete('/build-assets.json');
+
+      const manifestList = Array.from(allAssets);
+      
       this.emitFile({
         type: 'asset',
         fileName: 'build-assets.json',
         source: JSON.stringify(manifestList, null, 2)
       });
+      
       try {
         fs.writeFileSync(path.join(publicDir, 'build-assets.json'), JSON.stringify(manifestList, null, 2));
       } catch {}
@@ -83,6 +118,7 @@ export default defineConfig(({ mode }) => {
         versionGeneratorPlugin()
       ],
       define: {
+        '__APP_VERSION__': JSON.stringify('1.1.0'),
         'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
         'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || env.VITE_SUPABASE_DATABASE_URL || env.SUPABASE_URL || ''),

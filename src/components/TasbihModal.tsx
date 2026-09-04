@@ -223,7 +223,11 @@ export const TasbihModal: React.FC<TasbihModalProps> = ({ isOpen, onClose }) => 
           animate={{ opacity: 1 }} 
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-3 sm:p-4 z-50" 
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div 
             key="tasbih-modal-container"

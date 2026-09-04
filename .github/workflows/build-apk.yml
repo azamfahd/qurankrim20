@@ -46,7 +46,7 @@ jobs:
 
       - name: Initialize & Sync Capacitor Android
         run: |
-          npx cap init "أنيس القلوب" "com.anis.qulub" --web-dir dist || true
+          npx cap init "أنيس القلوب" "com.anisalqulub.app" --web-dir dist || true
           npx cap add android || true
           npx @capacitor/assets generate --android || true
           npx cap sync android
@@ -58,6 +58,7 @@ jobs:
         run: |
           mkdir -p android/app/src/main/res/raw
           cp public/audio/adhan/*.mp3 android/app/src/main/res/raw/ 2>/dev/null || true
+          cp public/audio/adhkar/*.mp3 android/app/src/main/res/raw/ 2>/dev/null || true
 
       - name: Build Android Debug APK
         run: |

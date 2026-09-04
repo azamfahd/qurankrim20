@@ -17,6 +17,7 @@ function configureAndroid() {
     'android.permission.ACCESS_NETWORK_STATE',
     'android.permission.ACCESS_FINE_LOCATION',
     'android.permission.ACCESS_COARSE_LOCATION',
+    'android.permission.ACCESS_BACKGROUND_LOCATION',
     'android.permission.RECORD_AUDIO',
     'android.permission.MODIFY_AUDIO_SETTINGS',
     'android.permission.POST_NOTIFICATIONS',
@@ -24,9 +25,13 @@ function configureAndroid() {
     'android.permission.USE_EXACT_ALARM',
     'android.permission.RECEIVE_BOOT_COMPLETED',
     'android.permission.WAKE_LOCK',
+    'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
-    'android.permission.VIBRATE'
+    'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+    'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+    'android.permission.VIBRATE',
+    'android.permission.SYSTEM_ALERT_WINDOW'
   ];
 
   // 1. Ensure tools namespace exists on <manifest>
@@ -118,6 +123,70 @@ function configureAndroid() {
     }
   } catch (splashErr) {
     console.warn('Splash cleanup notice:', splashErr);
+  }
+
+  // 6. Automatically copy all Adhan and Dhikr audio files to res/raw for native offline background playback
+  try {
+    const rawDir = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'res', 'raw');
+    if (!fs.existsSync(rawDir)) {
+      fs.mkdirSync(rawDir, { recursive: true });
+    }
+
+    const audioDirs = [
+      path.join(__dirname, '..', 'public', 'audio', 'adhan'),
+      path.join(__dirname, '..', 'public', 'audio', 'adhkar')
+    ];
+
+    let copiedCount = 0;
+    for (const aDir of audioDirs) {
+      if (fs.existsSync(aDir)) {
+        const files = fs.readdirSync(aDir);
+        for (const file of files) {
+          if (file.endsWith('.mp3')) {
+            const srcPath = path.join(aDir, file);
+            const destPath = path.join(rawDir, file.toLowerCase());
+            fs.copyFileSync(srcPath, destPath);
+            copiedCount++;
+          }
+        }
+      }
+    }
+    console.log(`✅ Successfully synced ${copiedCount} native sound files to android/app/src/main/res/raw/ for background audio!`);
+  } catch (audioErr) {
+    console.warn('Audio copy notice:', audioErr);
+  }
+
+  // 7. Configure MainActivity to disable user gesture requirements for audio playback in WebView
+  try {
+    const possibleMainActivityPaths = [
+      path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'com', 'anisalqulub', 'app', 'MainActivity.java'),
+      path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'java', 'com', 'anis', 'qulub', 'MainActivity.java')
+    ];
+
+    for (const mainActPath of possibleMainActivityPaths) {
+      if (fs.existsSync(mainActPath)) {
+        let content = fs.readFileSync(mainActPath, 'utf8');
+        if (!content.includes('setMediaPlaybackRequiresUserGesture')) {
+          if (content.includes('public class MainActivity extends BridgeActivity {')) {
+            const replacement = `public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(android.os.Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        try {
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+            }
+        } catch (Exception e) {}
+    }`;
+            content = content.replace('public class MainActivity extends BridgeActivity {', replacement);
+            fs.writeFileSync(mainActPath, content, 'utf8');
+            console.log(`✅ Enabled background/unrestricted audio playback in ${mainActPath}`);
+          }
+        }
+      }
+    }
+  } catch (mainActErr) {
+    console.warn('MainActivity configuration notice:', mainActErr);
   }
 }
 

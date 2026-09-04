@@ -753,8 +753,15 @@ export class AdhanAudioEngine {
   private static pendingArmedPlayback: { muezzinId: string; volume: number; prayerName: string } | null = null;
   private static subscribers: Set<(state: AdhanEngineState) => void> = new Set();
   private static activePrayerName: string | null = null;
+  private static isStartingPlayback: boolean = false;
+  private static isStartingPrayerName: string | null = null;
+  private static isStartingMuezzinId: string | null = null;
   private static manuallyStoppedPrayers: Map<string, number> = new Map();
   private static lastPlaybackAttempt: { prayerName: string; timestamp: number; muezzinId: string } | null = null;
+
+  public static isStarting(): boolean {
+    return this.isStartingPlayback;
+  }
 
   public static get currentAdhanPrayer(): string | null {
     return this.activePrayerName;
@@ -832,6 +839,11 @@ export class AdhanAudioEngine {
 
   public static unlockAudioContext(): void {
     try {
+      // CRITICAL: If adhan is already actively playing or starting, NEVER run dummy audio or disturb playback!
+      if (this.isPlaying() || this.isStartingPlayback) {
+        return;
+      }
+
       const ctx = this.getAudioContext();
       if (ctx) {
         if (ctx.state === 'suspended') {
@@ -918,6 +930,12 @@ export class AdhanAudioEngine {
         if (event.data.type === 'STOP_ADHAN') {
           this.stop();
         } else if (event.data.type === 'PLAY_ADHAN' || event.data.type === 'TRIGGER_ADHAN_NOTIFICATION') {
+          // If adhan is ALREADY playing or actively starting, NEVER re-trigger or restart from background message!
+          if (this.isPlaying() || this.isStartingPlayback) {
+            console.info('[AdhanAudioEngine] Ignoring SW trigger because adhan is already actively playing.');
+            return;
+          }
+
           const prayerName = event.data.prayerName || 'الصلاة';
           let muezzinId = event.data.muezzinId;
           
@@ -938,10 +956,6 @@ export class AdhanAudioEngine {
             } catch {}
           }
           muezzinId = muezzinId || 'mishary';
-          
-          if (this.isPlaying() && this.activePlayingId === muezzinId && this.activePrayerName === prayerName) {
-            return;
-          }
 
           this.unlockAudioContext();
           this.play(muezzinId, 90, undefined, undefined, prayerName);
@@ -1051,20 +1065,33 @@ export class AdhanAudioEngine {
         if (Capacitor.isNativePlatform()) {
           const effectiveMuezzinId = (MUEZZINS_LIST.find(m => m.name === muezzinName)?.id) || 'mishary';
           await NativeNotificationService.setupAndroidChannels(effectiveMuezzinId);
+          
+          // CRITICAL: If audio is already playing in-app, use the silent channel so Android does NOT play
+          // duplicate audio or duck the active adhan playback!
+          const isAudioCurrentlyPlaying = this.isPlaying() || this.isStartingPlayback;
+          const channelId = isAudioCurrentlyPlaying 
+            ? NativeNotificationService.getSilentChannelId() 
+            : NativeNotificationService.getAdhanChannelId(effectiveMuezzinId);
+          const soundFileName = isAudioCurrentlyPlaying 
+            ? undefined 
+            : NativeNotificationService.getAdhanSound(effectiveMuezzinId);
+
           const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
           await LocalNotifications.schedule({
             notifications: [{
               title: `🕌 حان الآن موعد أذان ${prayerName}`,
               body: `${randomVerse}\n\nالله أكبر، حان وقت صلاة ${prayerName} بصوت ${muezzinName}.`,
-              id: Date.now() % 100000,
-              schedule: { at: new Date(Date.now() + 100) },
-              channelId: `adhan_channel_v3_${effectiveMuezzinId}`,
-              sound: `${effectiveMuezzinId}.mp3`,
+              id: (Date.now() % 100000) + 70000,
+              schedule: { at: new Date(Date.now() + 100), allowWhileIdle: true },
+              channelId: channelId,
+              sound: soundFileName,
+              actionTypeId: 'ADHAN_ACTIONS',
               smallIcon: 'ic_stat_icon_config_sample',
               extra: { type: 'adhan', muezzinId: effectiveMuezzinId, prayerName: prayerName }
             }]
           });
         } else if (typeof window !== 'undefined' && 'Notification' in window) {
+          const isAudioCurrentlyPlaying = this.isPlaying() || this.isStartingPlayback;
           if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
             const reg = await navigator.serviceWorker.ready;
             await reg.showNotification(`🕌 حان الآن موعد أذان ${prayerName}`, {
@@ -1074,11 +1101,12 @@ export class AdhanAudioEngine {
               tag: `adhan-${prayerName}`,
               renotify: true,
               requireInteraction: true,
-              vibrate: [600, 300, 600, 300, 1000, 500, 1000] as any,
+              silent: isAudioCurrentlyPlaying,
+              vibrate: isAudioCurrentlyPlaying ? [300, 150, 300] : [600, 300, 600, 300, 1000, 500, 1000] as any,
               dir: 'rtl',
               lang: 'ar',
               actions: [
-                { action: 'stop-adhan', title: 'إيقاف وإغلاق ❌' }
+                { action: 'stop-adhan', title: 'إيقاف الأذان ⏹️' }
               ]
             } as any);
           } else {
@@ -1134,7 +1162,8 @@ export class AdhanAudioEngine {
       if (Capacitor.isNativePlatform()) {
         try {
           await NativeNotificationService.setupAndroidChannels(currentMuezzinId);
-          const channelId = `adhan_channel_v3_${currentMuezzinId}`;
+          const channelId = NativeNotificationService.getAdhanChannelId(currentMuezzinId);
+          const soundFileName = NativeNotificationService.getAdhanSound(currentMuezzinId);
 
           const pending = await LocalNotifications.getPending();
           if (pending && pending.notifications.length > 0) {
@@ -1169,7 +1198,8 @@ export class AdhanAudioEngine {
                   sound: soundFileName,
                   channelId: channelId,
                   smallIcon: 'ic_stat_icon_config_sample',
-                  actionTypeId: '',
+                  actionTypeId: 'ADHAN_ACTIONS',
+                  autoCancel: false,
                   extra: { type: 'adhan', muezzinId: currentMuezzinId, prayerName: prayer.name }
                 });
               }
@@ -1351,7 +1381,11 @@ export class AdhanAudioEngine {
       this.pendingAudioInstances.add(audio);
 
       audio.volume = Math.max(0, Math.min(1, volume / 100));
-      audio.crossOrigin = 'anonymous';
+      audio.preload = 'auto';
+      // Only set crossOrigin for remote CDN urls to avoid CORS failures on blob: or local URLs
+      if (url.startsWith('http') && typeof window !== 'undefined' && !url.startsWith(window.location.origin)) {
+        audio.crossOrigin = 'anonymous';
+      }
 
       let isSettled = false;
 
@@ -1375,6 +1409,14 @@ export class AdhanAudioEngine {
           cleanup();
           resolve({ success: false, audio: null, error: 'Session cancelled' });
           return;
+        }
+
+        // Pause dummy keep-alives immediately so they don't fight for audio bandwidth/mixers
+        if (this.backgroundKeepAliveAudio) {
+          try { this.backgroundKeepAliveAudio.pause(); } catch {}
+        }
+        if (this.preAllocatedAdhanAudio) {
+          try { this.preAllocatedAdhanAudio.pause(); } catch {}
         }
 
         this.currentAudio = audio;
@@ -1408,7 +1450,7 @@ export class AdhanAudioEngine {
             cleanup();
             resolve({ success: false, audio: null, error: 'Playback stalled' });
           }
-        }, 3000);
+        }, 5000);
       };
 
       audio.addEventListener('playing', onPlaying, { once: true });
@@ -1437,7 +1479,7 @@ export class AdhanAudioEngine {
           cleanup();
           resolve({ success: false, audio: null, error: 'Connection timeout' });
         }
-      }, 5000);
+      }, 15000);
     });
   }
 
@@ -1470,9 +1512,11 @@ export class AdhanAudioEngine {
     }
 
     // 2. MUEZZIN SWITCHING & DUPLICATE PLAYBACK CHECK:
-    const isSameMuezzinPlaying = this.isPlaying() && this.activePlayingId === muezzinId && this.activePrayerName === parsedPrayerName;
+    const isSameMuezzinPlaying = (this.isPlaying() || this.isStartingPlayback) && 
+      this.activePlayingId === muezzinId && 
+      this.activePrayerName === parsedPrayerName;
     if (isSameMuezzinPlaying && !isTestAudio) {
-      console.info(`[AdhanAudioEngine] Adhan for muezzin "${muezzinId}" and prayer "${parsedPrayerName}" is already playing.`);
+      console.info(`[AdhanAudioEngine] Adhan for muezzin "${muezzinId}" and prayer "${parsedPrayerName}" is already playing or starting.`);
       return { success: true, source: 'offline_cache' };
     }
 
@@ -1488,7 +1532,7 @@ export class AdhanAudioEngine {
 
     // Guard against rapid duplicate trigger of the exact same request within 3 seconds
     if (
-      this.isPlaying() &&
+      (this.isPlaying() || this.isStartingPlayback) &&
       this.lastPlaybackAttempt &&
       this.lastPlaybackAttempt.prayerName === parsedPrayerName &&
       this.lastPlaybackAttempt.muezzinId === muezzinId &&
@@ -1509,31 +1553,109 @@ export class AdhanAudioEngine {
     const thisSession = this.currentSessionId;
     this.activePlayingId = muezzinId;
     this.activePrayerName = parsedPrayerName;
+    this.isStartingPlayback = true;
+    this.isStartingPrayerName = parsedPrayerName;
+    this.isStartingMuezzinId = muezzinId;
     this.emitState();
 
     this.initServiceWorkerListeners();
     this.unlockAudioContext();
     this.onStopCallback = onEnd || null;
 
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      try {
-        navigator.vibrate([800, 400, 800, 400, 1500]);
-      } catch {}
-    }
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([800, 400, 800, 400, 1500]);
+        } catch {}
+      }
 
-    const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId) || MUEZZINS_LIST[0];
+      const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId) || MUEZZINS_LIST[0];
 
-    // STRICT OFFLINE PRE-CHECK:
-    const isOfflineAvailable = await AdhanOfflineManager.hasOfflineAudio(muezzin.id);
+      // STRICT OFFLINE PRE-CHECK & INTEGRITY VERIFICATION:
+      let isOfflineAvailable = await AdhanOfflineManager.hasOfflineAudio(muezzin.id);
+      if (isOfflineAvailable) {
+        const blob = await AdhanOfflineManager.getMuezzinBlob(muezzin.id);
+        if (!blob || !AdhanOfflineManager.isValidAudioBlob(blob)) {
+          console.warn(`[AdhanAudioEngine] Audio for ${muezzin.id} is corrupt/incomplete. Attempting re-download.`);
+          await AdhanOfflineManager.deleteMuezzin(muezzin.id);
+          const dlRes = await AdhanOfflineManager.downloadMuezzinAudio(muezzin.id);
+          isOfflineAvailable = dlRes.success;
+        }
+      }
 
-    if (isOfflineAvailable) {
-      try {
-        const offlineUrl = await AdhanOfflineManager.getOfflineBlobUrl(muezzin.id);
-        if (offlineUrl) {
-          this.activeObjectUrl = offlineUrl.startsWith('blob:') ? offlineUrl : null;
-          
+      if (isOfflineAvailable) {
+        try {
+          const offlineUrl = await AdhanOfflineManager.getOfflineBlobUrl(muezzin.id);
+          if (offlineUrl) {
+            this.activeObjectUrl = offlineUrl.startsWith('blob:') ? offlineUrl : null;
+            
+            const result = await this.attemptAudioPlay(
+              offlineUrl,
+              volume,
+              muezzin.name,
+              parsedPrayerName,
+              thisSession,
+              onStart,
+              onEnd
+            );
+
+            if (thisSession !== this.currentSessionId) {
+              if (result.audio) {
+                try { 
+                  result.audio.pause(); 
+                  if (result.audio === this.preAllocatedAdhanAudio) {
+                    result.audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+                  } else {
+                    result.audio.src = ''; 
+                  }
+                } catch {}
+              }
+              return { success: false, source: 'offline_cache' };
+            }
+
+            if (result.success && result.audio) {
+              this.currentAudio = result.audio;
+              this.activePlayingId = muezzin.id;
+              this.emitState();
+              return { success: true, source: 'offline_cache' };
+            }
+          }
+        } catch (offlineErr) {
+          console.warn('Offline blob check notice:', offlineErr);
+        }
+
+        if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
+
+        try {
+          const offlineBlob = await AdhanOfflineManager.getMuezzinBlob(muezzin.id);
+          if (offlineBlob && AdhanOfflineManager.isValidAudioBlob(offlineBlob)) {
+            const webAudioRes = await this.playViaWebAudio(
+              offlineBlob,
+              volume,
+              muezzin.name,
+              parsedPrayerName,
+              thisSession,
+              onStart,
+              onEnd
+            );
+            if (webAudioRes.success) {
+              this.activePlayingId = muezzin.id;
+              this.emitState();
+              return { success: true, source: 'web_audio' };
+            }
+          }
+        } catch {}
+      }
+
+      // Direct Local File & CDN Fallbacks
+      const urls = muezzin.audioUrls.map(u => resolveAudioPath(u));
+
+      for (let i = 0; i < urls.length; i++) {
+        if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
+        const url = urls[i];
+        try {
           const result = await this.attemptAudioPlay(
-            offlineUrl,
+            url,
             volume,
             muezzin.name,
             parsedPrayerName,
@@ -1553,51 +1675,27 @@ export class AdhanAudioEngine {
                 }
               } catch {}
             }
-            return { success: false, source: 'offline_cache' };
+            return { success: false, source: 'online_stream' };
           }
 
           if (result.success && result.audio) {
             this.currentAudio = result.audio;
             this.activePlayingId = muezzin.id;
             this.emitState();
-            return { success: true, source: 'offline_cache' };
+            return { success: true, source: 'online_stream' };
           }
+        } catch (streamErr) {
+          console.warn(`Stream attempt for ${muezzin.id} failed:`, streamErr);
         }
-      } catch (offlineErr) {
-        console.warn('Offline blob check notice:', offlineErr);
       }
 
-      if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
+      if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
 
-      try {
-        const offlineBlob = await AdhanOfflineManager.getMuezzinBlob(muezzin.id);
-        if (offlineBlob && AdhanOfflineManager.isValidAudioBlob(offlineBlob)) {
-          const webAudioRes = await this.playViaWebAudio(
-            offlineBlob,
-            volume,
-            muezzin.name,
-            parsedPrayerName,
-            thisSession,
-            onStart,
-            onEnd
-          );
-          if (webAudioRes.success) {
-            this.activePlayingId = muezzin.id;
-            this.emitState();
-            return { success: true, source: 'web_audio' };
-          }
-        }
-      } catch {}
-    }
-
-    // Direct Local File & CDN Fallbacks
-    const urls = muezzin.audioUrls.map(u => resolveAudioPath(u));
-    for (let i = 0; i < urls.length; i++) {
-      if (thisSession !== this.currentSessionId) return { success: false, source: 'online_stream' };
-      const url = urls[i];
-      try {
-        const result = await this.attemptAudioPlay(
-          url,
+      // Web Audio Stream Fallback
+      for (let i = 0; i < urls.length; i++) {
+        if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
+        const webAudioRes = await this.playViaWebAudio(
+          urls[i],
           volume,
           muezzin.name,
           parsedPrayerName,
@@ -1605,82 +1703,65 @@ export class AdhanAudioEngine {
           onStart,
           onEnd
         );
-
-        if (thisSession !== this.currentSessionId) {
-          if (result.audio) {
-            try { 
-              result.audio.pause(); 
-              if (result.audio === this.preAllocatedAdhanAudio) {
-                result.audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-              } else {
-                result.audio.src = ''; 
-              }
-            } catch {}
-          }
-          return { success: false, source: 'online_stream' };
-        }
-
-        if (result.success && result.audio) {
-          this.currentAudio = result.audio;
+        if (webAudioRes.success) {
           this.activePlayingId = muezzin.id;
           this.emitState();
-          return { success: true, source: 'online_stream' };
+          return { success: true, source: 'web_audio' };
         }
-      } catch (streamErr) {
-        console.warn(`Stream attempt for ${muezzin.id} failed:`, streamErr);
       }
-    }
 
-    if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
-
-    // Web Audio Stream Fallback
-    for (let i = 0; i < urls.length; i++) {
       if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
-      const webAudioRes = await this.playViaWebAudio(
-        urls[i],
-        volume,
-        muezzin.name,
-        parsedPrayerName,
-        thisSession,
-        onStart,
-        onEnd
-      );
-      if (webAudioRes.success) {
-        this.activePlayingId = muezzin.id;
+
+      // Harmonic Synthesized Sound Fallback
+      const synthPlayed = await this.playHarmonicSpiritualChime(volume, muezzin.name, parsedPrayerName, onStart, onEnd);
+      if (synthPlayed) {
+        if (onStart) onStart();
         this.emitState();
-        return { success: true, source: 'web_audio' };
+        return { 
+          success: true, 
+          source: 'fallback_synth', 
+          error: 'تم تشغيل التنبيه الصوتي الاحتياطي لضمان رفع الأذان دون انقطاع.' 
+        };
+      }
+
+      this.pendingArmedPlayback = { muezzinId, volume, prayerName: parsedPrayerName };
+      this.activePlayingId = null;
+      this.emitState();
+
+      return { 
+        success: false, 
+        source: 'fallback_synth', 
+        error: 'يرجى لمس الشاشة لتفعيل صوت الأذان فوراً.' 
+      };
+    } finally {
+      if (thisSession === this.currentSessionId) {
+        this.isStartingPlayback = false;
+        this.isStartingPrayerName = null;
+        this.isStartingMuezzinId = null;
       }
     }
-
-    if (thisSession !== this.currentSessionId) return { success: false, source: 'fallback_synth' };
-
-    // Harmonic Synthesized Sound Fallback
-    const synthPlayed = await this.playHarmonicSpiritualChime(volume, muezzin.name, parsedPrayerName, onStart, onEnd);
-    if (synthPlayed) {
-      if (onStart) onStart();
-      this.emitState();
-      return { 
-        success: true, 
-        source: 'fallback_synth',
-        error: 'تم تشغيل التنبيه الصوتي الاحتياطي لضمان رفع الأذان دون انقطاع.'
-      };
-    }
-
-    this.pendingArmedPlayback = { muezzinId, volume, prayerName: parsedPrayerName };
-    this.activePlayingId = null;
-    this.emitState();
-
-    return { 
-      success: false, 
-      source: 'fallback_synth', 
-      error: 'يرجى لمس الشاشة لتفعيل صوت الأذان فوراً.' 
-    };
   }
 
   public static stop(isUserManualStop: boolean = true) {
     if (isUserManualStop && this.activePrayerName) {
       this.manuallyStoppedPrayers.set(this.activePrayerName, Date.now());
     }
+    
+    // Clear any stuck native adhan notifications
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+        LocalNotifications.getDeliveredNotifications().then(delivered => {
+          const adhanNotifs = delivered.notifications.filter(n => n.id < 1000);
+          if (adhanNotifs.length > 0) {
+            LocalNotifications.cancel({ notifications: adhanNotifs });
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
+    this.isStartingPlayback = false;
+    this.isStartingPrayerName = null;
+    this.isStartingMuezzinId = null;
     this.releaseWakeLock();
     this.currentSessionId++;
     this.pendingArmedPlayback = null;

@@ -4,6 +4,8 @@ import { X, ShieldCheck, BatteryCharging, BellRing, Smartphone, CheckCircle2, Al
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { AdhanAudioEngine } from '../services/adhanService';
+import { NativeNotificationService } from '../services/nativeNotificationService';
+import { DhikrReminderService } from '../services/dhikrReminderService';
 import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
 
 interface BatteryOptimizationGuideModalProps {
@@ -19,6 +21,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
 }) => {
   const [selectedBrand, setSelectedBrand] = useState<'samsung' | 'xiaomi' | 'huawei' | 'oppo' | 'general'>('general');
   const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [isTestingDhikr, setIsTestingDhikr] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown');
 
@@ -41,37 +44,28 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
           return;
         }
 
-        // Create test notification channel
-        try {
-          await LocalNotifications.createChannel({
-            id: 'adhan_test_channel',
-            name: 'اختبار الأذان',
-            description: 'قناة اختبار صوت الأذان',
-            importance: 5,
-            sound: 'mishary.mp3',
-            visibility: 1,
-            vibration: true
-          });
-        } catch {}
+        await NativeNotificationService.setupAndroidChannels('mishary');
+        const channelId = NativeNotificationService.getAdhanChannelId('mishary');
+        const soundFile = NativeNotificationService.getAdhanSound('mishary');
 
         await LocalNotifications.schedule({
           notifications: [
             {
-              id: 999999,
-              title: '🔊 تجربة صوت الأذان - أنيس القلوب',
-              body: 'الله أكبر، الله أكبر.. حي على الصلاة',
-              schedule: { at: new Date(Date.now() + 1000), allowWhileIdle: true },
-              sound: 'mishary.mp3',
-              channelId: 'adhan_test_channel'
+              id: 999998,
+              title: '🕌 تجربة أذان الصلاة - أنيس القلوب',
+              body: 'الله أكبر، الله أكبر.. حي على الصلاة، حي على الفلاح',
+              schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
+              sound: soundFile,
+              channelId: channelId,
+              smallIcon: 'ic_stat_icon_config_sample'
             }
           ]
         });
-        onShowToast('تم إرسال إشعار الأذان التجريبي بنجاح! تحقق من شريط الإشعارات والصوت', 'success');
+        onShowToast('تم إرسال إشعار الأذان التجريبي بنجاح! تحقق من شريط الإشعارات وشاشة القفل', 'success');
       } else {
-        // Web audio test
-        const audio = new Audio('https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3');
+        const audio = new Audio('/audio/adhan/mishary.mp3');
         audio.play().then(() => {
-          onShowToast('جاري تشغيل صوت التنبيه التجريبي...', 'info');
+          onShowToast('جاري تشغيل صوت الأذان التجريبي...', 'info');
         }).catch(() => {
           onShowToast('اضغط على الشاشة لتأكيد إذن تشغيل الصوت', 'info');
         });
@@ -80,6 +74,50 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
       onShowToast('فشل اختبار الإشعار: ' + (e?.message || 'خطأ غير معروف'), 'error');
     } finally {
       setIsTestingNotification(false);
+    }
+  };
+
+  const handleTestDhikrSound = async () => {
+    setIsTestingDhikr(true);
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const perm = await LocalNotifications.requestPermissions();
+        if (perm.display !== 'granted') {
+          onShowToast('يرجى تفعيل صلاحية الإشعارات أولاً', 'error');
+          setIsTestingDhikr(false);
+          return;
+        }
+
+        await NativeNotificationService.setupAndroidChannels('mishary');
+        const channelId = NativeNotificationService.getDhikrChannelId('prophet_salawat');
+        const soundFile = NativeNotificationService.getDhikrSound('prophet_salawat');
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: 999999,
+              title: '✨ أنيس القلوب | الصلاة على النبي ﷺ',
+              body: '« اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ »',
+              schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
+              sound: soundFile,
+              channelId: channelId,
+              smallIcon: 'ic_stat_icon_config_sample'
+            }
+          ]
+        });
+        onShowToast('تم إرسال تنبيه الذكر التجريبي بنجاح بصوت الشيخ مشاري! تفقّد شاشة القفل', 'success');
+      } else {
+        const audio = new Audio('/audio/adhkar/mishary_salawat.mp3');
+        audio.play().then(() => {
+          onShowToast('جاري تشغيل صوت الذكر التجريبي بصوت الشيخ مشاري...', 'info');
+        }).catch(() => {
+          onShowToast('اضغط على الشاشة لتأكيد إذن تشغيل الصوت', 'info');
+        });
+      }
+    } catch (e: any) {
+      onShowToast('فشل اختبار الذكر: ' + (e?.message || 'خطأ غير معروف'), 'error');
+    } finally {
+      setIsTestingDhikr(false);
     }
   };
 
@@ -129,7 +167,11 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-4 z-50"
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div
             key="battery-opt-modal-container"
@@ -196,28 +238,61 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
               })()}
 
               {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   onClick={handleTestAdhanSound}
                   disabled={isTestingNotification}
-                  className="p-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm flex flex-col items-center gap-2 justify-center text-center border border-emerald-500/30"
+                  className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm flex flex-col items-center gap-1.5 justify-center text-center border border-emerald-500/30"
                 >
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <Volume2 size={16} />
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <Volume2 size={15} />
                   </div>
-                  <span>{isTestingNotification ? 'جاري الاختبار...' : 'اختبار إشعار الأذان الآن'}</span>
+                  <span>{isTestingNotification ? 'جاري الاختبار...' : 'تجربة الأذان بشاشة القفل'}</span>
+                </button>
+
+                <button
+                  onClick={handleTestDhikrSound}
+                  disabled={isTestingDhikr}
+                  className="p-3 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm flex flex-col items-center gap-1.5 justify-center text-center border border-teal-500/30"
+                >
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <BellRing size={15} />
+                  </div>
+                  <span>{isTestingDhikr ? 'جاري الاختبار...' : 'تجربة الذكر (صوت مشاري)'}</span>
                 </button>
 
                 <button
                   onClick={handleRescheduleAll}
                   disabled={isRescheduling}
-                  className="p-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm flex flex-col items-center gap-2 justify-center text-center border border-blue-500/30"
+                  className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all shadow-sm flex flex-col items-center gap-1.5 justify-center text-center border border-blue-500/30"
                 >
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <RefreshCw size={16} className={isRescheduling ? 'animate-spin' : ''} />
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <RefreshCw size={15} className={isRescheduling ? 'animate-spin' : ''} />
                   </div>
                   <span>{isRescheduling ? 'جاري الجدول...' : 'إعادة جدولة 30 يوماً'}</span>
                 </button>
+              </div>
+
+              {/* Clarification about Android Permissions: Sound vs Microphone & Location */}
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-bold text-xs">
+                  <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                  <span>دليل أذونات أندرويد (الصوت والموقع والخلفية):</span>
+                </div>
+                <ul className="text-[11px] text-emerald-800 dark:text-emerald-300/90 space-y-2 leading-relaxed">
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                    <span><b>إذن الموقع:</b> يدعم التطبيق الآن خيار <b>«السماح طوال الوقت» (Allow all the time)</b> لضمان حساب مواقيت الصلاة واتجاه القبلة بدقة حتى عند التنقل وإغلاق البرنامج.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                    <span><b>إذن الصوت والميكروفون في معلومات التطبيق:</b> في نظام أندرويد، الإذن المعروض باسم "الصوت" أو "الميكروفون" مخصص فقط للتسجيل (وهو مقيّد أمنياً من Google للاستخدام الفعلي). أما <b>تشغيل أصوات الأذكار والأذان في الخلفية وشاشة القفل</b>، فيعمل عبر <b>قنوات الإشعارات المدمجة (Notification Channels)</b> بصوت الشيخ مشاري العفاسي والمؤذنين، ولا يحتاج إذن الميكروفون إطلاقاً.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                    <span><b>فئات الإشعارات:</b> يمكنك التوجه إلى «معلومات التطبيق» &gt; «الإشعارات» &gt; «فئات الإشعارات» للتأكد من ربط كل ذكر وأذان بصوته الشريف الخاص بدلاً من النغمة الافتراضية.</span>
+                  </li>
+                </ul>
               </div>
 
               {/* Native Permission Prompt if denied */}

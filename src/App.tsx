@@ -16,6 +16,7 @@ import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
 import { InstallPrompt } from './components/InstallPrompt';
 import { InstallModal } from './components/InstallModal';
 import { ApkUpdateBanner } from './components/ApkUpdateBanner';
+import { UpdateNotifier } from './components/UpdateNotifier';
 import { PullToRefresh } from './components/PullToRefresh';
 import { QuranChatSession } from './services/geminiService';
 import { SupabaseService } from './services/supabaseService';
@@ -1907,6 +1908,8 @@ const App: React.FC = () => {
           setIsApkUpdateBannerOpen(false);
         }}
       />
+
+      <UpdateNotifier />
 
       <Toast 
         message={toast.message} 

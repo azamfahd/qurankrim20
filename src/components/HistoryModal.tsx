@@ -196,7 +196,11 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-4 z-50 overflow-hidden" 
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div 
             key="history-modal-container"

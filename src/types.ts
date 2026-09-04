@@ -1,3 +1,7 @@
+declare global {
+  const __APP_VERSION__: string;
+}
+
 export type GeminiModel = 
   | 'gemini-3.6-flash'
   | 'gemini-3.5-flash'

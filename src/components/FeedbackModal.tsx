@@ -108,7 +108,11 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-4 z-50 fixed inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div
             key="feedback-modal-container"

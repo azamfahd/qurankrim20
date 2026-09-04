@@ -107,7 +107,11 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, onS
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           {/* Modal Window */}
           <motion.div

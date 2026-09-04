@@ -175,7 +175,11 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden bg-slate-950/70 backdrop-blur-md"
         >
           {/* Modal Main Panel */}

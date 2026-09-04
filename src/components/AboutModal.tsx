@@ -109,7 +109,11 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="modal-backdrop flex items-center justify-center p-3 sm:p-4 z-50 fixed inset-0 bg-black/65 backdrop-blur-md"
-          onClick={onClose}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div
             key="about-modal-container"

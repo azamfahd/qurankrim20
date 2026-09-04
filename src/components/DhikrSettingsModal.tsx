@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Bell, Volume2, VolumeX, Sparkles, Clock, 
   Check, Play, Pause, CheckCircle2, 
-  Settings2, Smartphone, ListFilter, Users,
-  Zap, BatteryCharging, ShieldCheck, Download,
+  Settings2, ListFilter, Users, Download,
   Trash2, RefreshCw, HardDrive, CheckCircle
 } from 'lucide-react';
 import { DhikrReminderSettings, DhikrReciterInfo } from '../types';
@@ -22,8 +21,6 @@ interface DhikrSettingsModalProps {
   onClose: () => void;
   onShowToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
-
-type DeviceVendor = 'samsung' | 'xiaomi' | 'huawei' | 'oppo' | 'iphone' | 'general';
 
 const INTERVAL_PRESETS = [
   { value: 5, label: 'كل 5 دقائق' },
@@ -55,9 +52,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
   const [dailyStats, setDailyStats] = useState<DhikrDailyStats>(() => DhikrReminderService.getDailyStats());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [isPlayingPreview, setIsPlayingPreview] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'reciters' | 'categories' | 'background'>('general');
-  const [selectedVendor, setSelectedVendor] = useState<DeviceVendor>('samsung');
-  const [isTestingLockScreen, setIsTestingLockScreen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'reciters' | 'categories'>('general');
   const [downloadedReciters, setDownloadedReciters] = useState<{ [id: string]: boolean }>({});
   const [downloadProgress, setDownloadProgress] = useState<{ [id: string]: number }>({});
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
@@ -66,10 +61,21 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
   useEffect(() => {
     PermissionService.checkPermission('notifications').then((permStatus) => {
-      setNotificationPermission((permStatus === 'prompt' ? 'default' : permStatus) as NotificationPermission);
+      const status = (permStatus === 'prompt' ? 'default' : permStatus) as NotificationPermission;
+      setNotificationPermission(status);
+      if (status === 'default') {
+        DhikrReminderService.requestNotificationPermission().then((perm) => {
+          setNotificationPermission(perm as NotificationPermission);
+        });
+      }
     }).catch(() => {
       if ('Notification' in window) {
         setNotificationPermission(Notification.permission);
+        if (Notification.permission === 'default') {
+          DhikrReminderService.requestNotificationPermission().then((perm) => {
+            setNotificationPermission(perm as NotificationPermission);
+          });
+        }
       }
     });
 
@@ -205,19 +211,11 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
     }
   };
 
-  const handleTestLockScreen = async () => {
-    setIsTestingLockScreen(true);
+  const handleTestCardInApp = () => {
+    DhikrReminderService.showDirectBanner(undefined, true);
     if (onShowToast) {
-      onShowToast('يتم الآن إرسال إشعار فوري تجريبي لشاشة القفل وشريط الإشعارات...', 'info');
+      onShowToast('تم إظهار بطاقة الذكر في أعلى الشاشة الآن بنجاح!', 'success');
     }
-    const success = await DhikrReminderService.testLockScreenNotification();
-    if (success) {
-      if (onShowToast) onShowToast('وصل التنبيه بنجاح! تفقّد شريط الإشعارات أو اقفل الشاشة لمعاينته.', 'success');
-      setNotificationPermission('granted');
-    } else {
-      if (onShowToast) onShowToast('يرجى السماح بإذن الإشعارات لتفعيل التنبيه على شاشة القفل والخلفية.', 'error');
-    }
-    setIsTestingLockScreen(false);
   };
 
   const handlePreviewReciter = async (reciter: DhikrReciterInfo) => {
@@ -233,6 +231,9 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
     const testDhikr = DHIKR_DATABASE[0]; // الصلاة على النبي
     const vol = (settings.volume ?? 85) / 100;
+
+    // Trigger the floating card for this preview so the user sees it in action
+    DhikrReminderService.showDirectBanner(testDhikr, false);
 
     try {
       await DhikrReminderService.playRealReciterVoice(testDhikr, reciter.id, vol);
@@ -261,13 +262,18 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto bg-black/70 backdrop-blur-md"
-          onClick={() => {
-            DhikrReminderService.stopAudio();
-            onClose();
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              DhikrReminderService.stopAudio();
+              onClose();
+            }
           }}
         >
           <motion.div
             key="dhikr-settings-container"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -314,13 +320,12 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleTestLockScreen}
-                  disabled={isTestingLockScreen}
-                  className="px-2.5 py-1 text-[11px] font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
-                  title="تجربة وصول التنبيه لشاشة القفل والخلفية"
+                  onClick={handleTestCardInApp}
+                  className="px-2.5 py-1 text-[11px] font-bold bg-emerald-500/25 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-400/40 rounded-xl transition-all flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+                  title="معاينة بطاقة الذكر العائمة أعلى الشاشة فوراً داخل التطبيق"
                 >
-                  <Bell size={12} className="fill-slate-950" />
-                  <span>{isTestingLockScreen ? 'جاري الإرسال...' : 'تجربة شاشة القفل'}</span>
+                  <Sparkles size={12} className="text-emerald-300" />
+                  <span>معاينة البطاقة 📿</span>
                 </button>
 
                 <button
@@ -370,23 +375,6 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
             >
               <ListFilter size={15} />
               <span>نوع الأذكار ({DHIKR_DATABASE.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('background')}
-              className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
-                activeTab === 'background'
-                  ? 'bg-white dark:bg-[#064e3b] text-emerald-900 dark:text-amber-300 shadow-sm border border-black/5 dark:border-white/10'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Smartphone size={15} />
-              <span>الخلفية وشاشة القفل</span>
-              {notificationPermission === 'granted' ? (
-                <CheckCircle2 size={13} className="text-emerald-500" />
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-              )}
             </button>
           </div>
 
@@ -580,6 +568,58 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                       </span>
                     </div>
                   )}
+                </div>
+
+                {/* Floating Banner Toggle on Screen */}
+                <div className="bg-white/80 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <span>إظهار بطاقة الذكر العائمة على الشاشة</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            settings.showFloatingBanner !== false
+                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                              : 'bg-slate-500/15 text-slate-500 border border-slate-500/20'
+                          }`}>
+                            {settings.showFloatingBanner !== false ? 'مفعّلة' : 'مغلقة'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          ظهور بطاقة إسلامية أنيقة في أعلى الشاشة بنص الذكر وفضله مع أزرار التسبيح والاستماع
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleUpdate({ showFloatingBanner: settings.showFloatingBanner === false ? true : false })}
+                      className={`w-12 h-6.5 rounded-full p-0.5 transition-colors cursor-pointer relative shrink-0 ${
+                        settings.showFloatingBanner !== false ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <div
+                        className={`w-5.5 h-5.5 rounded-full bg-white shadow-md transform transition-transform ${
+                          settings.showFloatingBanner !== false ? 'translate-x-[-1.35rem]' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      يمكنك معاينة واختبار ظهور البطاقة الآن:
+                    </span>
+                    <button
+                      onClick={handleTestCardInApp}
+                      className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                    >
+                      <Sparkles size={13} />
+                      <span>معاينة وتجربة البطاقة 📿</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -823,192 +863,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* 4. BACKGROUND & LOCK SCREEN TAB */}
-            {activeTab === 'background' && (
-              <div className="space-y-4">
-                {/* Status Hero Card */}
-                <div className="bg-gradient-to-br from-emerald-900 to-teal-950 text-white p-4.5 rounded-3xl border border-emerald-400/40 shadow-xl space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-xl shadow-lg shrink-0">
-                        🛡️
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-base font-arabic">
-                          التنبيه الاحترافي في الخلفية وشاشة القفل
-                        </h4>
-                        <p className="text-xs text-emerald-200/90 mt-0.5">
-                          يعمل التنبيه في الموعد المحدد سواءً كان التطبيق مفتوحاً أو مغلقاً أو الشاشة مقفلة
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-black/30 rounded-2xl p-3 space-y-2 border border-white/10 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/80">إذن إشعارات شاشة القفل:</span>
-                      {notificationPermission === 'granted' ? (
-                        <span className="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                          <CheckCircle2 size={13} />
-                          <span>مُفعّل ومسموح</span>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={handleRequestNotification}
-                          className="text-amber-300 font-bold bg-amber-400/20 hover:bg-amber-400/30 px-2 py-0.5 rounded-md border border-amber-400/40 flex items-center gap-1 cursor-pointer"
-                        >
-                          <Bell size={13} />
-                          <span>اضغط للسماح بالإذن</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/80">محرك الخلفية (Service Worker & MediaSession):</span>
-                      <span className="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-md">
-                        <CheckCircle2 size={13} />
-                        <span>نشط وجاهز 100%</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Immediate Test Button */}
-                  <div className="pt-1">
-                    <button
-                      onClick={handleTestLockScreen}
-                      disabled={isTestingLockScreen}
-                      className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
-                    >
-                      <Bell size={16} className="fill-slate-950 animate-bounce" />
-                      <span>{isTestingLockScreen ? 'جاري إرسال التنبيه...' : '⚡ اختبار التنبيه على شاشة القفل والخلفية الآن'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Vendor-Specific Battery Optimization Guide */}
-                <div className="bg-white/80 dark:bg-white/5 p-4 rounded-3xl border border-black/5 dark:border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs sm:text-sm font-bold flex items-center gap-2">
-                      <Smartphone size={16} className="text-amber-500" />
-                      <span>دليل ضبط تشغيل الخلفية حسب نوع هاتفك:</span>
-                    </label>
-                  </div>
-
-                  {/* Vendor Selection Pills */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { id: 'samsung' as const, name: 'سامسونج (Samsung)' },
-                      { id: 'xiaomi' as const, name: 'شاومي (Xiaomi / POCO)' },
-                      { id: 'huawei' as const, name: 'هواوي (Huawei / Honor)' },
-                      { id: 'oppo' as const, name: 'أوبو / ريلمي / ون بلس' },
-                      { id: 'iphone' as const, name: 'آيفون (iOS)' },
-                      { id: 'general' as const, name: 'أجهزة أخرى / كمبيوتر' },
-                    ].map(v => (
-                      <button
-                        key={v.id}
-                        onClick={() => setSelectedVendor(v.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          selectedVendor === v.id
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'bg-black/5 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-black/10'
-                        }`}
-                      >
-                        {v.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Instructions Content */}
-                  <div className="p-3.5 bg-black/5 dark:bg-black/30 rounded-2xl border border-black/5 dark:border-white/10 text-xs leading-relaxed space-y-2">
-                    {selectedVendor === 'samsung' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <BatteryCharging size={15} />
-                          <span>خطوات هواتف سامسونج (One UI):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>افتح <strong>الضبط (Settings)</strong> ➔ ثم <strong>التطبيقات (Apps)</strong>.</li>
-                          <li>اختر تطبيق <strong>أنيس القلوب</strong> ➔ ثم <strong>البطارية (Battery)</strong>.</li>
-                          <li>اختر <strong>غير مقيّد (Unrestricted)</strong> لضمان عمل التنبيه في موعده دائماً حتى والشاشة مقفلة.</li>
-                        </ol>
-                      </>
-                    )}
-
-                    {selectedVendor === 'xiaomi' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <Zap size={15} />
-                          <span>خطوات هواتف شاومي وريدمي وبوكو (MIUI / HyperOS):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>اضغط مطولاً على أيقونة التطبيق ➔ <strong>معلومات التطبيق (App Info)</strong>.</li>
-                          <li>فعّل خيار <strong>التشغيل التلقائي (Autostart)</strong>.</li>
-                          <li>انزل إلى <strong>موفر البطارية (Battery Saver)</strong> ➔ اختر <strong>لا توجد قيود (No restrictions)</strong>.</li>
-                          <li>في شاشة التطبيقات المفتوحة، اسحب التطبيق للأسفل واضغط على <strong>رمز القفل 🔒</strong>.</li>
-                        </ol>
-                      </>
-                    )}
-
-                    {selectedVendor === 'huawei' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <ShieldCheck size={15} />
-                          <span>خطوات هواتف هواوي وهونر (EMUI / HarmonyOS):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>افتح <strong>الإعدادات</strong> ➔ <strong>البطارية</strong> ➔ <strong>تشغيل التطبيقات (App Launch)</strong>.</li>
-                          <li>ابحث عن <strong>أنيس القلوب</strong> وغيّر الإعداد من تلقائي إلى <strong>يدوي</strong>.</li>
-                          <li>فعّل: <strong>التشغيل التلقائي</strong> + <strong>التشغيل في الخلفية</strong>.</li>
-                        </ol>
-                      </>
-                    )}
-
-                    {selectedVendor === 'oppo' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <BatteryCharging size={15} />
-                          <span>خطوات هواتف أوبو وريلمي وون بلس (ColorOS / RealmeUI):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>افتح <strong>إدارة التطبيقات</strong> ➔ اختر <strong>أنيس القلوب</strong>.</li>
-                          <li>اختر <strong>استخدام البطارية</strong> ➔ فعّل <strong>السماح بالنشاط في الخلفية</strong>.</li>
-                          <li>فعّل <strong>بدء التشغيل التلقائي</strong>.</li>
-                        </ol>
-                      </>
-                    )}
-
-                    {selectedVendor === 'iphone' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <Sparkles size={15} />
-                          <span>خطوات أجهزة آبل (iOS / iPadOS):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>تأكد من إضافة التطبيق للشاشة الرئيسية عبر متصفح سفاري (<strong>مشاركة ➔ إضافة للشاشة الرئيسية</strong>).</li>
-                          <li>اسمح بإذن الإشعارات عند فتح التطبيق.</li>
-                          <li>تأكد من عدم تفعيل وضع "عدم الإزعاج" أو تضمين أنيس القلوب في استثناءات التركيز.</li>
-                        </ol>
-                      </>
-                    )}
-
-                    {selectedVendor === 'general' && (
-                      <>
-                        <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                          <CheckCircle2 size={15} />
-                          <span>لأجهزة الكمبيوتر والمتصفحات (Chrome / Edge / Firefox):</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-                          <li>اضغط على رمز القفل بجانب شريط العنوان واسمح بـ <strong>الإشعارات (Notifications)</strong>.</li>
-                          <li>في إعدادات المتصفح، تأكد من تفعيل "متابعة تشغيل تطبيقات الخلفية عند إغلاق المتصفح".</li>
-                        </ol>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
+               </div>
             )}
           </div>
 

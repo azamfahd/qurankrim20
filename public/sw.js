@@ -1,79 +1,14 @@
-const CACHE_NAME = 'anis-al-qulub-app-v7';
-const RUNTIME_CACHE = 'anis-al-qulub-runtime-v7';
+const CACHE_NAME = 'anis-al-qulub-app-v8';
+const RUNTIME_CACHE = 'anis-al-qulub-runtime-v8';
 
-// الموارد الأساسية التي يجب تخزينها فوراً عند التثبيت (الخطوط، الصوتيات، الأيقونات)
-const PRECACHE_URLS = [
+// الموارد الأساسية القليلة الثابتة جداً
+const BASE_PRECACHE = [
   '/',
   '/index.html',
   '/manifest.json',
   '/version.json',
   '/build-assets.json',
-  '/fonts/local-fonts.css',
   '/app-icon.svg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
-  '/icons/apple-touch-icon.png',
-  '/icons/apple-touch-icon-180x180.png',
-  '/icons/favicon-32x32.png',
-  '/icons/favicon-16x16.png',
-  // كافة ملفات الخطوط المحلية (39 ملف woff2 مدمج)
-  '/fonts/amiri_400_italic_1.woff2',
-  '/fonts/amiri_400_italic_2.woff2',
-  '/fonts/amiri_400_italic_3.woff2',
-  '/fonts/amiri_400_normal_4.woff2',
-  '/fonts/amiri_400_normal_5.woff2',
-  '/fonts/amiri_400_normal_6.woff2',
-  '/fonts/amiri_700_normal_7.woff2',
-  '/fonts/amiri_700_normal_8.woff2',
-  '/fonts/amiri_700_normal_9.woff2',
-  '/fonts/aref_ruqaa_400_normal_10.woff2',
-  '/fonts/aref_ruqaa_400_normal_11.woff2',
-  '/fonts/aref_ruqaa_400_normal_12.woff2',
-  '/fonts/aref_ruqaa_700_normal_13.woff2',
-  '/fonts/aref_ruqaa_700_normal_14.woff2',
-  '/fonts/aref_ruqaa_700_normal_15.woff2',
-  '/fonts/cairo_400_normal_16.woff2',
-  '/fonts/cairo_400_normal_17.woff2',
-  '/fonts/cairo_400_normal_18.woff2',
-  '/fonts/cairo_600_normal_19.woff2',
-  '/fonts/cairo_600_normal_20.woff2',
-  '/fonts/cairo_600_normal_21.woff2',
-  '/fonts/cairo_700_normal_22.woff2',
-  '/fonts/cairo_700_normal_23.woff2',
-  '/fonts/cairo_700_normal_24.woff2',
-  '/fonts/cairo_800_normal_25.woff2',
-  '/fonts/cairo_800_normal_26.woff2',
-  '/fonts/cairo_800_normal_27.woff2',
-  '/fonts/reem_kufi_500_normal_28.woff2',
-  '/fonts/reem_kufi_500_normal_29.woff2',
-  '/fonts/reem_kufi_500_normal_30.woff2',
-  '/fonts/reem_kufi_500_normal_31.woff2',
-  '/fonts/reem_kufi_600_normal_32.woff2',
-  '/fonts/reem_kufi_600_normal_33.woff2',
-  '/fonts/reem_kufi_600_normal_34.woff2',
-  '/fonts/reem_kufi_600_normal_35.woff2',
-  '/fonts/reem_kufi_700_normal_36.woff2',
-  '/fonts/reem_kufi_700_normal_37.woff2',
-  '/fonts/reem_kufi_700_normal_38.woff2',
-  '/fonts/reem_kufi_700_normal_39.woff2',
-  // الملفات الصوتية المحلية للأذكار الأساسية (صوت الشيخ مشاري العفاسي)
-  '/audio/adhkar/mishary_salawat.mp3',
-  '/audio/adhkar/mishary_istighfar.mp3',
-  '/audio/adhkar/mishary_baqiyat.mp3',
-  '/audio/adhkar/mishary_hawqala.mp3',
-  '/audio/adhkar/mishary_tahsin.mp3',
-  '/audio/adhkar/mishary_preview.mp3',
-  // أصوات الأذان المحلية (8 مؤذنين مدمجين)
-  '/audio/adhan/mishary.mp3',
-  '/audio/adhan/al_mulla.mp3',
-  '/audio/adhan/madina.mp3',
-  '/audio/adhan/abdulbasit.mp3',
-  '/audio/adhan/mansour.mp3',
-  '/audio/adhan/alghamdi.mp3',
-  '/audio/adhan/qatami.mp3',
-  '/audio/adhan/aqsa.mp3'
 ];
 
 // Install Event: تخزين الملفات الأساسية وحزم البناء بأمان
@@ -82,19 +17,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // 1. تخزين الملفات الثابتة المعرفة مسبقاً
-      const precachePromises = PRECACHE_URLS.map(async (url) => {
+      const precachePromises = BASE_PRECACHE.map(async (url) => {
         try {
           const res = await fetch(url, { cache: 'no-cache' });
           if (res.ok) {
             await cache.put(url, res);
           }
         } catch (e) {
-          console.warn('Precache warning for static asset:', url, e);
+          console.warn('Precache warning for base static asset:', url, e);
         }
       });
       await Promise.allSettled(precachePromises);
 
-      // 2. فحص وتخزين كافة حزم البناء (JS/CSS Chunks) من build-assets.json
+      // 2. فحص وتخزين كافة ملفات المشروع (JS/CSS/Audio/Fonts) من build-assets.json
       try {
         const manifestRes = await fetch('/build-assets.json?t=' + Date.now(), { cache: 'no-store' });
         if (manifestRes.ok) {
@@ -102,12 +37,15 @@ self.addEventListener('install', (event) => {
           if (Array.isArray(dynamicAssets)) {
             const dynamicPromises = dynamicAssets.map(async (assetPath) => {
               try {
-                const aRes = await fetch(assetPath, { cache: 'no-cache' });
-                if (aRes.ok) {
-                  await cache.put(assetPath, aRes);
+                // Ensure we don't re-fetch what's already in BASE_PRECACHE to save slightly
+                if (!BASE_PRECACHE.includes(assetPath)) {
+                  const aRes = await fetch(assetPath, { cache: 'no-cache' });
+                  if (aRes.ok) {
+                    await cache.put(assetPath, aRes);
+                  }
                 }
               } catch (err) {
-                console.warn('Precache warning for build chunk:', assetPath, err);
+                console.warn('Precache warning for build chunk/asset:', assetPath, err);
               }
             });
             await Promise.allSettled(dynamicPromises);
@@ -644,7 +582,8 @@ self.addEventListener('notificationclick', (event) => {
       }
 
       if (self.clients.openWindow) {
-        return self.clients.openWindow('/?source=notification');
+        const dhikrParam = notificationData.dhikrId ? '&dhikrId=' + encodeURIComponent(notificationData.dhikrId) : '';
+        return self.clients.openWindow('/?source=notification' + dhikrParam);
       }
     })()
   );
