@@ -7,6 +7,8 @@ import { AdhanAudioEngine } from '../services/adhanService';
 import { NativeNotificationService } from '../services/nativeNotificationService';
 import { DhikrReminderService } from '../services/dhikrReminderService';
 import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
+import { AudioPoolManager } from '../services/audioPoolManager';
+import { appEventBus } from '../services/appEventBus';
 
 interface BatteryOptimizationGuideModalProps {
   isOpen: boolean;
@@ -42,11 +44,15 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
           onShowToast('يرجى تفعيل صلاحية الإشعارات أولاً', 'error');
           setIsTestingNotification(false);
           return;
+        } else {
+          setPermissionStatus('granted');
+          appEventBus.emit('APP_PERMISSIONS_UPDATED');
         }
 
-        await NativeNotificationService.setupAndroidChannels('mishary');
-        const channelId = NativeNotificationService.getAdhanChannelId('mishary');
-        const soundFile = NativeNotificationService.getAdhanSound('mishary');
+        const activeMuezzin = NativeNotificationService.getActiveMuezzinId();
+        await NativeNotificationService.syncChannelsWithActiveSettings(activeMuezzin);
+        const channelId = NativeNotificationService.getAdhanChannelId(activeMuezzin);
+        const soundFile = NativeNotificationService.getAdhanSound(activeMuezzin);
 
         await LocalNotifications.schedule({
           notifications: [
@@ -63,8 +69,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
         });
         onShowToast('تم إرسال إشعار الأذان التجريبي بنجاح! تحقق من شريط الإشعارات وشاشة القفل', 'success');
       } else {
-        const audio = new Audio('/audio/adhan/mishary.mp3');
-        audio.play().then(() => {
+        AudioPoolManager.playManaged('/audio/adhan/mishary.mp3').then(() => {
           onShowToast('جاري تشغيل صوت الأذان التجريبي...', 'info');
         }).catch(() => {
           onShowToast('اضغط على الشاشة لتأكيد إذن تشغيل الصوت', 'info');
@@ -86,11 +91,15 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
           onShowToast('يرجى تفعيل صلاحية الإشعارات أولاً', 'error');
           setIsTestingDhikr(false);
           return;
+        } else {
+          setPermissionStatus('granted');
+          appEventBus.emit('APP_PERMISSIONS_UPDATED');
         }
 
-        await NativeNotificationService.setupAndroidChannels('mishary');
-        const channelId = NativeNotificationService.getDhikrChannelId('prophet_salawat');
-        const soundFile = NativeNotificationService.getDhikrSound('prophet_salawat');
+        const activeReciter = NativeNotificationService.getActiveReciterId();
+        await NativeNotificationService.syncChannelsWithActiveSettings(undefined, activeReciter);
+        const channelId = NativeNotificationService.getDhikrChannelId('prophet_salawat', false, activeReciter);
+        const soundFile = NativeNotificationService.getDhikrSound('prophet_salawat', activeReciter);
 
         await LocalNotifications.schedule({
           notifications: [
@@ -107,8 +116,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
         });
         onShowToast('تم إرسال تنبيه الذكر التجريبي بنجاح بصوت الشيخ مشاري! تفقّد شاشة القفل', 'success');
       } else {
-        const audio = new Audio('/audio/adhkar/mishary_salawat.mp3');
-        audio.play().then(() => {
+        AudioPoolManager.playManaged('/audio/adhkar/mishary_salawat.mp3').then(() => {
           onShowToast('جاري تشغيل صوت الذكر التجريبي بصوت الشيخ مشاري...', 'info');
         }).catch(() => {
           onShowToast('اضغط على الشاشة لتأكيد إذن تشغيل الصوت', 'info');
@@ -149,6 +157,7 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
         const status = await LocalNotifications.requestPermissions();
         if (status.display === 'granted') {
           setPermissionStatus('granted');
+          appEventBus.emit('APP_PERMISSIONS_UPDATED');
           onShowToast('تم منح إذن الإشعارات بنجاح!', 'success');
         } else {
           setPermissionStatus('denied');

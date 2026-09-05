@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { Coordinates, CalculationMethod, PrayerTimes, Madhab } from "adhan";
+import { ServerAIService } from "./server/aiService";
 
 async function startServer() {
   const app = express();
@@ -121,6 +122,34 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Secure Server-Side Gemini AI Chat Endpoint
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const customKey = (req.headers["x-user-gemini-key"] as string) || undefined;
+      const result = await ServerAIService.generateResponse(req.body, customKey);
+      
+      if (!result.success) {
+        return res.status(result.status || 500).json(result);
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error("[Server] /api/ai/chat error:", error);
+      return res.status(500).json({
+        success: false,
+        error: error?.message || "Internal server error during AI generation"
+      });
+    }
+  });
+
+  // Check server AI status (whether a server-side GEMINI_API_KEY is configured)
+  app.get("/api/ai/status", (req, res) => {
+    const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
+    res.json({
+      configured: hasKey,
+      status: hasKey ? "ready" : "no_key"
+    });
   });
 
   // Prayer times API endpoint for backend calculations & verification

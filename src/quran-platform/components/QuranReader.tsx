@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { QuranSyncService } from '../services/quranSyncService';
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { QuranPageViewer } from './QuranPageViewer';
 import { QuranSettingsModal, MUSHAF_THEMES } from './QuranSettingsModal';
 import { AyahMarker, getCleanSurahName, DecoratedBismillah, toArabicNumerals } from './AyahMarker';
+import { OptimizedAyahItem, OptimizedAyahChunk } from './OptimizedAyahBlock';
 const HIGHLIGHT_COLORS = [
   { id: 'none', class: '' },
   { id: 'yellow', class: 'bg-yellow-200/60 dark:bg-yellow-900/40' },
@@ -229,17 +230,53 @@ const QuranReader = () => {
     return bookmarks.some(b => b.surah === currentSurah && b.ayah === ayahNumber);
   };
 
-  const toggleWordReveal = (wordId: string, e: React.MouseEvent) => {
-    if (!isMemorizeMode) return;
+  const toggleWordReveal = useCallback((wordId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newRevealed = new Set(revealedWords);
-    if (newRevealed.has(wordId)) {
-      newRevealed.delete(wordId);
-    } else {
-      newRevealed.add(wordId);
+    setRevealedWords((prev) => {
+      const newRevealed = new Set(prev);
+      if (newRevealed.has(wordId)) {
+        newRevealed.delete(wordId);
+      } else {
+        newRevealed.add(wordId);
+      }
+      return newRevealed;
+    });
+  }, []);
+
+  const toggleVerseReveal = useCallback((ayahNumber: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRevealedVerses((prev) => {
+      const newRevealed = new Set(prev);
+      if (newRevealed.has(ayahNumber)) {
+        newRevealed.delete(ayahNumber);
+      } else {
+        newRevealed.add(ayahNumber);
+      }
+      return newRevealed;
+    });
+  }, []);
+
+  const handleAyahClick = useCallback((ayahNumber: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveAyahMenu((prev) => (prev === ayahNumber ? null : ayahNumber));
+    setShowHighlightMenu(null);
+  }, []);
+
+  const handlePlayDirect = useCallback((ayahNumber: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPlayingAyahNumber(ayahNumber);
+    setIsAudioPlaying(true);
+  }, [setPlayingAyahNumber, setIsAudioPlaying]);
+
+  const ayahChunks = useMemo(() => {
+    if (!surahData?.ayahs || !Array.isArray(surahData.ayahs)) return [];
+    const chunkSize = 25; // 25 ayahs per contained chunk for buttery smooth 60fps
+    const chunks: any[][] = [];
+    for (let i = 0; i < surahData.ayahs.length; i += chunkSize) {
+      chunks.push(surahData.ayahs.slice(i, i + chunkSize));
     }
-    setRevealedWords(newRevealed);
-  };
+    return chunks;
+  }, [surahData?.ayahs]);
 
   const toggleHighlight = (ayahNumber: number, colorId: string) => {
     const key = `${currentSurah}_${ayahNumber}`;
@@ -485,195 +522,44 @@ const QuranReader = () => {
               direction: 'rtl'
             }}
           >
-            {surahData.ayahs.map((ayah: any, i: number) => {
-              let text = ayah.text;
-              if (currentSurah !== 1 && ayah.numberInSurah === 1 && text.startsWith('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ')) {
-                text = text.replace('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ', '');
-              }
+            {ayahChunks.map((chunk, chunkIdx) => (
+              <OptimizedAyahChunk key={`chunk-${currentSurah}-${chunkIdx}`} chunkIndex={chunkIdx}>
+                {chunk.map((ayah: any) => {
+                  const ayahNumber = ayah.numberInSurah || ayah.number;
+                  const isBookmarked = isAyahBookmarked(ayahNumber);
+                  const isActive = activeAyahMenu === ayahNumber;
+                  const isMarked = !!markedVerses[`${currentSurah}_${ayahNumber}`];
+                  const highlightId = highlights[`${currentSurah}_${ayahNumber}`];
+                  const highlightClass = highlightId ? HIGHLIGHT_COLORS.find(c => c.id === highlightId)?.class : '';
+                  const isPlayingThisAyah = playingAyahNumber === ayahNumber && isAudioPlaying && currentSurah === surahData?.number;
+                  const isVerseHidden = isMemorizeMode && memorizeType === 'verses' && !revealedVerses.has(ayahNumber);
 
-              const words = text.split(' ');
-              const isBookmarked = isAyahBookmarked(ayah.numberInSurah);
-              const isActive = activeAyahMenu === ayah.numberInSurah;
-              const translation = translationData?.ayahs?.[i]?.text;
-              
-              const highlightId = highlights[`${currentSurah}_${ayah.numberInSurah}`];
-              const highlightClass = highlightId ? HIGHLIGHT_COLORS.find(c => c.id === highlightId)?.class : '';
-
-              const isPlayingThisAyah = playingAyahNumber === ayah.numberInSurah && isAudioPlaying && currentSurah === surahData?.number;
-
-              const isVerseHidden = isMemorizeMode && memorizeType === 'verses' && !revealedVerses.has(ayah.numberInSurah);
-
-              const ayahContent = isVerseHidden ? (
-                <span 
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 mx-1.5 my-1 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 rounded-2xl select-none align-middle font-sans text-xs transition-all hover:bg-amber-500/25 cursor-pointer relative"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newRevealed = new Set(revealedVerses);
-                    newRevealed.add(ayah.numberInSurah);
-                    setRevealedVerses(newRevealed);
-                  }}
-                  title="آية مخفية - انقر لإظهارها يدوياً"
-                >
-                  <span className="font-bold text-amber-850 dark:text-amber-400 flex items-center gap-1">
-                    <Brain size={12} className="animate-pulse text-amber-600 dark:text-amber-400" />
-                    آية {toArabicNumerals(ayah.numberInSurah)} مخفية
-                  </span>
-                  
-                  {/* Listen Directly Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPlayingAyahNumber(ayah.numberInSurah);
-                      setIsAudioPlaying(true);
-                    }}
-                    className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-transform scale-90 hover:scale-105 cursor-pointer flex items-center justify-center shadow-xs"
-                    title="استماع مباشر للآية للتحقق"
-                  >
-                    <Play size={10} className="fill-current" />
-                  </button>
-
-                  {/* Show eye icon */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newRevealed = new Set(revealedVerses);
-                      newRevealed.add(ayah.numberInSurah);
-                      setRevealedVerses(newRevealed);
-                    }}
-                    className="p-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white rounded-lg transition-transform scale-90 hover:scale-105 cursor-pointer flex items-center justify-center shadow-xs"
-                    title="إظهار الآية"
-                  >
-                    <Eye size={10} />
-                  </button>
-                </span>
-              ) : (
-                <span className={`${isPlayingThisAyah ? 'text-[var(--color-primary-dark)] dark:text-emerald-300 font-bold' : isBookmarked && !isMemorizeMode ? 'text-[var(--color-primary-dark)] font-medium' : currentTheme.textColor} ${highlightClass || ''}`}>
-                  {words.map((word: string, index: number) => {
-                    const wordId = `${ayah.numberInSurah}-${index}`;
-                    
-                    // Determine if this word should be hidden based on percentage
-                    let shouldBeHiddenByPercent = false;
-                    if (isMemorizeMode && memorizeType === 'words') {
-                      if (memorizePercent === 100) {
-                        shouldBeHiddenByPercent = true;
-                      } else if (memorizePercent === 50) {
-                        shouldBeHiddenByPercent = index % 2 === 0;
-                      } else if (memorizePercent === 25) {
-                        shouldBeHiddenByPercent = index % 4 === 0;
-                      }
-                    }
-
-                    const isWordHidden = isMemorizeMode && memorizeType === 'words' && shouldBeHiddenByPercent && !revealedWords.has(wordId);
-                    
-                    return (
-                      <React.Fragment key={wordId}>
-                        <span 
-                          onClick={(e) => {
-                            if (isWordHidden) {
-                              toggleWordReveal(wordId, e);
-                            } else if (isMemorizeMode && memorizeType === 'words') {
-                              // Toggle back and forth on click
-                              toggleWordReveal(wordId, e);
-                            }
-                          }}
-                          className={isMemorizeMode && memorizeType === 'words' ? 'cursor-pointer hover:bg-amber-500/10 rounded px-0.5' : ''}
-                          style={isWordHidden ? {
-                            color: 'transparent',
-                            backgroundColor: currentTheme.id === 'night' ? '#3f3f46' : '#e4e4e7',
-                            borderRadius: '4px',
-                            paddingLeft: '4px',
-                            paddingRight: '4px',
-                            marginRight: '2px',
-                            marginLeft: '2px',
-                            userSelect: 'none'
-                          } : {}}
-                          title={isWordHidden ? "انقر لإظهار هذه الكلمة" : undefined}
-                        >
-                          {word}
-                        </span>
-                        {' '}
-                      </React.Fragment>
-                    );
-                  })}
-                </span>
-              );
-
-              const ayahMarker = (
-                <AyahMarker
-                  ayahNumber={ayah.numberInSurah}
-                  themeId={currentTheme.id}
-                  isPlaying={isPlayingThisAyah}
-                  isBookmarked={isBookmarked && !isMemorizeMode}
-                  isMemorizeHidden={isMemorizeMode && memorizeType === 'words' && !revealedWords.has(`ayah-marker-${ayah.numberInSurah}`)}
-                  onClick={(e) => {
-                    if (isMemorizeMode) {
-                      if (memorizeType === 'words') {
-                        toggleWordReveal(`ayah-marker-${ayah.numberInSurah}`, e);
-                      } else {
-                        // Toggle verse hide/show
-                        const newRevealed = new Set(revealedVerses);
-                        if (newRevealed.has(ayah.numberInSurah)) {
-                          newRevealed.delete(ayah.numberInSurah);
-                        } else {
-                          newRevealed.add(ayah.numberInSurah);
-                        }
-                        setRevealedVerses(newRevealed);
-                      }
-                    }
-                  }}
-                />
-              );
-
-              // Play and hide buttons direct shortcuts next to revealed verses in memorize mode
-              const playButtonDirect = isMemorizeMode && !isVerseHidden && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPlayingAyahNumber(ayah.numberInSurah);
-                    setIsAudioPlaying(true);
-                  }}
-                  className="inline-flex items-center justify-center p-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-md transition-all scale-90 mx-1 align-middle cursor-pointer"
-                  title="استماع لهذه الآية للتحقق"
-                >
-                  <Play size={11} className="fill-current" />
-                </button>
-              );
-
-              const hideButtonDirect = isMemorizeMode && memorizeType === 'verses' && revealedVerses.has(ayah.numberInSurah) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newRevealed = new Set(revealedVerses);
-                    newRevealed.delete(ayah.numberInSurah);
-                    setRevealedVerses(newRevealed);
-                  }}
-                  className="inline-flex items-center justify-center p-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 rounded-md transition-all scale-90 mx-1 align-middle cursor-pointer"
-                  title="إخفاء الآية مجدداً"
-                >
-                  <EyeOff size={11} />
-                </button>
-              );
-
-              return (
-                <span 
-                  key={`${currentSurah}_${ayah.numberInSurah || ayah.number}`}
-                  id={`ayah-${ayah.numberInSurah}`}
-                  className={`inline transition-all duration-300 rounded relative px-1 ${isPlayingThisAyah ? 'bg-[var(--color-primary)]/20 dark:bg-[var(--color-primary)]/40 ring-2 ring-[var(--color-primary)] ring-offset-1 font-bold shadow-sm' : isActive ? (currentTheme.id === 'night' ? 'bg-[var(--color-primary)]/20' : 'bg-[var(--color-primary)]/10') : !isMemorizeMode ? (currentTheme.id === 'night' ? 'hover:bg-gray-800 cursor-pointer' : 'hover:bg-[var(--color-primary)]/5 cursor-pointer') : ''}`}
-                  onClick={(e) => {
-                    if (isMemorizeMode) return; // Disable ayah menu in memorize mode
-                    e.stopPropagation();
-                    
-                    setActiveAyahMenu(isActive ? null : ayah.numberInSurah);
-                    setShowHighlightMenu(null);
-                  }}
-                >
-                  {ayahContent}
-                  {playButtonDirect}
-                  {hideButtonDirect}
-                  {ayahMarker}
-                </span>
-              );
-            })}
+                  return (
+                    <OptimizedAyahItem
+                      key={`${currentSurah}_${ayahNumber}`}
+                      currentSurah={currentSurah}
+                      ayah={ayah}
+                      isBookmarked={isBookmarked}
+                      isActive={isActive}
+                      isMarked={isMarked}
+                      isPlayingThisAyah={isPlayingThisAyah}
+                      highlightClass={highlightClass}
+                      isMemorizeMode={isMemorizeMode}
+                      memorizeType={memorizeType}
+                      memorizePercent={memorizePercent}
+                      isVerseHidden={isVerseHidden}
+                      revealedWords={revealedWords}
+                      revealedVerses={revealedVerses}
+                      currentTheme={currentTheme}
+                      onAyahClick={handleAyahClick}
+                      onPlayDirect={handlePlayDirect}
+                      onToggleWordReveal={toggleWordReveal}
+                      onToggleVerseReveal={toggleVerseReveal}
+                    />
+                  );
+                })}
+              </OptimizedAyahChunk>
+            ))}
           </div>
         </div>
       </div>

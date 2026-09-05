@@ -64,15 +64,12 @@ export const UpdateNotifier: React.FC = () => {
       }}
       onUpdate={() => {
         setIsDismissed(true);
-        if (updateInfo.updateUrl) {
-          window.open(updateInfo.updateUrl, '_blank');
-        } else {
-          const link = document.createElement('a');
-          link.href = '/app-release.apk';
-          link.download = 'أنيس القلوب - القرآن الذكي.apk';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+        const downloadUrl = updateInfo.updateUrl || 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/app-release.apk';
+        try {
+          // Open in external system browser/download manager so Android triggers package installer prompt
+          window.open(downloadUrl, '_system');
+        } catch {
+          window.location.href = downloadUrl;
         }
       }}
       onDismiss={() => setIsDismissed(true)}

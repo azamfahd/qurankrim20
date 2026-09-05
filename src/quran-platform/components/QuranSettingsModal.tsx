@@ -10,6 +10,7 @@ import { useQuranContext, MushafTheme } from '../store/QuranContext';
 import { QuranSyncService } from '../services/quranSyncService';
 import { QuranDataService, TextCacheProgress } from '../services/QuranDataService';
 import { DownloadManager } from '../../services/DownloadManager';
+import { QURAN_RECITERS, normalizeReciterId } from '../../utils/quranAudio';
 
 export const MUSHAF_THEMES: {
   id: MushafTheme;
@@ -73,24 +74,7 @@ export const MUSHAF_THEMES: {
   }
 ];
 
-export const RECITERS = [
-  { id: 'ar.minshawi', name: 'محمد صديق المنشاوي (مرتل)', desc: 'تلاوة خاشعة ومؤثرة جداً' },
-  { id: 'ar.minshawimujawwad', name: 'محمد صديق المنشاوي (مجود)', desc: 'المصحف المجود الخالد' },
-  { id: 'ar.abdulbasitmurattal', name: 'عبد الباسط عبد الصمد (مرتل)', desc: 'المصحف المرتل الخاشع' },
-  { id: 'ar.abdulbasitmujawwad', name: 'عبد الباسط عبد الصمد (مجود)', desc: 'صوت مكة الخالد والأداء الفريد' },
-  { id: 'ar.husary', name: 'محمود خليل الحصري (مرتل)', desc: 'المصحف المعلم المتقن بدقة التجويد' },
-  { id: 'ar.husarymujawwad', name: 'محمود خليل الحصري (مجود)', desc: 'التلاوة المجودة الرائعة' },
-  { id: 'ar.faresabbad', name: 'فارس عباد', desc: 'تلاوة عذبة وشجية مرتلة' },
-  { id: 'ar.alafasy', name: 'مشاري راشد العفاسي', desc: 'تلاوة خاشعة ومحبوبة' },
-  { id: 'ar.yasseraldosari', name: 'ياسر الدوسري', desc: 'تلاوة مهيبة من الحرم المكي' },
-  { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي', desc: 'إمام المسجد الحرام' },
-  { id: 'ar.as-sudais', name: 'عبد الرحمن السديس', desc: 'إمام وخطيب المسجد الحرام' },
-  { id: 'ar.saoodshuraym', name: 'سعود الشريم', desc: 'تلاوة الحرم المكي' },
-  { id: 'ar.ahmedajamy', name: 'أحمد بن علي العجمي', desc: 'تلاوة عذبة ومؤثرة' },
-  { id: 'ar.shaatree', name: 'أبو بكر الشاطري', desc: 'تلاوة هادئة ووقورة' },
-  { id: 'ar.hudhaify', name: 'علي عبد الرحمن الحذيفي', desc: 'إمام المسجد النبوي الشريف' },
-  { id: 'ar.hanirifai', name: 'هاني الرفاعي', desc: 'تلاوة باكية خاشعة' },
-];
+export const RECITERS = QURAN_RECITERS;
 
 export type SettingsTab = 'display' | 'khatmah_stats' | 'sync' | 'quick_access';
 
@@ -269,7 +253,7 @@ export const QuranSettingsModal: React.FC = () => {
   const handleDownloadAllText = async () => {
     if (textCacheStatus.isCached) {
       setCacheMessage({
-        text: 'المصحف الشريف والتفاسير محملة بالفعل بالكامل لديك للعمل أوفلاين. إذا كنت ترغب في إعادة التحميل، يرجى القيام بحذف النسخة الحالية أولاً عن طريق الضغط على زر "مسح".',
+        text: 'المصحف الشريف والتفاسير محملة وموجودة بالفعل بالكامل لديك في الذاكرة وجاهزة للعمل بدون إنترنت. إذا كنت ترغب في إعادة التحميل، يرجى القيام بحذف النسخة الحالية أولاً بالضغط على زر "مسح".',
         type: 'info'
       });
       // Clear message after 8 seconds
@@ -691,13 +675,13 @@ export const QuranSettingsModal: React.FC = () => {
                       القارئ المفضل لتلاوة المصحف:
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] dark:text-emerald-300 font-bold">
-                      {RECITERS.find(r => r.id === reciter)?.name || 'محمد صديق المنشاوي'}
+                      {RECITERS.find(r => normalizeReciterId(r.id) === normalizeReciterId(reciter))?.name || 'فارس عباد'}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                     {RECITERS.map((r) => {
-                      const isSelected = reciter === r.id;
+                      const isSelected = normalizeReciterId(reciter) === normalizeReciterId(r.id);
                       return (
                         <button
                           key={r.id}

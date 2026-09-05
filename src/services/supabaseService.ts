@@ -315,7 +315,6 @@ export class SupabaseService {
           model: settings.model,
           creativity_level: settings.creativityLevel,
           reciter: settings.reciter,
-          api_key: settings.apiKey,
           bookmarks: settings.bookmarks || [],
           location: Object.keys(locationData).length > 0 ? locationData : null,
           last_updated: settings.lastUpdated || new Date().toISOString()
@@ -360,7 +359,6 @@ export class SupabaseService {
         model: data.model,
         creativityLevel: data.creativity_level,
         reciter: data.reciter || 'ar.faresabbad',
-        apiKey: data.api_key,
         bookmarks: typeof data.bookmarks === 'string' ? JSON.parse(data.bookmarks) : (data.bookmarks || []),
         location: realLocation,
         analysisStyle: analysisStyle,
@@ -493,14 +491,6 @@ export class SupabaseService {
           username: localSettings.username === 'زائر مؤقت' ? 'مستخدم جديد' : localSettings.username,
           lastUpdated: new Date().toISOString()
         });
-      } else if (localSettings.apiKey && !existingSettings.api_key) {
-        // If logged-in user exists in DB but has no API key in DB, migrate the local custom API key
-        await this.saveUserSettings(realUserId, {
-          ...existingSettings,
-          api_key: localSettings.apiKey,
-          apiKey: localSettings.apiKey,
-          lastUpdated: new Date().toISOString()
-        });
       }
 
       // 2. Upload any local guest sessions to Supabase
@@ -539,7 +529,6 @@ export class SupabaseService {
           model: settings.model || 'gemini-3.5-flash',
           creativity_level: settings.creativityLevel ?? 0.5,
           reciter: settings.reciter || 'ar.faresabbad',
-          api_key: settings.apiKey || null,
           bookmarks: settings.bookmarks || [],
           location: Object.keys(locationData).length > 0 ? locationData : null,
           last_active: metadata.lastActive,

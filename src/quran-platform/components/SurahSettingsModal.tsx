@@ -9,6 +9,7 @@ import { useQuranContext } from '../store/QuranContext';
 import { getSurahMetaData, SurahMetaDetails } from '../data/surahMetaData';
 import { QuranDataService } from '../services/QuranDataService';
 import { RECITERS } from './QuranSettingsModal';
+import { normalizeReciterId } from '../../utils/quranAudio';
 import { getCleanSurahName } from './AyahMarker';
 
 export type SurahTab = 'info' | 'memorize' | 'tafsir' | 'ayahs';
@@ -379,7 +380,7 @@ export const SurahSettingsModal: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
                     {RECITERS.map((r) => {
-                      const isSelected = reciter === r.id;
+                      const isSelected = normalizeReciterId(reciter) === normalizeReciterId(r.id);
                       return (
                         <button
                           key={r.id}

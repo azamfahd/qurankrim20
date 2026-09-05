@@ -14,6 +14,22 @@ export interface NativeAudioMediaSessionOptions {
 export class NativeForegroundService {
   private static wakeLock: any = null;
   private static isAudioActive = false;
+  private static visibilityListenerAttached = false;
+
+  private static initVisibilityListener() {
+    if (this.visibilityListenerAttached || typeof document === 'undefined') return;
+    this.visibilityListenerAttached = true;
+
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && this.isAudioActive && !this.wakeLock) {
+        try {
+          await this.requestWakeLock();
+        } catch (e) {
+          console.warn('[NativeForegroundService] Re-acquiring WakeLock on visibility change:', e);
+        }
+      }
+    });
+  }
 
   /**
    * Initializes MediaSession API (Android & iOS Notification Center Media Player)
@@ -23,6 +39,9 @@ export class NativeForegroundService {
     if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
 
     try {
+      this.isAudioActive = true;
+      this.initVisibilityListener();
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: options.title,
         artist: options.artist,
@@ -65,6 +84,9 @@ export class NativeForegroundService {
     if (typeof window === 'undefined' || !('wakeLock' in navigator)) return false;
 
     try {
+      this.isAudioActive = true;
+      this.initVisibilityListener();
+
       if (!this.wakeLock) {
         this.wakeLock = await (navigator as any).wakeLock.request('screen');
         console.info('[NativeForegroundService] Screen/CPU WakeLock active.');
@@ -84,6 +106,7 @@ export class NativeForegroundService {
    * Releases active WakeLock when audio finishes
    */
   public static async releaseWakeLock() {
+    this.isAudioActive = false;
     if (this.wakeLock) {
       try {
         await this.wakeLock.release();

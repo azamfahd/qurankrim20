@@ -34,11 +34,12 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
     setIsTestingAdhan(true);
     try {
       if (Capacitor.isNativePlatform()) {
-        await NativeNotificationService.setupAndroidChannels('mishary');
+        const activeMuezzin = NativeNotificationService.getActiveMuezzinId();
+        await NativeNotificationService.syncChannelsWithActiveSettings(activeMuezzin);
         const res = await NativeForegroundService.triggerTestNativeAlarm(
           '🕌 حان موعد أذان صلاة الظهر',
-          'الله أكبر، حي على الصلاة، حي على الفلاح (بصوت الشيخ مشاري العفاسي)',
-          'mishary.mp3'
+          'الله أكبر، حي على الصلاة، حي على الفلاح',
+          `${activeMuezzin}.mp3`
         );
         if (res && onShowToast) {
           onShowToast('تم إرسال إشعار الأذان الأصيل بنجاح 🔊', 'success');
@@ -59,11 +60,13 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
     setIsTestingDhikr(true);
     try {
       if (Capacitor.isNativePlatform()) {
-        await NativeNotificationService.setupAndroidChannels('mishary');
+        const activeReciter = NativeNotificationService.getActiveReciterId();
+        await NativeNotificationService.syncChannelsWithActiveSettings(undefined, activeReciter);
+        const sound = NativeNotificationService.getDhikrSound('prophet_salawat', activeReciter);
         const res = await NativeForegroundService.triggerTestNativeAlarm(
           '📿 ذكر وتسبحة',
           'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ',
-          'mishary_salawat.mp3'
+          sound
         );
         if (res && onShowToast) {
           onShowToast('تم إرسال إشعار الذكر الأصيل بنجاح 🔊', 'success');

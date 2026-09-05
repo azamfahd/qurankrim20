@@ -65,10 +65,14 @@ class DownloadManagerService extends EventEmitter {
   addTask(task: Omit<DownloadTask, 'progress' | 'status' | 'completedItems' | 'totalItems' | 'abortController'> & { totalItems?: number }) {
     if (this.tasks.has(task.id)) {
         const existing = this.tasks.get(task.id)!;
-        if (existing.status !== 'downloading' && existing.status !== 'completed') {
+        if (existing.status === 'completed' || existing.status === 'error') {
+            this.tasks.delete(task.id);
+        } else if (existing.status === 'downloading') {
+            return;
+        } else {
             this.resumeTask(task.id);
+            return;
         }
-        return;
     }
 
     const newTask: DownloadTask = {

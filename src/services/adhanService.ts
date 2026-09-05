@@ -5,6 +5,8 @@ import { requestDynamicPermission, PermissionService } from "./permissionService
 import { NativeNotificationService } from "./nativeNotificationService";
 import { Coordinates, CalculationMethod, PrayerTimes, Madhab, HighLatitudeRule } from 'adhan';
 import { UserLocation, AdhanSettings } from '../types';
+import { appEventBus } from './appEventBus';
+import { ResilientIndexedDB } from './resilientIndexedDB';
 
 export interface MuezzinInfo {
   id: string;
@@ -120,30 +122,16 @@ const ADHAN_RUNTIME_CACHE = 'anis-al-qulub-runtime-v5';
  * Robust IndexedDB & Cache Storage Helper for 100% Offline Adhan Audio
  */
 export class AdhanOfflineManager {
-  private static dbPromise: Promise<IDBDatabase> | null = null;
-  private static activeDownloads: Map<string, Promise<{ success: boolean; error?: string }>> = new Map();
-
-  private static getDB(): Promise<IDBDatabase> {
-    if (!this.dbPromise) {
-      this.dbPromise = new Promise((resolve, reject) => {
-        if (typeof indexedDB === 'undefined') {
-          reject(new Error('IndexedDB is not supported'));
-          return;
-        }
-
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
+  private static DB_CONFIG = {
+    dbName: DB_NAME,
+    version: 1,
+    onUpgrade: (db: IDBDatabase) => {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
     }
-    return this.dbPromise;
-  }
+  };
+  private static activeDownloads: Map<string, Promise<{ success: boolean; error?: string }>> = new Map();
 
   /**
    * Validate audio blob integrity (checks MIME type and minimum size to avoid caching HTML 404s)
@@ -223,10 +211,7 @@ export class AdhanOfflineManager {
 
       // 2. Mirror into IndexedDB for persistent blob records
       try {
-        const db = await this.getDB();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, 'readwrite');
-          const store = tx.objectStore(STORE_NAME);
+        await ResilientIndexedDB.executeWrite(this.DB_CONFIG, STORE_NAME, async (tx, stores) => {
           const item = {
             id: muezzinId,
             blob,
@@ -234,17 +219,14 @@ export class AdhanOfflineManager {
             type: blob.type || 'audio/mpeg',
             updatedAt: Date.now()
           };
-          store.put(item);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-          tx.onabort = () => reject(new Error('Transaction aborted'));
+          stores[STORE_NAME].put(item);
         });
       } catch (idbErr) {
         console.warn('IndexedDB mirror notice:', idbErr);
       }
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('ADHAN_STORAGE_UPDATED', { detail: { muezzinId, size: blob.size } }));
+        appEventBus.emit('ADHAN_STORAGE_UPDATED', { muezzinId, size: blob.size });
       }
 
       return true;
@@ -319,13 +301,12 @@ export class AdhanOfflineManager {
 
     // 2. Fallback to IndexedDB
     try {
-      const db = await this.getDB();
-      const item = await new Promise<any>((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(muezzinId);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
+      const item = await ResilientIndexedDB.executeRead<any>(this.DB_CONFIG, STORE_NAME, async (store) => {
+        return new Promise((resolve) => {
+          const req = store.get(muezzinId);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        });
       });
 
       if (item && item.blob) {
@@ -357,6 +338,22 @@ export class AdhanOfflineManager {
     const validIdsSet = new Set<string>();
     let totalSize = 0;
 
+    // Check Native Filesystem on Capacitor
+    if (Capacitor.isNativePlatform()) {
+      for (const m of MUEZZINS_LIST) {
+        try {
+          const stat = await Filesystem.stat({
+            directory: Directory.Data,
+            path: `adhan_${m.id}.mp3`
+          });
+          if (stat && stat.size > 50000) {
+            validIdsSet.add(m.id);
+            totalSize += stat.size;
+          }
+        } catch {}
+      }
+    }
+
     // Check Cache API
     if (typeof caches !== 'undefined') {
       try {
@@ -376,13 +373,12 @@ export class AdhanOfflineManager {
 
     // Check IndexedDB
     try {
-      const db = await this.getDB();
-      const items = await new Promise<any[]>((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => resolve([]);
+      const items = await ResilientIndexedDB.executeRead<any[]>(this.DB_CONFIG, STORE_NAME, async (store) => {
+        return new Promise((resolve) => {
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        });
       });
 
       for (const it of items) {
@@ -405,6 +401,14 @@ export class AdhanOfflineManager {
    */
   public static async deleteMuezzin(muezzinId: string): Promise<boolean> {
     try {
+      // 0. Stop playback if this muezzin is currently active
+      if (AdhanAudioEngine.isPlaying()) {
+        const state = AdhanAudioEngine.getEngineState();
+        if (state.activeMuezzinId === muezzinId) {
+          AdhanAudioEngine.stop();
+        }
+      }
+
       // 1. Delete from Cache API
       if (typeof caches !== 'undefined') {
         try {
@@ -415,6 +419,7 @@ export class AdhanOfflineManager {
           if (muezzin && muezzin.audioUrls) {
             for (const u of muezzin.audioUrls) {
               await cache.delete(u).catch(() => {});
+              await cache.delete(resolveAudioPath(u)).catch(() => {});
             }
           }
         } catch (e) {
@@ -422,23 +427,29 @@ export class AdhanOfflineManager {
         }
       }
 
-      // 2. Delete from IndexedDB
+      // 2. Delete from Native Filesystem (Capacitor)
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await Filesystem.deleteFile({
+            path: `adhan_${muezzinId}.mp3`,
+            directory: Directory.Data
+          });
+        } catch (nativeErr) {
+          // File might not exist on native storage, ignore
+        }
+      }
+
+      // 3. Delete from IndexedDB
       try {
-        const db = await this.getDB();
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, 'readwrite');
-          const store = tx.objectStore(STORE_NAME);
-          store.delete(muezzinId);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-          tx.onabort = () => reject(new Error('Transaction aborted'));
+        await ResilientIndexedDB.executeWrite(this.DB_CONFIG, STORE_NAME, async (tx, stores) => {
+          stores[STORE_NAME].delete(muezzinId);
         });
       } catch (idbErr) {
         console.warn('IndexedDB delete notice:', idbErr);
       }
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('ADHAN_STORAGE_UPDATED', { detail: { muezzinId, deleted: true } }));
+        appEventBus.emit('ADHAN_STORAGE_UPDATED', { muezzinId, deleted: true });
       }
 
       return true;
@@ -454,13 +465,16 @@ export class AdhanOfflineManager {
   public static async downloadMuezzinAudio(
     muezzinId: string,
     onProgress?: (percent: number) => void,
-    signal?: AbortSignal
-  ): Promise<{ success: boolean; error?: string }> {
-    // 1. Check if already downloaded with valid blob to prevent redundant downloading
-    const existing = await this.isMuezzinDownloaded(muezzinId);
-    if (existing.downloaded) {
-      if (onProgress) onProgress(100);
-      return { success: true };
+    signal?: AbortSignal,
+    forceDownload: boolean = false
+  ): Promise<{ success: boolean; error?: string; alreadyDownloaded?: boolean }> {
+    // 1. Check if already downloaded with valid blob to prevent redundant downloading (unless forced)
+    if (!forceDownload) {
+      const existing = await this.isMuezzinDownloaded(muezzinId);
+      if (existing.downloaded) {
+        if (onProgress) onProgress(100);
+        return { success: true, alreadyDownloaded: true };
+      }
     }
 
     if (this.activeDownloads.has(muezzinId)) {
@@ -1159,9 +1173,45 @@ export class AdhanAudioEngine {
         schedule30Days.push(daySchedule);
       }
 
+      let isAdhanEnabled = true;
+      let prayerToggles = {
+        fajr: true,
+        dhuhr: true,
+        asr: true,
+        maghrib: true,
+        isha: true
+      };
+
+      try {
+        const adhanRaw = localStorage.getItem('anis_adhan_settings');
+        if (adhanRaw) {
+          const parsed = JSON.parse(adhanRaw);
+          if (parsed.enabled !== undefined) isAdhanEnabled = parsed.enabled;
+          if (parsed.fajrEnabled !== undefined) prayerToggles.fajr = parsed.fajrEnabled;
+          if (parsed.dhuhrEnabled !== undefined) prayerToggles.dhuhr = parsed.dhuhrEnabled;
+          if (parsed.asrEnabled !== undefined) prayerToggles.asr = parsed.asrEnabled;
+          if (parsed.maghribEnabled !== undefined) prayerToggles.maghrib = parsed.maghribEnabled;
+          if (parsed.ishaEnabled !== undefined) prayerToggles.isha = parsed.ishaEnabled;
+        } else {
+          const savedSettings = localStorage.getItem('anis_settings');
+          if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            const as = parsed.adhanSettings;
+            if (as) {
+              if (as.enabled !== undefined) isAdhanEnabled = as.enabled;
+              if (as.fajrEnabled !== undefined) prayerToggles.fajr = as.fajrEnabled;
+              if (as.dhuhrEnabled !== undefined) prayerToggles.dhuhr = as.dhuhrEnabled;
+              if (as.asrEnabled !== undefined) prayerToggles.asr = as.asrEnabled;
+              if (as.maghribEnabled !== undefined) prayerToggles.maghrib = as.maghribEnabled;
+              if (as.ishaEnabled !== undefined) prayerToggles.isha = as.ishaEnabled;
+            }
+          }
+        }
+      } catch {}
+
       if (Capacitor.isNativePlatform()) {
         try {
-          await NativeNotificationService.setupAndroidChannels(currentMuezzinId);
+          await NativeNotificationService.syncChannelsWithActiveSettings(currentMuezzinId);
           const channelId = NativeNotificationService.getAdhanChannelId(currentMuezzinId);
           const soundFileName = NativeNotificationService.getAdhanSound(currentMuezzinId);
 
@@ -1172,21 +1222,26 @@ export class AdhanAudioEngine {
               await LocalNotifications.cancel({ notifications: adhanIds });
             }
           }
+
+          if (!isAdhanEnabled) {
+            console.info('[AdhanAudioEngine] Adhan is disabled in settings; cancelled existing scheduled alarms.');
+            return;
+          }
           
           let idCounter = 1;
           const notifications = [];
           
           for (const day of schedule30Days) {
             const prayers = [
-              { name: 'الفجر', time: new Date(day.fajr) },
-              { name: 'الظهر', time: new Date(day.dhuhr) },
-              { name: 'العصر', time: new Date(day.asr) },
-              { name: 'المغرب', time: new Date(day.maghrib) },
-              { name: 'العشاء', time: new Date(day.isha) }
+              { name: 'الفجر', time: new Date(day.fajr), enabled: prayerToggles.fajr },
+              { name: 'الظهر', time: new Date(day.dhuhr), enabled: prayerToggles.dhuhr },
+              { name: 'العصر', time: new Date(day.asr), enabled: prayerToggles.asr },
+              { name: 'المغرب', time: new Date(day.maghrib), enabled: prayerToggles.maghrib },
+              { name: 'العشاء', time: new Date(day.isha), enabled: prayerToggles.isha }
             ];
             
             for (const prayer of prayers) {
-              if (prayer.time.getTime() > Date.now()) {
+              if (prayer.enabled && prayer.time.getTime() > Date.now()) {
                 const prayerTimeFormatted = prayer.time.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
                 notifications.push({
                   title: '🕌 حان الآن موعد أذان صلاة ' + prayer.name,
@@ -1543,7 +1598,7 @@ export class AdhanAudioEngine {
     this.lastPlaybackAttempt = { prayerName: parsedPrayerName, muezzinId, timestamp: now };
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('STOP_APP_AUDIO', { detail: { source: 'adhan' } }));
+      appEventBus.emit('STOP_APP_AUDIO', { source: 'adhan' });
     }
     
     // Stop any previously playing audio cleanly to switch to the new muezzin immediately
@@ -1971,6 +2026,12 @@ export function calculateAccuratePrayerTimes(
 
 if (typeof window !== 'undefined') {
   AdhanAudioEngine.setupInteractionAudioUnlock();
+
+  appEventBus.on('STOP_APP_AUDIO', (payload) => {
+    if (payload?.source !== 'adhan') {
+      AdhanAudioEngine.stop();
+    }
+  });
 
   window.addEventListener('STOP_APP_AUDIO', (e: any) => {
     if (e.detail?.source !== 'adhan') {

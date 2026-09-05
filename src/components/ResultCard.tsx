@@ -4,6 +4,7 @@ import { QuranResponse, Verse, Bookmark } from '../types';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { AudioCacheService } from '../quran-platform/services/audioCacheService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AudioPoolManager } from '../services/audioPoolManager';
 
 const CopyButton: React.FC<{ text: string, label?: string }> = ({ text, label }) => {
   const [copied, setCopied] = useState(false);
@@ -66,7 +67,7 @@ const VerseSection: React.FC<{
     return () => {
       isMounted = false;
       if (audioRef.current) {
-        audioRef.current.pause();
+        AudioPoolManager.release(audioRef.current);
         audioRef.current = null;
       }
     };
@@ -74,7 +75,10 @@ const VerseSection: React.FC<{
 
   const toggleAudio = async () => {
     if (isPlaying) {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        AudioPoolManager.release(audioRef.current);
+        audioRef.current = null;
+      }
       setIsPlaying(false);
       return;
     }
@@ -115,12 +119,23 @@ const VerseSection: React.FC<{
       }
 
       const playWithUrl = async (sourceUrl: string, isRetry: boolean = false) => {
-        const audio = new Audio(sourceUrl);
+        const audio = AudioPoolManager.acquire();
+        audio.src = sourceUrl;
         audioRef.current = audio;
         
-        audio.onended = () => setIsPlaying(false);
+        audio.onended = () => {
+          setIsPlaying(false);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
+        };
         audio.onerror = async () => {
           console.warn("Audio error for URL:", sourceUrl);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
           if (!isRetry) {
             const fallbackUrl = await fetchAudioUrl(activeReciter, verse.surahNumber, verse.ayahNumber, true);
             if (fallbackUrl && fallbackUrl !== sourceUrl) {
@@ -130,7 +145,6 @@ const VerseSection: React.FC<{
             }
           }
           setIsPlaying(false);
-          audioRef.current = null;
           onShowToast("عذراً، فشل تحميل التلاوة. قد يكون الرابط غير متاح حالياً.", 'error');
         };
 
@@ -148,6 +162,10 @@ const VerseSection: React.FC<{
             return;
           }
           console.warn("Initial audio play notice:", e.message || e);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
           if (!isRetry) {
             const fallbackUrl = await fetchAudioUrl(activeReciter, verse.surahNumber, verse.ayahNumber, true);
             if (fallbackUrl && fallbackUrl !== sourceUrl) {
@@ -156,7 +174,6 @@ const VerseSection: React.FC<{
             }
           }
           setIsPlaying(false);
-          audioRef.current = null;
         }
       };
 

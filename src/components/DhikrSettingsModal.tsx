@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 import { 
   X, Bell, Volume2, VolumeX, Sparkles, Clock, 
   Check, Play, Pause, CheckCircle2, 
   Settings2, ListFilter, Users, Download,
-  Trash2, RefreshCw, HardDrive, CheckCircle
+  Trash2, RefreshCw, HardDrive, CheckCircle,
+  ShieldCheck, ShieldAlert, BellRing, Zap, ChevronLeft
 } from 'lucide-react';
 import { DhikrReminderSettings, DhikrReciterInfo } from '../types';
 import { 
@@ -14,7 +16,10 @@ import {
   DHIKR_RECITERS, 
   DhikrDailyStats 
 } from '../services/dhikrReminderService';
+import { NativeNotificationService } from '../services/nativeNotificationService';
 import { PermissionService } from '../services/permissionService';
+import { AdhanBackgroundGuideModal } from './AdhanBackgroundGuideModal';
+import { useAppEvent } from '../services/appEventBus';
 
 interface DhikrSettingsModalProps {
   isOpen: boolean;
@@ -51,6 +56,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
   const [settings, setSettings] = useState<DhikrReminderSettings>(() => DhikrReminderService.getSettings());
   const [dailyStats, setDailyStats] = useState<DhikrDailyStats>(() => DhikrReminderService.getDailyStats());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [isBackgroundGuideOpen, setIsBackgroundGuideOpen] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'reciters' | 'categories'>('general');
   const [downloadedReciters, setDownloadedReciters] = useState<{ [id: string]: boolean }>({});
@@ -105,6 +111,10 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
     };
   }, []);
 
+  useAppEvent('DHIKR_STORAGE_UPDATED', () => {
+    checkDownloadedStatuses();
+  });
+
   const checkDownloadedStatuses = async () => {
     const statusMap: { [id: string]: boolean } = {};
     for (const reciter of DHIKR_RECITERS) {
@@ -117,9 +127,20 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
     setDownloadedReciters(statusMap);
   };
 
-  const handleDownloadSingleReciter = async (reciterId: string, reciterName: string) => {
+  const handleDownloadSingleReciter = async (reciterId: string, reciterName: string, forceDownload: boolean = false) => {
     if (downloadProgress[reciterId] !== undefined && downloadProgress[reciterId] < 100) return;
     
+    // Check if already downloaded and present
+    if (!forceDownload) {
+      const isAlready = downloadedReciters[reciterId] || (await DhikrOfflineManager.isReciterDownloaded(reciterId));
+      if (isAlready) {
+        if (onShowToast) {
+          onShowToast(`تسجيلات الشيخ (${reciterName}) محملة وموجودة بالفعل في الذاكرة وجاهزة للعمل بدون إنترنت.`, 'info');
+        }
+        return;
+      }
+    }
+
     setDownloadProgress(prev => ({ ...prev, [reciterId]: 5 }));
     if (onShowToast) onShowToast(`جاري تنزيل وتخزين تسجيلات ${reciterName}...`, 'info');
 
@@ -130,9 +151,9 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
       if (success) {
         setDownloadedReciters(prev => ({ ...prev, [reciterId]: true }));
-        if (onShowToast) onShowToast(`تم تحميل صوتيات ${reciterName} بنجاح وجاهزة للعمل أوفلاين!`, 'success');
+        if (onShowToast) onShowToast(`تم تحميل صوتيات ${reciterName} بنجاح وحفظها للعمل بدون إنترنت!`, 'success');
       } else {
-        if (onShowToast) onShowToast(`تعذر تنزيل بعض ملفات ${reciterName}، يرجى المحاولة لاحقاً.`, 'error');
+        if (onShowToast) onShowToast(`تعذر تنزيل بعض ملفات ${reciterName}، يرجى التأكد من الاتصال بالإنترنت.`, 'error');
       }
     } catch (e) {
       if (onShowToast) onShowToast(`حدث خطأ أثناء تنزيل الملفات، تأكد من الاتصال بالإنترنت.`, 'error');
@@ -143,21 +164,33 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
           delete next[reciterId];
           return next;
         });
-      }, 1000);
-      checkDownloadedStatuses();
+      }, 800);
+      await checkDownloadedStatuses();
     }
   };
 
   const handleDeleteSingleReciter = async (reciterId: string, reciterName: string) => {
+    DhikrReminderService.stopAudio();
     const ok = await DhikrOfflineManager.deleteReciterAudio(reciterId);
     if (ok) {
       setDownloadedReciters(prev => ({ ...prev, [reciterId]: false }));
-      if (onShowToast) onShowToast(`تم حذف ملفات ${reciterName} من الذاكرة المحلية لتوفير المساحة.`, 'info');
+      if (onShowToast) onShowToast(`تم حذف ملفات ${reciterName} من الذاكرة بنجاح.`, 'info');
+      await checkDownloadedStatuses();
     }
   };
 
   const handleDownloadAllReciters = async () => {
     if (isDownloadingAll) return;
+
+    const realReciters = DHIKR_RECITERS.filter(r => r.id !== 'random');
+    const allAlreadyDownloaded = realReciters.every(r => downloadedReciters[r.id]);
+    if (allAlreadyDownloaded) {
+      if (onShowToast) {
+        onShowToast('جميع تسجيلات المشايخ الكرام محملة وموجودة بالفعل في الذاكرة للعمل بدون إنترنت.', 'info');
+      }
+      return;
+    }
+
     setIsDownloadingAll(true);
     setAllDownloadStatusText('بدء تنزيل كافة حزم القراء...');
     if (onShowToast) onShowToast('بدء تنزيل وتسجيل كافة أصوات المشايخ للعمل بدون إنترنت...', 'info');
@@ -426,6 +459,31 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                   </button>
                 </div>
 
+                {/* Background & Notifications Professional Guide Banner for Dhikr */}
+                <div className="bg-gradient-to-br from-emerald-500/15 via-white dark:via-slate-800 to-amber-500/15 p-4 rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/50 shadow-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <BellRing size={20} className="animate-pulse" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 truncate">
+                        دليل تشغيل الأذكار والإشعارات الفورية في الخلفية
+                      </h4>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                        إرشادات لأجهزة سامسونج، شاومي، هواوي وآيفون لضمان وصول التنبيهات والأذكار بانتظام.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsBackgroundGuideOpen(true)}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 transition-all shadow-md cursor-pointer active:scale-95 flex items-center gap-1.5"
+                  >
+                    <span>فتح الدليل</span>
+                    <ChevronLeft size={14} />
+                  </button>
+                </div>
+
                 {/* Custom Toggle: Alert upon opening app (التنبيه عند فتح البرنامج) */}
                 <div className="bg-white/80 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-xs flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -660,6 +718,35 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                   </button>
                 </div>
 
+                {/* Android Notification Category Live Sync Notice for Dhikr */}
+                <div className="bg-emerald-500/10 dark:bg-emerald-950/30 p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <BellRing size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="font-bold text-xs text-emerald-900 dark:text-emerald-200 truncate flex items-center gap-1.5">
+                        <span>مزامنة فئات إشعارات الأذكار بالهاتف</span>
+                        <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-md font-mono">
+                          {DHIKR_RECITERS.find(r => r.id === (settings.reciterId || 'mishary'))?.name || 'مشاري العفاسي'}
+                        </span>
+                      </h5>
+                      <p className="text-[10.5px] text-emerald-700/80 dark:text-emerald-400/80 truncate mt-0.5">
+                        (ملاحظة: لقد قمنا بتحديث إعدادات إشعارات هاتفك لتطابق اختيارك بذكاء)
+                      </p>
+                    </div>
+                  </div>
+                  {Capacitor.isNativePlatform() && (
+                    <button
+                      type="button"
+                      onClick={() => NativeNotificationService.openSystemNotificationSettings()}
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shrink-0 transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      فئات الإشعارات ⚙️
+                    </button>
+                  )}
+                </div>
+
                 {isDownloadingAll && allDownloadStatusText && (
                   <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-2 animate-pulse">
                     <RefreshCw size={13} className="animate-spin text-emerald-500" />
@@ -677,7 +764,12 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                     return (
                       <div
                         key={reciter.id}
-                        onClick={() => handleUpdate({ reciterId: reciter.id })}
+                        onClick={() => {
+                          handleUpdate({ reciterId: reciter.id });
+                          if (onShowToast) {
+                            onShowToast(`تم اختيار ${reciter.name} ومزامنة فئة إشعارات الأذكار بالنظام تلقائياً`, 'success');
+                          }
+                        }}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
@@ -696,11 +788,25 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                               </h4>
                               
                               {reciter.id !== 'random' && (
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
-                                  isDownloaded
-                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                                    : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
-                                }`}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isDownloaded) {
+                                      if (onShowToast) {
+                                        onShowToast(`تسجيلات الشيخ (${reciter.name}) محملة وموجودة بالفعل في الذاكرة وجاهزة للعمل بدون إنترنت.`, 'info');
+                                      }
+                                    } else {
+                                      handleDownloadSingleReciter(reciter.id, reciter.name, false);
+                                    }
+                                  }}
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                                    isDownloaded
+                                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                                      : 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+                                  }`}
+                                  title={isDownloaded ? "اضغط للتأكد من وجود الملفات" : "اضغط للتحميل أوفلاين"}
+                                >
                                   {isDownloaded ? (
                                     <>
                                       <CheckCircle2 size={10} />
@@ -712,7 +818,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                                       <span>متاح للتحميل</span>
                                     </>
                                   )}
-                                </span>
+                                </button>
                               )}
 
                               {reciter.sizeFormatted && (
@@ -739,11 +845,11 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                               ) : isDownloaded ? (
                                 <div className="flex items-center gap-1">
                                   <button
-                                    onClick={() => handleDownloadSingleReciter(reciter.id, reciter.name)}
-                                    className="p-1.5 rounded-xl text-xs font-bold transition-all text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-black/5 dark:hover:bg-white/10"
-                                    title="إعادة تحديث وتحميل الملفات الصوتية"
+                                    onClick={() => handleDownloadSingleReciter(reciter.id, reciter.name, false)}
+                                    className="p-1.5 rounded-xl text-xs font-bold transition-all text-emerald-600 dark:text-emerald-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                    title="الملفات محملة وموجودة بالفعل - اضغط للتأكيد"
                                   >
-                                    <RefreshCw size={13} />
+                                    <CheckCircle2 size={13} />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteSingleReciter(reciter.id, reciter.name)}
@@ -884,6 +990,24 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
               حفظ وإغلاق
             </button>
           </div>
+          
+          {/* Background Execution & Permissions Guide Modal */}
+          <AdhanBackgroundGuideModal
+            isOpen={isBackgroundGuideOpen}
+            onClose={() => setIsBackgroundGuideOpen(false)}
+            settings={{
+              adhanSettings: {
+                enabled: true,
+                muezzin: settings.reciterId || 'mishary',
+                fajrEnabled: true,
+                dhuhrEnabled: true,
+                asrEnabled: true,
+                maghribEnabled: true,
+                ishaEnabled: true,
+                volume: settings.volume || 85
+              }
+            }}
+          />
         </motion.div>
       </motion.div>
       )}

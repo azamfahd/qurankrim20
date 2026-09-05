@@ -3,6 +3,11 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { requestDynamicPermission, PermissionService } from "./permissionService";
 import { NativeNotificationService } from "./nativeNotificationService";
+import { resolveAudioPath } from "./adhanService";
+import { AudioPoolManager } from "./audioPoolManager";
+import { ResilientDownloader } from "./resilientDownloader";
+import { ResilientIndexedDB } from "./resilientIndexedDB";
+import { appEventBus } from "./appEventBus";
 import { DhikrItem, DhikrReminderSettings, DhikrReciterInfo } from '../types';
 
 export const DEFAULT_DHIKR_SETTINGS: DhikrReminderSettings = {
@@ -108,7 +113,7 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
     title: 'شيخ عموم المقارئ المصرية وإمام الترتيل المتقن',
     description: 'أداء متقن ورصين يملأ القلب سكينة وخشوعاً (تحميل عند الطلب)',
     avatar: '📖',
-    previewUrl: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3',
+    previewUrl: 'https://everyayah.com/data/Husary_128kbps/033056.mp3',
     sizeFormatted: '2.8 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/husary_salawat.mp3',
@@ -119,12 +124,12 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       preview: '/audio/adhkar/husary_preview.mp3'
     },
     fallbackUrls: {
-      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3',
-      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.husary/5429.mp3',
+      salawat: 'https://everyayah.com/data/Husary_128kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Husary_128kbps/071010.mp3',
       baqiyat: 'https://everyayah.com/data/Husary_128kbps/087001.mp3',
-      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.husary/2179.mp3',
-      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.husary/262.mp3',
-      preview: 'https://cdn.islamic.network/quran/audio/128/ar.husary/3589.mp3'
+      hawqala: 'https://everyayah.com/data/Husary_128kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Husary_128kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Husary_128kbps/033056.mp3'
     },
     isBuiltIn: false
   },
@@ -134,7 +139,7 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
     title: 'الصوت الباكي ذو الخشوع والوقار العالي',
     description: 'تلاوة وأذكار ترق لها القلوب وتخشع لسماعها (تحميل عند الطلب)',
     avatar: '🕊️',
-    previewUrl: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3',
+    previewUrl: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/033056.mp3',
     sizeFormatted: '2.3 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/minshawi_salawat.mp3',
@@ -145,12 +150,12 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       preview: '/audio/adhkar/minshawi_preview.mp3'
     },
     fallbackUrls: {
-      salawat: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3',
-      istighfar: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/5429.mp3',
+      salawat: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/033056.mp3',
+      istighfar: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/071010.mp3',
       baqiyat: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/087001.mp3',
-      hawqala: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/2179.mp3',
-      tahsin: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/262.mp3',
-      preview: 'https://cdn.islamic.network/quran/audio/128/ar.minshawi/3589.mp3'
+      hawqala: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/018039.mp3',
+      tahsin: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/002255.mp3',
+      preview: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/033056.mp3'
     },
     isBuiltIn: false
   },
@@ -669,43 +674,22 @@ type AudioStateListener = (state: DhikrAudioState) => void;
  * مدير التخزين غير المتصل لصوتيات الأذكار وقراء القرآن (IndexedDB + Cache Storage)
  */
 export class DhikrOfflineManager {
-  private static DB_NAME = 'anis_dhikr_audio_db_v2';
+  private static DB_CONFIG = {
+    dbName: 'anis_dhikr_audio_db_v2',
+    version: 1,
+    onUpgrade: (db: IDBDatabase) => {
+      if (!db.objectStoreNames.contains('reciters_audio')) {
+        db.createObjectStore('reciters_audio', { keyPath: 'key' });
+      }
+    }
+  };
   private static STORE_NAME = 'reciters_audio';
   private static CACHE_NAME = 'anis_dhikr_cache_v2';
-  private static DB_VERSION = 1;
-  private static dbPromise: Promise<IDBDatabase> | null = null;
-
-  private static getDB(): Promise<IDBDatabase> {
-    if (!this.dbPromise) {
-      this.dbPromise = new Promise((resolve, reject) => {
-        if (typeof window === 'undefined' || !('indexedDB' in window)) {
-          reject(new Error('IndexedDB not supported'));
-          return;
-        }
-        const req = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-        req.onupgradeneeded = () => {
-          const db = req.result;
-          if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-            db.createObjectStore(this.STORE_NAME, { keyPath: 'key' });
-          }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    return this.dbPromise;
-  }
 
   public static async saveAudioBlob(key: string, blob: Blob): Promise<void> {
     try {
-      const db = await this.getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(this.STORE_NAME, 'readwrite');
-        const store = tx.objectStore(this.STORE_NAME);
-        store.put({ key, blob, timestamp: Date.now() });
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Transaction aborted'));
+      await ResilientIndexedDB.executeWrite(this.DB_CONFIG, this.STORE_NAME, async (tx, stores) => {
+        stores[this.STORE_NAME].put({ key, blob, timestamp: Date.now() });
       });
     } catch (e) {
       console.warn('Failed to save blob to IndexedDB:', e);
@@ -714,27 +698,26 @@ export class DhikrOfflineManager {
 
   public static async getReciterAudioBlob(reciterId: string, categoryKey: string): Promise<Blob | null> {
     try {
-      const db = await this.getDB();
-      return new Promise((resolve) => {
-        const tx = db.transaction(this.STORE_NAME, 'readonly');
-        const store = tx.objectStore(this.STORE_NAME);
-        const req = store.get(`${reciterId}_${categoryKey}`);
-        req.onsuccess = () => {
-          if (req.result && req.result.blob && req.result.blob.size > 2000) {
-            resolve(req.result.blob);
-          } else {
-            const previewReq = store.get(`${reciterId}_preview`);
-            previewReq.onsuccess = () => {
-              if (previewReq.result && previewReq.result.blob && previewReq.result.blob.size > 2000) {
-                resolve(previewReq.result.blob);
-              } else {
-                resolve(null);
-              }
-            };
-            previewReq.onerror = () => resolve(null);
-          }
-        };
-        req.onerror = () => resolve(null);
+      return await ResilientIndexedDB.executeRead(this.DB_CONFIG, this.STORE_NAME, async (store) => {
+        return new Promise<Blob | null>((resolve) => {
+          const req = store.get(`${reciterId}_${categoryKey}`);
+          req.onsuccess = () => {
+            if (req.result && req.result.blob && req.result.blob.size > 2000) {
+              resolve(req.result.blob);
+            } else {
+              const previewReq = store.get(`${reciterId}_preview`);
+              previewReq.onsuccess = () => {
+                if (previewReq.result && previewReq.result.blob && previewReq.result.blob.size > 2000) {
+                  resolve(previewReq.result.blob);
+                } else {
+                  resolve(null);
+                }
+              };
+              previewReq.onerror = () => resolve(null);
+            }
+          };
+          req.onerror = () => resolve(null);
+        });
       });
     } catch {
       return null;
@@ -745,21 +728,37 @@ export class DhikrOfflineManager {
     if (reciterId === 'random') return true;
     try {
       const flag = localStorage.getItem(`anis_reciter_downloaded_${reciterId}`);
-      if (flag === 'true') return true;
+      if (flag === 'false') return false;
 
-      const db = await this.getDB();
-      return new Promise((resolve) => {
-        const tx = db.transaction(this.STORE_NAME, 'readonly');
-        const store = tx.objectStore(this.STORE_NAME);
-        const req = store.get(`${reciterId}_salawat`);
-        req.onsuccess = () => {
-          const isDownloaded = !!(req.result && req.result.blob && req.result.blob.size > 2000);
-          if (isDownloaded) {
-            localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
-          }
-          resolve(isDownloaded);
-        };
-        req.onerror = () => resolve(false);
+      return await ResilientIndexedDB.executeRead(this.DB_CONFIG, this.STORE_NAME, async (store) => {
+        return new Promise<boolean>((resolve) => {
+          const req = store.get(`${reciterId}_salawat`);
+          req.onsuccess = () => {
+            const blob = req.result?.blob;
+            const isDownloaded = !!(blob && blob.size > 2000 && !blob.type?.includes('html') && !blob.type?.includes('text'));
+            if (isDownloaded) {
+              localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
+              resolve(true);
+            } else {
+              const previewReq = store.get(`${reciterId}_preview`);
+              previewReq.onsuccess = () => {
+                const pBlob = previewReq.result?.blob;
+                const pDl = !!(pBlob && pBlob.size > 2000 && !pBlob.type?.includes('html') && !pBlob.type?.includes('text'));
+                if (pDl) {
+                  localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
+                } else {
+                  localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'false');
+                }
+                resolve(pDl);
+              };
+              previewReq.onerror = () => {
+                localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'false');
+                resolve(false);
+              };
+            }
+          };
+          req.onerror = () => resolve(false);
+        });
       });
     } catch {
       return false;
@@ -777,7 +776,7 @@ export class DhikrOfflineManager {
   }
 
   /**
-   * تنزيل وتخزين كافة تسجيلات القارئ المحددة للعمل أوفلاين
+   * تنزيل وتخزين كافة تسجيلات القارئ المحددة للعمل أوفلاين مع التحقق الصارم من سلامة الملفات
    */
   public static async downloadReciterAudio(
     reciterId: string, 
@@ -796,32 +795,20 @@ export class DhikrOfflineManager {
 
       let blob: Blob | null = null;
 
-      // 1. Try local URL first
-      try {
-        const res = await fetch(localUrl, { cache: 'no-cache' });
-        if (res.ok) {
-          const b = await res.blob();
-          if (b.size > 2000) {
-            blob = b;
-          }
-        }
-      } catch (e) {
-        // Continue to fallback
-      }
+      // 1. Try local URL first with ResilientDownloader
+      blob = await ResilientDownloader.fetchAudioBlob(localUrl, {
+        retries: 2,
+        timeoutMs: 8000,
+        minBytes: 1500
+      });
 
       // 2. Try fallback external CDN if local failed
       if (!blob && fallbackUrl) {
-        try {
-          const res = await fetch(fallbackUrl, { cache: 'no-cache' });
-          if (res.ok) {
-            const b = await res.blob();
-            if (b.size > 2000) {
-              blob = b;
-            }
-          }
-        } catch (e) {
-          // Fallback failed
-        }
+        blob = await ResilientDownloader.fetchAudioBlob(fallbackUrl, {
+          retries: 3,
+          timeoutMs: 15000,
+          minBytes: 1500
+        });
       }
 
       if (blob) {
@@ -831,7 +818,16 @@ export class DhikrOfflineManager {
         if (typeof window !== 'undefined' && 'caches' in window) {
           try {
             const cache = await caches.open(this.CACHE_NAME);
-            await cache.put(localUrl, new Response(blob));
+            const resp = new Response(blob, {
+              headers: {
+                'Content-Type': 'audio/mpeg',
+                'Content-Length': blob.size.toString()
+              }
+            });
+            await cache.put(localUrl, resp.clone());
+            if (fallbackUrl) {
+              await cache.put(fallbackUrl, resp.clone()).catch(() => {});
+            }
           } catch {}
         }
         completed++;
@@ -843,38 +839,63 @@ export class DhikrOfflineManager {
       }
     }
 
-    const success = completed >= 3; // at least majority saved
+    const success = completed >= 1; // at least 1 valid category audio saved
     if (success) {
       localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'true');
+      if (typeof window !== 'undefined') {
+        appEventBus.emit('DHIKR_STORAGE_UPDATED', { reciterId, downloaded: true });
+      }
     }
     return success;
   }
 
   /**
-   * حذف الملفات المحملة للقارئ لتوفير المساحة
+   * حذف الملفات المحملة للقارئ لتوفير المساحة وتنظيف الذاكرة بشكل كامل
    */
   public static async deleteReciterAudio(reciterId: string): Promise<boolean> {
     try {
-      localStorage.removeItem(`anis_reciter_downloaded_${reciterId}`);
-      const db = await this.getDB();
-      const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
-      const tx = db.transaction(this.STORE_NAME, 'readwrite');
-      const store = tx.objectStore(this.STORE_NAME);
-      
-      for (const catKey of categories) {
-        store.delete(`${reciterId}_${catKey}`);
-      }
+      // 0. Stop current playback if playing
+      DhikrReminderService.stopAudio();
 
+      // 1. Update localStorage flag
+      localStorage.removeItem(`anis_reciter_downloaded_${reciterId}`);
+      localStorage.setItem(`anis_reciter_downloaded_${reciterId}`, 'false');
+
+      // 2. Delete all categories from IndexedDB and wait for completion
+      await ResilientIndexedDB.executeWrite(this.DB_CONFIG, this.STORE_NAME, async (tx, stores) => {
+        const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
+        for (const catKey of categories) {
+          stores[this.STORE_NAME].delete(`${reciterId}_${catKey}`);
+        }
+      });
+
+      // 3. Delete from Cache API
       if (typeof window !== 'undefined' && 'caches' in window) {
         try {
           const cache = await caches.open(this.CACHE_NAME);
           const reciter = DHIKR_RECITERS.find(r => r.id === reciterId);
           if (reciter?.audioUrls) {
             for (const u of Object.values(reciter.audioUrls)) {
-              await cache.delete(u);
+              await cache.delete(u).catch(() => {});
+              await cache.delete(resolveAudioPath(u)).catch(() => {});
             }
           }
+          if (reciter?.fallbackUrls) {
+            for (const u of Object.values(reciter.fallbackUrls)) {
+              await cache.delete(u).catch(() => {});
+            }
+          }
+          const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
+          for (const catKey of categories) {
+            await cache.delete(`/audio/adhkar/${reciterId}_${catKey}.mp3`).catch(() => {});
+            await cache.delete(resolveAudioPath(`/audio/adhkar/${reciterId}_${catKey}.mp3`)).catch(() => {});
+          }
         } catch {}
+      }
+
+      // 4. Notify all UI listeners
+      if (typeof window !== 'undefined') {
+        appEventBus.emit('DHIKR_STORAGE_UPDATED', { reciterId, deleted: true });
       }
 
       return true;
@@ -1104,6 +1125,11 @@ export class DhikrReminderService {
 
     this.restartIntervalTimer();
     this.syncWithServiceWorker();
+
+    if (Capacitor.isNativePlatform() && newSettings.reciterId) {
+      NativeNotificationService.syncChannelsWithActiveSettings(undefined, newSettings.reciterId).catch(() => {});
+    }
+
     return this.settings;
   }
 
@@ -1244,9 +1270,7 @@ export class DhikrReminderService {
 
     if (this.activeAudioElement) {
       try {
-        this.activeAudioElement.pause();
-        this.activeAudioElement.currentTime = 0;
-        this.activeAudioElement.src = '';
+        AudioPoolManager.release(this.activeAudioElement);
       } catch {}
       this.activeAudioElement = null;
     }
@@ -1430,7 +1454,7 @@ export class DhikrReminderService {
     (async () => {
       if (Capacitor.isNativePlatform() && this.settings.enabled) {
         try {
-          await NativeNotificationService.setupAndroidChannels(this.settings.reciterId || 'mishary');
+          await NativeNotificationService.syncChannelsWithActiveSettings(undefined, this.settings.reciterId || 'mishary');
 
           const pending = await LocalNotifications.getPending();
           if (pending && pending.notifications.length > 0) {
@@ -1457,8 +1481,8 @@ export class DhikrReminderService {
                 ? '💧 أنيس القلوب | استغفار وتوبة' 
                 : `🌿 أنيس القلوب | ${item.categoryName || 'تذكير بذكر الله'}`;
 
-              const channelId = NativeNotificationService.getDhikrChannelId(item.category, this.settings.soundType === 'silent');
-              const soundFile = NativeNotificationService.getDhikrSound(item.category);
+              const channelId = NativeNotificationService.getDhikrChannelId(item.category, this.settings.soundType === 'silent', this.settings.reciterId);
+              const soundFile = NativeNotificationService.getDhikrSound(item.category, this.settings.reciterId);
 
               const cleanVirtue = item.virtue ? item.virtue.trim() : '';
               const fullBody = `« ${item.text} »${cleanVirtue ? '\n\n🤍 ' + cleanVirtue : ''}`;
@@ -1744,7 +1768,8 @@ export class DhikrReminderService {
   private static tryPlayAudioBlobUrl(blobUrl: string, volume: number, reciterId: string, dhikrId: string): Promise<boolean> {
     return new Promise((resolve) => {
       try {
-        const audio = new Audio(blobUrl);
+        const audio = AudioPoolManager.acquire();
+        audio.src = blobUrl;
         audio.volume = Math.max(0.05, Math.min(1.0, volume));
         this.activeAudioElement = audio;
 
@@ -1805,6 +1830,7 @@ export class DhikrReminderService {
             duration: audio.duration || 0,
             currentTime: audio.duration || 0
           });
+          AudioPoolManager.release(audio);
           if (!hasResolved) {
             hasResolved = true;
             resolve(true);
@@ -1819,6 +1845,7 @@ export class DhikrReminderService {
             this.currentPlayingDhikrId = null;
           }
           this.notifyAudioState({ isPlaying: false });
+          AudioPoolManager.release(audio);
           if (!hasResolved) {
             hasResolved = true;
             resolve(false);
@@ -1930,7 +1957,8 @@ export class DhikrReminderService {
   private static tryPlayAudioUrl(url: string, volume: number, reciterId: string, dhikrId: string): Promise<boolean> {
     return new Promise((resolve) => {
       try {
-        const audio = new Audio(url);
+        const audio = AudioPoolManager.acquire();
+        audio.src = url;
         audio.volume = Math.max(0.05, Math.min(1.0, volume));
         this.activeAudioElement = audio;
 
@@ -1990,6 +2018,7 @@ export class DhikrReminderService {
             duration: audio.duration || 0,
             currentTime: audio.duration || 0
           });
+          AudioPoolManager.release(audio);
           if (!hasResolved) {
             hasResolved = true;
             resolve(true);
@@ -2003,6 +2032,7 @@ export class DhikrReminderService {
             this.currentPlayingDhikrId = null;
           }
           this.notifyAudioState({ isPlaying: false });
+          AudioPoolManager.release(audio);
           if (!hasResolved) {
             hasResolved = true;
             resolve(false);
@@ -2016,6 +2046,11 @@ export class DhikrReminderService {
           }
         }).catch(() => {
           this.releaseWakeLock();
+          if (this.activeAudioElement === audio) {
+            this.activeAudioElement = null;
+            this.currentPlayingDhikrId = null;
+          }
+          AudioPoolManager.release(audio);
           if (!hasResolved) {
             hasResolved = true;
             resolve(false);
@@ -2100,10 +2135,10 @@ export class DhikrReminderService {
     try {
       if (Capacitor.isNativePlatform()) {
         const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
-        await NativeNotificationService.setupAndroidChannels(this.settings.reciterId || 'mishary');
+        await NativeNotificationService.syncChannelsWithActiveSettings(undefined, this.settings.reciterId || 'mishary');
 
-        const channelId = NativeNotificationService.getDhikrChannelId(dhikr.category, this.settings.soundType === 'silent');
-        const soundFile = NativeNotificationService.getDhikrSound(dhikr.category);
+        const channelId = NativeNotificationService.getDhikrChannelId(dhikr.category, this.settings.soundType === 'silent', this.settings.reciterId);
+        const soundFile = NativeNotificationService.getDhikrSound(dhikr.category, this.settings.reciterId);
 
         await LocalNotifications.schedule({
           notifications: [{
@@ -2243,6 +2278,12 @@ export class DhikrReminderService {
 }
 
 if (typeof window !== 'undefined') {
+  appEventBus.on('STOP_APP_AUDIO', (payload) => {
+    if (payload?.source !== 'dhikr') {
+      DhikrReminderService.stopAudio();
+    }
+  });
+
   window.addEventListener('STOP_APP_AUDIO', (e: any) => {
     if (e.detail?.source !== 'dhikr') {
       DhikrReminderService.stopAudio();

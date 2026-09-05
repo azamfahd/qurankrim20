@@ -12,6 +12,7 @@ import { AudioCacheService } from '../services/audioCacheService';
 import { getQuranAudioUrl } from '../../utils/quranAudio';
 import { getCleanSurahName } from './AyahMarker';
 import QuranGamesHub from './QuranGamesHub';
+import { AudioPoolManager } from '../../services/audioPoolManager';
 
 type TabType = 'plans' | 'repetition' | 'memory_test' | 'kids_game';
 
@@ -116,19 +117,35 @@ const QuranMemorize: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const loggedErrorsSetRef = useRef<Set<string>>(new Set());
 
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        AudioPoolManager.release(audioRef.current);
+        audioRef.current = null;
+      }
+      if (correctionAudioRef.current) {
+        AudioPoolManager.release(correctionAudioRef.current);
+        correctionAudioRef.current = null;
+      }
+    };
+  }, []);
+
   const playAyahCorrection = (ayahNum: number) => {
     if (playingCorrectionAyah === ayahNum && correctionAudioRef.current) {
-      correctionAudioRef.current.pause();
+      AudioPoolManager.release(correctionAudioRef.current);
+      correctionAudioRef.current = null;
       setPlayingCorrectionAyah(null);
       return;
     }
 
     if (correctionAudioRef.current) {
-      correctionAudioRef.current.pause();
+      AudioPoolManager.release(correctionAudioRef.current);
+      correctionAudioRef.current = null;
     }
 
     const url = getQuranAudioUrl(reciter || 'ar.alafasy', currentSurah, ayahNum);
-    const audio = new Audio(url);
+    const audio = AudioPoolManager.acquire();
+    audio.src = url;
     correctionAudioRef.current = audio;
     setPlayingCorrectionAyah(ayahNum);
 
@@ -137,10 +154,18 @@ const QuranMemorize: React.FC = () => {
         return;
       }
       console.warn("Audio correction playback notice:", err?.message || err);
+      AudioPoolManager.release(audio);
+      if (correctionAudioRef.current === audio) {
+        correctionAudioRef.current = null;
+      }
       setPlayingCorrectionAyah(null);
     });
 
     audio.onended = () => {
+      AudioPoolManager.release(audio);
+      if (correctionAudioRef.current === audio) {
+        correctionAudioRef.current = null;
+      }
       setPlayingCorrectionAyah(null);
     };
   };
@@ -328,7 +353,10 @@ const QuranMemorize: React.FC = () => {
 
   const playRepetition = () => {
     if (isPlayingRepetition) {
-      if (audioRef.current) audioRef.current.pause();
+      if (audioRef.current) {
+        AudioPoolManager.release(audioRef.current);
+        audioRef.current = null;
+      }
       setIsPlayingRepetition(false);
       return;
     }
@@ -342,16 +370,23 @@ const QuranMemorize: React.FC = () => {
 
   const playAyahAudio = async (ayahNum: number, vRepeat: number, pRepeat: number) => {
     if (audioRef.current) {
-      audioRef.current.pause();
+      AudioPoolManager.release(audioRef.current);
+      audioRef.current = null;
     }
 
     const rawUrl = getAudioUrl(currentSurah, ayahNum);
     const audioSrc = await AudioCacheService.getAudioSource(rawUrl);
-    const audio = new Audio(audioSrc);
+    const audio = AudioPoolManager.acquire();
+    audio.src = audioSrc;
     audioRef.current = audio;
 
     const setupEndedHandler = (audioInstance: HTMLAudioElement) => {
       audioInstance.onended = () => {
+        AudioPoolManager.release(audioInstance);
+        if (audioRef.current === audioInstance) {
+          audioRef.current = null;
+        }
+
         // Verse repeat logic
         if (vRepeat < verseRepeats) {
           if (pauseSeconds > 0) {
@@ -412,14 +447,23 @@ const QuranMemorize: React.FC = () => {
 
     audio.onerror = async () => {
       console.warn("Audio load error, trying fallback endpoint for:", currentSurah, ayahNum);
+      AudioPoolManager.release(audio);
+      if (audioRef.current === audio) {
+        audioRef.current = null;
+      }
       try {
         const response = await fetch(`https://api.alquran.cloud/v1/ayah/${currentSurah}:${ayahNum}/${reciter}`);
         const result = await response.json();
         if (result.code === 200 && result.data?.audio) {
-          const fallbackAudio = new Audio(result.data.audio);
+          const fallbackAudio = AudioPoolManager.acquire();
+          fallbackAudio.src = result.data.audio;
           audioRef.current = fallbackAudio;
           setupEndedHandler(fallbackAudio);
           fallbackAudio.play().catch(err => {
+            AudioPoolManager.release(fallbackAudio);
+            if (audioRef.current === fallbackAudio) {
+              audioRef.current = null;
+            }
             if (err?.name === 'AbortError' || err?.message?.includes('interrupted')) {
               return;
             }
@@ -441,11 +485,11 @@ const QuranMemorize: React.FC = () => {
         return;
       }
       console.warn('Audio playback notice:', err?.message || err);
-      if (audio.onerror) {
-        (audio.onerror as any)();
-      } else {
-        setIsPlayingRepetition(false);
+      AudioPoolManager.release(audio);
+      if (audioRef.current === audio) {
+        audioRef.current = null;
       }
+      setIsPlayingRepetition(false);
     });
   };
 

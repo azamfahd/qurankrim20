@@ -23,6 +23,9 @@ import {
 import { miraclesData, MiracleCategory, MiracleItem } from '../data/miracles';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { NumericalAnalysisViewer } from './NumericalAnalysisViewer';
+import { AudioPoolManager } from '../services/audioPoolManager';
+import { appEventBus } from '../services/appEventBus';
+import { useAppEvent } from '../services/appEventBus';
 
 interface MiraclesModalProps {
   isOpen: boolean;
@@ -71,21 +74,17 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
     } catch (e) {}
   }, [selectedCategory]);
 
-  useEffect(() => {
-    const handleMiraclesBack = () => {
-      if (selectedCategory) {
-        setSelectedCategory(null);
-      }
-    };
-    window.addEventListener('anis_back_miracle_detail', handleMiraclesBack);
-    return () => window.removeEventListener('anis_back_miracle_detail', handleMiraclesBack);
+  useAppEvent('NAVIGATE_BACK_MODAL_DETAIL', (payload) => {
+    if (payload.modal === 'miracles' && selectedCategory) {
+      setSelectedCategory(null);
+    }
   }, [selectedCategory]);
 
   // Cleanup audio on unmount or close
   useEffect(() => {
     return () => {
       if (audioRef.current) {
-        audioRef.current.pause();
+        AudioPoolManager.release(audioRef.current);
         audioRef.current = null;
       }
     };
@@ -98,7 +97,10 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
     }
 
     if (playingId === miracle.id) {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        AudioPoolManager.release(audioRef.current);
+        audioRef.current = null;
+      }
       setPlayingId(null);
       setIsLoadingAudio(null);
       return;
@@ -106,7 +108,7 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
 
     // Stop current playing audio
     if (audioRef.current) {
-      audioRef.current.pause();
+      AudioPoolManager.release(audioRef.current);
       audioRef.current = null;
     }
 
@@ -134,15 +136,24 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
     };
 
     const playWithUrl = async (url: string, isRetry: boolean = false) => {
-      const audio = new Audio(url);
+      const audio = AudioPoolManager.acquire();
+      audio.src = url;
       audioRef.current = audio;
       
       audio.onended = () => {
         setPlayingId(null);
         setIsLoadingAudio(null);
+        AudioPoolManager.release(audio);
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+        }
       };
       
       audio.onerror = async () => {
+        AudioPoolManager.release(audio);
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+        }
         if (!isRetry) {
           const fallbackUrl = await fetchAudioUrl(miracle.surahNumber, miracle.ayahNumber, true);
           if (fallbackUrl && fallbackUrl !== url) {
@@ -152,7 +163,6 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
         }
         setPlayingId(null);
         setIsLoadingAudio(null);
-        audioRef.current = null;
         if (onShowToast) onShowToast("عذراً، فشل تحميل التلاوة.", 'error');
       };
 
@@ -163,6 +173,10 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
         if (e?.name === 'AbortError' || e?.message?.includes('interrupted')) {
           return;
         }
+        AudioPoolManager.release(audio);
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+        }
         if (!isRetry) {
           const fallbackUrl = await fetchAudioUrl(miracle.surahNumber, miracle.ayahNumber, true);
           if (fallbackUrl && fallbackUrl !== url) {
@@ -172,7 +186,6 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
         }
         setPlayingId(null);
         setIsLoadingAudio(null);
-        audioRef.current = null;
       }
     };
 

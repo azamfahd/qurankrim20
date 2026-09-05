@@ -3,12 +3,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Volume2, VolumeX, Save, Bell, BellRing, Info, 
   Check, Play, Square, Sparkles, Moon, Sun, Sunrise, Sunset, Clock, Compass, ShieldCheck,
-  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2, Zap, Settings, ShieldAlert, AlertTriangle
+  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2, Zap, Settings, ShieldAlert, AlertTriangle, ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 import { UserSettings, AdhanSettings } from '../types';
 import { MUEZZINS_LIST, AdhanAudioEngine, AdhanOfflineManager } from '../services/adhanService';
+import { NativeNotificationService } from '../services/nativeNotificationService';
 import { SmartPermissionModal } from './SmartPermissionModal';
+import { AdhanBackgroundGuideModal } from './AdhanBackgroundGuideModal';
+import { useAppEvent } from '../services/appEventBus';
 
 interface AdhanSettingsModalProps {
   isOpen: boolean;
@@ -67,6 +71,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     isPreview: false
   });
   const [isSmartPermOpen, setIsSmartPermOpen] = useState(false);
+  const [isBackgroundGuideOpen, setIsBackgroundGuideOpen] = useState(false);
   const [notificationPerm, setNotificationPerm] = useState<string>('default');
 
   const checkNotificationPermission = () => {
@@ -78,6 +83,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   const [totalCachedBytes, setTotalCachedBytes] = useState<number>(0);
   const [downloadingMap, setDownloadingMap] = useState<Record<string, number>>({});
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const userDeletedMuezzinsRef = useRef<Set<string>>(new Set());
   
   const refreshOfflineStatus = async () => {
     try {
@@ -102,11 +108,6 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       }
     });
 
-    const handleStorageUpdate = () => {
-      refreshOfflineStatus();
-    };
-    window.addEventListener('ADHAN_STORAGE_UPDATED', handleStorageUpdate);
-
     const handleTasksUpdate = (tasks: any[]) => {
       const isAll = tasks.some(t => t.id === 'adhan-all' && (t.status === 'downloading' || t.status === 'pending'));
       setIsDownloadingAll(isAll);
@@ -125,12 +126,24 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
     return () => {
       unsubscribeAudio();
-      window.removeEventListener('ADHAN_STORAGE_UPDATED', handleStorageUpdate);
       DownloadManager.off('update', handleTasksUpdate);
     };
   }, []);
 
+  useAppEvent('ADHAN_STORAGE_UPDATED', () => {
+    refreshOfflineStatus();
+  });
+
   const handleDownloadAll = async (isAutoTrigger = false) => {
+    if (downloadedMuezzinIds.length === MUEZZINS_LIST.length) {
+      if (!isAutoTrigger) {
+        setToastMessage('جميع أصوات المؤذنين محملة وموجودة بالفعل لديك في الذاكرة للعمل أوفلاين.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+      return;
+    }
+
     DownloadManager.addTask({
       id: 'adhan-all',
       title: 'تحميل جميع أصوات الأذان',
@@ -155,7 +168,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
   };
 
   const ensureSelectedMuezzinDownloaded = async (muezzinId: string) => {
-    if (!muezzinId) return;
+    if (!muezzinId || userDeletedMuezzinsRef.current.has(muezzinId)) return;
     try {
       const isDownloaded = await AdhanOfflineManager.isMuezzinDownloaded(muezzinId);
       if (!isDownloaded.downloaded) {
@@ -168,7 +181,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
           execute: async (task, signal) => {
             await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (p) => {
               DownloadManager.updateProgress(task.id, p, 100, p);
-            }, signal);
+            }, signal, true);
             await refreshOfflineStatus();
           }
         });
@@ -224,6 +237,15 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
     AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod, muezzinId);
 
+    if (Capacitor.isNativePlatform()) {
+      NativeNotificationService.syncChannelsWithActiveSettings(muezzinId).catch(() => {});
+    }
+
+    const mName = MUEZZINS_LIST.find(m => m.id === muezzinId)?.name || 'المؤذن المختار';
+    setToastMessage(`تم اختيار ${mName} وتحديث فئة إشعارات الأذان بالنظام فوراً.`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2200);
+
     if (adhan.enabled) {
       ensureSelectedMuezzinDownloaded(muezzinId);
     }
@@ -259,10 +281,24 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     }
   };
 
-  const handleDownloadMuezzin = async (muezzinId: string, e: React.MouseEvent) => {
+  const handleDownloadMuezzin = async (muezzinId: string, e: React.MouseEvent, forceDownload = false) => {
     e.stopPropagation();
+    userDeletedMuezzinsRef.current.delete(muezzinId);
     const muezzin = MUEZZINS_LIST.find(m => m.id === muezzinId);
     if (!muezzin) return;
+
+    // Check if copy is already downloaded and present
+    if (!forceDownload) {
+      const isAlready = downloadedMuezzinIds.includes(muezzinId) || (await AdhanOfflineManager.isMuezzinDownloaded(muezzinId)).downloaded;
+      if (isAlready) {
+        setToastMessage(`أذان (${muezzin.name}) محمل وموجود بالفعل في الذاكرة وجاهز للعمل بدون إنترنت.`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+    }
+    
+    DownloadManager.cancelTask(`adhan-${muezzinId}`);
     
     DownloadManager.addTask({
       id: `adhan-${muezzinId}`,
@@ -273,7 +309,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       execute: async (task, signal) => {
         const result = await AdhanOfflineManager.downloadMuezzinAudio(muezzinId, (percent) => {
           DownloadManager.updateProgress(task.id, percent, 100, percent);
-        }, signal);
+        }, signal, true);
         
         if (result.success) {
           await refreshOfflineStatus();
@@ -288,10 +324,12 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
 
   const handleDeleteOfflineMuezzin = async (muezzinId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    userDeletedMuezzinsRef.current.add(muezzinId);
+    DownloadManager.cancelTask(`adhan-${muezzinId}`);
     await AdhanOfflineManager.deleteMuezzin(muezzinId);
     await refreshOfflineStatus();
     const mName = MUEZZINS_LIST.find(m => m.id === muezzinId)?.name || 'المؤذن';
-    setToastMessage(`تم حذف الملف الصوتي لـ (${mName}) من الذاكرة المحلية.`);
+    setToastMessage(`تم حذف الملف الصوتي لـ (${mName}) من الذاكرة بنجاح.`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);
   };
@@ -300,8 +338,8 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
     AdhanAudioEngine.stop();
     setPlayingMuezzinId(null);
 
-    // If selected muezzin is enabled and not downloaded yet, download only the selected muezzin
-    if (adhan.enabled && adhan.muezzin && !downloadedMuezzinIds.includes(adhan.muezzin)) {
+    // If selected muezzin is enabled and not downloaded yet and not explicitly deleted by user
+    if (adhan.enabled && adhan.muezzin && !downloadedMuezzinIds.includes(adhan.muezzin) && !userDeletedMuezzinsRef.current.has(adhan.muezzin)) {
       ensureSelectedMuezzinDownloaded(adhan.muezzin);
     }
 
@@ -310,6 +348,10 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
       // Re-sync 30 days prayer schedule with chosen calculation method, location & selected muezzin
       const activeLocation = (settings?.location?.latitude && settings?.location?.longitude) ? settings.location : null;
       AdhanAudioEngine.sync30DaysPrayerScheduleLocally(activeLocation, adhan.calculationMethod, adhan.muezzin);
+
+      if (Capacitor.isNativePlatform()) {
+        NativeNotificationService.syncChannelsWithActiveSettings(adhan.muezzin).catch(() => {});
+      }
     } catch (e) {
       console.error("Local storage sync error:", e);
     }
@@ -446,6 +488,31 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                 </div>
               </div>
 
+              {/* Background & Notifications Professional Guide Banner */}
+              <div className="bg-gradient-to-br from-amber-500/15 via-white dark:via-slate-800 to-emerald-500/15 p-4 rounded-2xl border-2 border-amber-500/40 dark:border-amber-500/50 shadow-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <Zap size={20} className="animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-xs sm:text-sm text-amber-950 dark:text-amber-200 truncate">
+                      دليل تشغيل الأذان في الخلفية والإشعارات الفورية
+                    </h4>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                      إرشادات لأجهزة سامسونج، شاومي، آيفون وغيرها لضمان عمل التنبيهات والأذان عند إغلاق الشاشة.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBackgroundGuideOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-all shadow-md cursor-pointer active:scale-95 flex items-center gap-1.5"
+                >
+                  <span>فتح الدليل</span>
+                  <ChevronLeft size={14} />
+                </button>
+              </div>
+
               {/* Offline Storage Status Banner */}
               <div className="bg-gradient-to-br from-indigo-500/10 via-white dark:via-slate-800/90 to-blue-500/10 p-3.5 sm:p-4 rounded-2xl border border-indigo-500/30 dark:border-indigo-500/40 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
@@ -518,6 +585,35 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                   <span className="text-[10px] sm:text-[11px] text-slate-500">اختر، استمع للمعاينة، وحمّل للعمل بدون نت</span>
                 </div>
 
+                {/* Android Notification Category Live Sync Notice */}
+                <div className="bg-emerald-500/10 dark:bg-emerald-950/30 p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <BellRing size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="font-bold text-xs text-emerald-900 dark:text-emerald-200 truncate flex items-center gap-1.5">
+                        <span>مزامنة فورية مع فئات إشعارات الهاتف</span>
+                        <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-md font-mono">
+                          {MUEZZINS_LIST.find(m => m.id === adhan.muezzin)?.name || 'مشاري العفاسي'}
+                        </span>
+                      </h5>
+                      <p className="text-[10.5px] text-emerald-700/80 dark:text-emerald-400/80 truncate mt-0.5">
+                        (ملاحظة: لقد قمنا بتحديث إعدادات إشعارات هاتفك لتطابق اختيارك بذكاء)
+                      </p>
+                    </div>
+                  </div>
+                  {Capacitor.isNativePlatform() && (
+                    <button
+                      type="button"
+                      onClick={() => NativeNotificationService.openSystemNotificationSettings()}
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shrink-0 transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      فئات الإشعارات ⚙️
+                    </button>
+                  )}
+                </div>
+
                 {/* Active Live Adhan Notice Banner */}
                 {engineState.isLiveAdhan && (
                   <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/20 to-amber-600/15 dark:from-amber-950/60 dark:to-amber-900/40 border-2 border-amber-500/40 text-amber-950 dark:text-amber-200 flex items-center justify-between gap-2.5 shadow-xs mb-3 animate-pulse">
@@ -574,10 +670,20 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="font-bold text-xs sm:text-sm truncate">{m.name}</p>
                               {isDownloaded ? (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700/50">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setToastMessage(`أذان (${m.name}) محمل وموجود بالفعل في الذاكرة وجاهز للعمل بدون إنترنت.`);
+                                    setShowToast(true);
+                                    setTimeout(() => setShowToast(false), 3000);
+                                  }}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700/50 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors cursor-pointer"
+                                  title="اضغط للتأكد من حالة الملف المحمل"
+                                >
                                   <CheckCircle2 size={10} />
                                   <span>محمّل أوفلاين</span>
-                                </span>
+                                </button>
                               ) : (
                                 <span className="text-[9px] font-normal text-slate-400 dark:text-slate-500">
                                   (عبر الإنترنت)
@@ -598,14 +704,24 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
                               <span>%{progressPercent}</span>
                             </div>
                           ) : isDownloaded ? (
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteOfflineMuezzin(m.id, e)}
-                              className="p-2 rounded-xl text-xs font-semibold flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                              title="حذف من الذاكرة المحلية لتحرير المساحة"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => handleDownloadMuezzin(m.id, e, false)}
+                                className="p-1.5 rounded-xl text-xs font-semibold flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                                title="الملف محمل وموجود بالفعل - اضغط للتأكيد"
+                              >
+                                <CheckCircle2 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteOfflineMuezzin(m.id, e)}
+                                className="p-1.5 rounded-xl text-xs font-semibold flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title="حذف من الذاكرة المحلية لتحرير المساحة"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -835,6 +951,13 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Adhan Background Execution & Permissions Guide Modal */}
+          <AdhanBackgroundGuideModal
+            isOpen={isBackgroundGuideOpen}
+            onClose={() => setIsBackgroundGuideOpen(false)}
+            settings={settings}
+          />
         </motion.div>
       )}
     </AnimatePresence>

@@ -6,51 +6,108 @@ import { DhikrReminderService, DEFAULT_DHIKR_SETTINGS } from './dhikrReminderSer
 export class NativeNotificationService {
   private static isInitialized = false;
 
-  public static getDhikrChannelId(category?: string, isSilent: boolean = false): string {
-    if (isSilent) return 'dhikr_channel_v4_silent';
-    switch (category) {
-      case 'prophet_salawat':
-        return 'dhikr_channel_v4_salawat';
-      case 'istighfar':
-        return 'dhikr_channel_v4_istighfar';
-      case 'baqiyat':
-        return 'dhikr_channel_v4_baqiyat';
-      case 'hawqala':
-        return 'dhikr_channel_v4_hawqala';
-      case 'tahsin':
-        return 'dhikr_channel_v4_tahsin';
-      default:
-        return 'dhikr_channel_v4_general';
+  public static readonly MUEZZIN_NAMES: Record<string, string> = {
+    mishary: 'مشاري راشد العفاسي',
+    al_mulla: 'علي أحمد ملا (الحرم المكي)',
+    madina: 'المسجد النبوي الشريف',
+    abdulbasit: 'عبد الباسط عبد الصمد',
+    mansour: 'منصور السالمي',
+    alghamdi: 'سعد الغامدي',
+    qatami: 'ناصر القطامي',
+    aqsa: 'المسجد الأقصى المبارك'
+  };
+
+  public static readonly RECITER_NAMES: Record<string, string> = {
+    mishary: 'الشيخ مشاري راشد العفاسي',
+    maher: 'الشيخ ماهر المعيقلي',
+    alghamdi: 'الشيخ سعد الغامدي',
+    abdulbasit: 'الشيخ عبد الباسط عبد الصمد',
+    qatami: 'الشيخ ناصر القطامي',
+    nufais: 'الشيخ أحمد النفيس',
+    sudais: 'الشيخ عبد الرحمن السديس',
+    husary: 'الشيخ محمود خليل الحصري',
+    minshawi: 'الشيخ محمد صديق المنشاوي',
+    random: 'قارئ عشوائي متنوع'
+  };
+
+  public static getActiveMuezzinId(): string {
+    try {
+      const adhanRaw = localStorage.getItem('anis_adhan_settings');
+      if (adhanRaw) {
+        const parsed = JSON.parse(adhanRaw);
+        if (parsed?.muezzin) return parsed.muezzin;
+      }
+      const generalRaw = localStorage.getItem('anis_settings');
+      if (generalRaw) {
+        const parsed = JSON.parse(generalRaw);
+        if (parsed?.adhanSettings?.muezzin) return parsed.adhanSettings.muezzin;
+      }
+    } catch {}
+    return 'mishary';
+  }
+
+  public static getActiveReciterId(): string {
+    try {
+      const dhikrRaw = localStorage.getItem('anis_dhikr_reminder_settings');
+      if (dhikrRaw) {
+        const parsed = JSON.parse(dhikrRaw);
+        if (parsed?.reciterId) return parsed.reciterId;
+      }
+    } catch {}
+    return 'mishary';
+  }
+
+  public static getDhikrChannelId(category?: string, isSilent: boolean = false, reciterId?: string): string {
+    if (isSilent) return 'dhikr_channel_silent';
+    const effectiveReciter = reciterId || this.getActiveReciterId();
+    if (category) {
+      return `dhikr_channel_${effectiveReciter}_${category}`;
     }
+    return `dhikr_channel_${effectiveReciter}_general`;
   }
 
-  public static getDhikrSound(category?: string): string {
-    switch (category) {
-      case 'prophet_salawat':
-        return 'mishary_salawat.mp3';
-      case 'istighfar':
-        return 'mishary_istighfar.mp3';
-      case 'baqiyat':
-        return 'mishary_baqiyat.mp3';
-      case 'hawqala':
-        return 'mishary_hawqala.mp3';
-      case 'tahsin':
-        return 'mishary_tahsin.mp3';
-      default:
-        return 'mishary_salawat.mp3';
+  public static getDhikrSound(category?: string, reciterId?: string): string {
+    const effectiveReciter = reciterId || this.getActiveReciterId();
+    
+    // In Capacitor, native notification sounds MUST be bundled in res/raw.
+    // Currently, only Mishary's adhkar are bundled to save APK space.
+    // If a different reciter is chosen (e.g. husary, minshawi), we fallback to the default system notification sound
+    // by returning undefined, rather than playing the wrong Sheikh's voice.
+    // The correct downloaded voice will be played via the Foreground Service engine instead.
+    if (effectiveReciter === 'mishary') {
+      switch (category) {
+        case 'prophet_salawat':
+          return 'mishary_salawat.mp3';
+        case 'istighfar':
+          return 'mishary_istighfar.mp3';
+        case 'baqiyat':
+          return 'mishary_baqiyat.mp3';
+        case 'hawqala':
+          return 'mishary_hawqala.mp3';
+        case 'tahsin':
+          return 'mishary_tahsin.mp3';
+        default:
+          return 'mishary_salawat.mp3';
+      }
     }
+    
+    // For non-bundled reciters, we don't set a hardcoded sound. 
+    // Android will use the default system notification sound, OR our foreground service will play the correct audio.
+    return undefined as any;
   }
 
-  public static getAdhanChannelId(muezzinId: string = 'mishary'): string {
-    return `adhan_channel_v4_${muezzinId}`;
+  public static getAdhanChannelId(muezzinId?: string): string {
+    const effectiveMuezzin = muezzinId || this.getActiveMuezzinId();
+    return `adhan_channel_${effectiveMuezzin}`;
   }
 
-  public static getAdhanSound(muezzinId: string = 'mishary'): string {
-    return `${muezzinId}.mp3`;
+  public static getAdhanSound(muezzinId?: string): string {
+    const effectiveMuezzin = muezzinId || this.getActiveMuezzinId();
+    return `${effectiveMuezzin}.mp3`;
   }
 
   public static getSilentChannelId(): string {
-    return 'adhan_channel_v4_silent';
+    return 'adhan_channel_silent';
   }
 
   /**
@@ -105,10 +162,10 @@ export class NativeNotificationService {
         }
       });
 
-      // Setup initial channels and action types
-      await this.setupAndroidChannels('mishary');
+      // Synchronize channels dynamically with user's saved preferences
+      await this.syncChannelsWithActiveSettings();
 
-      console.info('[NativeNotificationService] Native APK notification listeners & channels initialized successfully.');
+      console.info('[NativeNotificationService] Native APK notification listeners & synchronized channels initialized successfully.');
     } catch (err) {
       console.warn('[NativeNotificationService] Error setting up notification listeners:', err);
     }
@@ -122,8 +179,6 @@ export class NativeNotificationService {
       const extra = notification.extra;
       if (!extra) return;
 
-      // Note: On native Android, the notification channel itself plays the raw audio file natively via Android system sound server.
-      // We do not play HTML5 audio here to avoid duplicate/overlapping sound.
       if (extra.type === 'adhan') {
         const prayerName = extra.prayerName || 'الصلاة';
         console.info(`[NativeNotificationService] Native Adhan notification displayed for ${prayerName}`);
@@ -133,8 +188,6 @@ export class NativeNotificationService {
         if (item) {
           DhikrReminderService.showDirectBanner(item, false);
         } else if (extra.type === 'dhikr_fixed') {
-          // It's a fixed reminder (Morning/Evening/Witr), let's construct a simple generic dhikr item
-          // to show on the banner
           const fixedItem = {
             id: `fixed_${extra.category}`,
             text: notification.largeBody?.split('\n\n')[1] || notification.body || 'تذكير بذكر الله',
@@ -152,68 +205,117 @@ export class NativeNotificationService {
   }
 
   /**
-   * Configures high-importance notification channels on Android with native audio resources
+   * Dynamically synchronizes Android Notification Channels with the user's active choices
+   * (Selected Muezzin for Adhan and Selected Reciter for Dhikr).
+   * Deletes obsolete/inactive channels so phone settings (فئات الإشعارات) stay clean and 100% matched.
    */
-  public static async setupAndroidChannels(muezzinId: string = 'mishary') {
+  public static async syncChannelsWithActiveSettings(
+    targetMuezzinId?: string,
+    targetReciterId?: string
+  ): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return false;
 
     try {
       const perm = await LocalNotifications.requestPermissions();
       if (perm.display !== 'granted') return false;
 
-      // Clean up legacy v3 channels if they exist to remove stale default sounds
-      const legacyChannels = [
-        'dhikr_channel_v3',
-        'adhan_channel_v3_mishary',
-        'adhan_channel_v3_al_mulla',
-        'adhan_channel_v3_madina',
-        'adhan_channel_v3_abdulbasit',
-        'adhan_channel_v3_mansour',
-        'adhan_channel_v3_alghamdi',
-        'adhan_channel_v3_qatami',
-        'adhan_channel_v3_aqsa'
+      const activeMuezzin = targetMuezzinId || this.getActiveMuezzinId();
+      const activeReciter = targetReciterId || this.getActiveReciterId();
+
+      const muezzinName = this.MUEZZIN_NAMES[activeMuezzin] || 'مشاري راشد العفاسي';
+      const reciterName = this.RECITER_NAMES[activeReciter] || 'الشيخ مشاري راشد العفاسي';
+
+      const activeAdhanChannelId = this.getAdhanChannelId(activeMuezzin);
+      const silentAdhanChannelId = this.getSilentChannelId();
+      const activeDhikrGeneralId = this.getDhikrChannelId(undefined, false, activeReciter);
+      const silentDhikrChannelId = 'dhikr_channel_silent';
+
+      const activeDhikrCategoryIds = [
+        `dhikr_channel_${activeReciter}_salawat`,
+        `dhikr_channel_${activeReciter}_istighfar`,
+        `dhikr_channel_${activeReciter}_baqiyat`,
+        `dhikr_channel_${activeReciter}_hawqala`,
+        `dhikr_channel_${activeReciter}_tahsin`
       ];
-      for (const chId of legacyChannels) {
-        LocalNotifications.deleteChannel({ id: chId }).catch(() => {});
+
+      const allowedChannelIds = new Set<string>([
+        activeAdhanChannelId,
+        silentAdhanChannelId,
+        activeDhikrGeneralId,
+        silentDhikrChannelId,
+        ...activeDhikrCategoryIds,
+        'anis_foreground_prayer_tracker'
+      ]);
+
+      // 1. Clean up legacy v3 & v4 channels and channels for inactive muezzins/reciters
+      try {
+        const listResult = await LocalNotifications.listChannels();
+        const existingChannels = listResult?.channels || [];
+
+        for (const ch of existingChannels) {
+          // If channel is legacy v3 or v4, or is for another muezzin/reciter, delete it
+          const isLegacy = ch.id.includes('_v3') || ch.id.includes('_v4');
+          const isOldAdhan = ch.id.startsWith('adhan_channel_') && !allowedChannelIds.has(ch.id);
+          const isOldDhikr = ch.id.startsWith('dhikr_channel_') && !allowedChannelIds.has(ch.id);
+
+          if (isLegacy || isOldAdhan || isOldDhikr) {
+            try {
+              await LocalNotifications.deleteChannel({ id: ch.id });
+            } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn('Channel cleanup listing notice:', e);
       }
 
-      // 1. Create Adhan Channels for all supported muezzins
-      const muezzins = [
-        { id: 'mishary', name: 'مشاري راشد العفاسي' },
-        { id: 'al_mulla', name: 'علي أحمد ملا (الحرم المكي)' },
-        { id: 'madina', name: 'المسجد النبوي الشريف' },
-        { id: 'abdulbasit', name: 'عبد الباسط عبد الصمد' },
-        { id: 'mansour', name: 'منصور السالمي' },
-        { id: 'alghamdi', name: 'سعد الغامدي' },
-        { id: 'qatami', name: 'ناصر القطامي' },
-        { id: 'aqsa', name: 'المسجد الأقصى المبارك' }
-      ];
-
-      for (const m of muezzins) {
-        try {
-          await LocalNotifications.createChannel({
-            id: `adhan_channel_v4_${m.id}`,
-            name: `أذان الصلاة (${m.name})`,
-            description: `تنبيه صوتي بالأذان بصوت ${m.name} عند دخول وقت الصلاة`,
-            importance: 5, // IMPORTANCE_HIGH
-            sound: `${m.id}.mp3`,
-            visibility: 1, // VISIBILITY_PUBLIC (shows on lockscreen)
-            vibration: true,
-            lights: true,
-            lightColor: '#10B981'
-          });
-        } catch (e) {
-          console.warn(`Adhan channel creation notice for ${m.id}:`, e);
+      // Also explicitly delete static legacy v4 muezzin channel IDs in case listChannels omitted them
+      const allMuezzinKeys = Object.keys(this.MUEZZIN_NAMES);
+      for (const mId of allMuezzinKeys) {
+        LocalNotifications.deleteChannel({ id: `adhan_channel_v4_${mId}` }).catch(() => {});
+        LocalNotifications.deleteChannel({ id: `adhan_channel_v3_${mId}` }).catch(() => {});
+        if (mId !== activeMuezzin) {
+          LocalNotifications.deleteChannel({ id: `adhan_channel_${mId}` }).catch(() => {});
         }
       }
 
-      // 1.1 Create Silent In-App Adhan Notification Channel
-      // Used when app is already open and playing adhan smoothly to prevent audio conflict/ducking
+      // Clean up legacy dhikr channels
+      const legacyDhikrIds = [
+        'dhikr_channel_v3',
+        'dhikr_channel_v4_salawat',
+        'dhikr_channel_v4_istighfar',
+        'dhikr_channel_v4_baqiyat',
+        'dhikr_channel_v4_hawqala',
+        'dhikr_channel_v4_tahsin',
+        'dhikr_channel_v4_general',
+        'dhikr_channel_v4_silent'
+      ];
+      for (const chId of legacyDhikrIds) {
+        LocalNotifications.deleteChannel({ id: chId }).catch(() => {});
+      }
+
+      // 2. Create Active Adhan Channel specifically matched to chosen Sheikh
       try {
         await LocalNotifications.createChannel({
-          id: 'adhan_channel_v4_silent',
+          id: activeAdhanChannelId,
+          name: `أذان الصلوات المفروضة (${muezzinName})`,
+          description: `تنبيه صوتي بالأذان بصوت ${muezzinName} عند دخول وقت الصلاة (متوافق مع إعداداتك)`,
+          importance: 5, // IMPORTANCE_HIGH (banner popup + sound)
+          sound: `${activeMuezzin}.mp3`,
+          visibility: 1, // VISIBILITY_PUBLIC (lockscreen)
+          vibration: true,
+          lights: true,
+          lightColor: '#10B981'
+        });
+      } catch (e) {
+        console.warn('Active adhan channel create error:', e);
+      }
+
+      // 2.1 Create Silent In-App Adhan Notification Channel
+      try {
+        await LocalNotifications.createChannel({
+          id: silentAdhanChannelId,
           name: 'أذان الصلاة (أثناء فتح التطبيق)',
-          description: 'إشعار مرئي بدون صوت إضافي عند فتح التطبيق وتشغيل الأذان داخلياً منعاً لتقطع الصوت',
+          description: 'إشعار مرئي بدون صوت إضافي عند فتح التطبيق وتشغيل الأذان داخلياً منعاً لتداخل الصوت',
           importance: 4,
           sound: undefined,
           visibility: 1,
@@ -221,11 +323,77 @@ export class NativeNotificationService {
           lights: true,
           lightColor: '#10B981'
         });
-      } catch (e) {
-        console.warn('Adhan silent channel creation notice:', e);
+      } catch (e) {}
+
+      // 3. Create Active Dhikr Channels matched to chosen Reciter
+      const dhikrCategories = [
+        {
+          id: `dhikr_channel_${activeReciter}_salawat`,
+          name: `الصلاة على النبي ﷺ (${reciterName})`,
+          description: `تنبيه صوتي بالصلاة على الحبيب المصطفى ﷺ بصوت ${reciterName}`,
+          sound: this.getDhikrSound('prophet_salawat', activeReciter)
+        },
+        {
+          id: `dhikr_channel_${activeReciter}_istighfar`,
+          name: `الاستغفار والتوبة (${reciterName})`,
+          description: `تنبيه صوتي بأذكار الاستغفار بصوت ${reciterName}`,
+          sound: this.getDhikrSound('istighfar', activeReciter)
+        },
+        {
+          id: `dhikr_channel_${activeReciter}_baqiyat`,
+          name: `الباقيات الصالحات (${reciterName})`,
+          description: `تنبيه صوتي بالتسبيح والتحميد والتكبير بصوت ${reciterName}`,
+          sound: this.getDhikrSound('baqiyat', activeReciter)
+        },
+        {
+          id: `dhikr_channel_${activeReciter}_hawqala`,
+          name: `الحوقلة والتوكل (${reciterName})`,
+          description: `تنبيه صوتي بالحوقلة بصوت ${reciterName}`,
+          sound: this.getDhikrSound('hawqala', activeReciter)
+        },
+        {
+          id: `dhikr_channel_${activeReciter}_tahsin`,
+          name: `أدعية التحصين والحفظ (${reciterName})`,
+          description: `تنبيه صوتي بأدعية التحصين بصوت ${reciterName}`,
+          sound: this.getDhikrSound('tahsin', activeReciter)
+        },
+        {
+          id: activeDhikrGeneralId,
+          name: `أذكار وتسابيح المسلم (${reciterName})`,
+          description: `تنبيهات الأذكار والتسبيح اليومية بصوت ${reciterName} وفق تخصيصك`,
+          sound: this.getDhikrSound('general', activeReciter)
+        }
+      ];
+
+      for (const dc of dhikrCategories) {
+        try {
+          await LocalNotifications.createChannel({
+            id: dc.id,
+            name: dc.name,
+            description: dc.description,
+            importance: 5,
+            sound: dc.sound,
+            visibility: 1,
+            vibration: true,
+            lights: true,
+            lightColor: '#10B981'
+          });
+        } catch (e) {}
       }
 
-      // 1.2 Register Interactive Notification Action Buttons
+      // Silent Dhikr Channel
+      try {
+        await LocalNotifications.createChannel({
+          id: silentDhikrChannelId,
+          name: 'أذكار المسلم (تنبيه مرئي هادئ بدون صوت)',
+          description: 'تنبيه نصي مرئي فقط دون تشغيل نغمة أو صوت',
+          importance: 3,
+          visibility: 1,
+          vibration: false
+        });
+      } catch (e) {}
+
+      // 4. Register Interactive Notification Action Buttons
       try {
         await LocalNotifications.registerActionTypes({
           types: [
@@ -261,84 +429,36 @@ export class NativeNotificationService {
             }
           ]
         });
-      } catch (e) {
-        console.warn('Action types registration notice:', e);
-      }
-
-      // 2. Create Dhikr Channels for all categories with custom voice of Sheikh Mishary Alafasy
-      const dhikrChannels = [
-        {
-          id: 'dhikr_channel_v4_salawat',
-          name: 'أنيس القلوب | الصلاة على النبي ﷺ',
-          description: 'تنبيه صوتي بالصلاة على الحبيب المصطفى ﷺ بصوت الشيخ مشاري العفاسي',
-          sound: 'mishary_salawat.mp3'
-        },
-        {
-          id: 'dhikr_channel_v4_istighfar',
-          name: 'أنيس القلوب | الاستغفار والتوبة',
-          description: 'تنبيه صوتي بأذكار الاستغفار بصوت الشيخ مشاري العفاسي',
-          sound: 'mishary_istighfar.mp3'
-        },
-        {
-          id: 'dhikr_channel_v4_baqiyat',
-          name: 'أنيس القلوب | الباقيات الصالحات',
-          description: 'تنبيه صوتي بالتسبيح والتحميد والتهليل والتكبير',
-          sound: 'mishary_baqiyat.mp3'
-        },
-        {
-          id: 'dhikr_channel_v4_hawqala',
-          name: 'أنيس القلوب | الحوقلة والتوكل',
-          description: 'تنبيه صوتي بلا حول ولا قوة إلا بالله العلي العظيم',
-          sound: 'mishary_hawqala.mp3'
-        },
-        {
-          id: 'dhikr_channel_v4_tahsin',
-          name: 'أنيس القلوب | أدعية التحصين والحفظ',
-          description: 'تنبيه صوتي بأدعية التحصين وحفظ النفس بصوت الشيخ مشاري العفاسي',
-          sound: 'mishary_tahsin.mp3'
-        },
-        {
-          id: 'dhikr_channel_v4_general',
-          name: 'أنيس القلوب | أذكار المسلم اليومية',
-          description: 'تنبيهات الأذكار والتسبيح اليومية بصوت الشيخ مشاري العفاسي',
-          sound: 'mishary_salawat.mp3'
-        }
-      ];
-
-      for (const dc of dhikrChannels) {
-        try {
-          await LocalNotifications.createChannel({
-            id: dc.id,
-            name: dc.name,
-            description: dc.description,
-            importance: 5,
-            sound: dc.sound,
-            visibility: 1,
-            vibration: true,
-            lights: true,
-            lightColor: '#10B981'
-          });
-        } catch (e) {
-          console.warn(`Dhikr channel creation notice for ${dc.id}:`, e);
-        }
-      }
-
-      // Silent channel
-      try {
-        await LocalNotifications.createChannel({
-          id: 'dhikr_channel_v4_silent',
-          name: 'أنيس القلوب | تنبيهات هادئة (بدون صوت)',
-          description: 'تنبيه نصي مرئي فقط دون تشغيل نغمة أو صوت',
-          importance: 3,
-          visibility: 1,
-          vibration: false
-        });
       } catch (e) {}
 
       return true;
     } catch (err) {
-      console.warn('[NativeNotificationService] Channel setup error:', err);
+      console.warn('[NativeNotificationService] Dynamic channel setup error:', err);
       return false;
     }
   }
+
+  /**
+   * Backwards compatible method that calls dynamic channel synchronization
+   */
+  public static async setupAndroidChannels(muezzinId?: string): Promise<boolean> {
+    return this.syncChannelsWithActiveSettings(muezzinId);
+  }
+
+  /**
+   * Opens Android native notification / alarm settings directly if supported
+   */
+  public static async openSystemNotificationSettings(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) return false;
+    try {
+      if (typeof (LocalNotifications as any).changeExactNotificationSetting === 'function') {
+        await (LocalNotifications as any).changeExactNotificationSetting();
+        return true;
+      }
+    } catch (e) {
+      console.warn('Cannot open exact notification setting:', e);
+    }
+    return false;
+  }
 }
+

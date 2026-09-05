@@ -3,6 +3,7 @@ import { X, Bookmark as BookmarkIcon, Trash2, Calendar, Play, Pause, Copy, Share
 import { Bookmark } from '../types';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AudioPoolManager } from '../services/audioPoolManager';
 
 interface BookmarksModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
   React.useEffect(() => {
     return () => {
       if (audioRef.current) {
-        audioRef.current.pause();
+        AudioPoolManager.release(audioRef.current);
         audioRef.current = null;
       }
     };
@@ -45,11 +46,14 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
     }
 
     if (playingId === bookmark.id) {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        AudioPoolManager.release(audioRef.current);
+        audioRef.current = null;
+      }
       setPlayingId(null);
     } else {
       if (audioRef.current) {
-        audioRef.current.pause();
+        AudioPoolManager.release(audioRef.current);
         audioRef.current = null;
       }
       
@@ -73,12 +77,23 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
       };
 
       const playWithUrl = async (url: string, isRetry: boolean = false) => {
-        const audio = new Audio(url);
+        const audio = AudioPoolManager.acquire();
+        audio.src = url;
         audioRef.current = audio;
         
-        audio.onended = () => setPlayingId(null);
+        audio.onended = () => {
+          setPlayingId(null);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
+        };
         audio.onerror = async () => {
           console.warn("Audio error for URL:", url);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
           if (!isRetry) {
             const fallbackUrl = await fetchAudioUrl(activeReciter, bookmark.verse.surahNumber, bookmark.verse.ayahNumber, true);
             if (fallbackUrl && fallbackUrl !== url) {
@@ -88,7 +103,6 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
             }
           }
           setPlayingId(null);
-          audioRef.current = null;
           onShowToast("عذراً، فشل تحميل التلاوة. قد يكون الرابط غير متاح حالياً.", 'error');
         };
 
@@ -100,6 +114,10 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
             return;
           }
           console.warn("Audio play notice:", e.message || e);
+          AudioPoolManager.release(audio);
+          if (audioRef.current === audio) {
+            audioRef.current = null;
+          }
           if (!isRetry) {
             const fallbackUrl = await fetchAudioUrl(activeReciter, bookmark.verse.surahNumber, bookmark.verse.ayahNumber, true);
             if (fallbackUrl && fallbackUrl !== url) {
@@ -108,7 +126,6 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
             }
           }
           setPlayingId(null);
-          audioRef.current = null;
         }
       };
 

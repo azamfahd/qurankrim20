@@ -3,7 +3,8 @@
  * using the browser's standard Cache Storage API.
  */
 
-import { getQuranAudioUrl } from '../../utils/quranAudio';
+import { getQuranAudioUrl, getAyahLocationFromGlobal } from '../../utils/quranAudio';
+import { ResilientDownloader } from '../../services/resilientDownloader';
 
 export interface CacheProgress {
   total: number;
@@ -32,7 +33,7 @@ export class AudioCacheService {
   }
 
   /**
-   * Cache a single audio URL into Cache Storage for offline playback
+   * Cache a single audio URL into Cache Storage for offline playback with resilient validation
    */
   static async cacheAudioUrl(url: string): Promise<boolean> {
     try {
@@ -41,8 +42,14 @@ export class AudioCacheService {
       const match = await cache.match(url);
       if (match) return true;
 
-      const response = await fetch(url);
-      if (response.ok) {
+      const blob = await ResilientDownloader.fetchAudioBlob(url, { retries: 2, minBytes: 1500 });
+      if (blob) {
+        const response = new Response(blob, {
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': blob.size.toString()
+          }
+        });
         await cache.put(url, response);
         return true;
       }
@@ -115,7 +122,7 @@ export class AudioCacheService {
   }
 
   /**
-   * Download and cache all ayahs of a surah
+   * Download and cache all ayahs of a surah concurrently with retries & data validation
    */
   static async downloadSurah(
     surahNumber: number,
@@ -131,7 +138,6 @@ export class AudioCacheService {
 
       const cache = await caches.open(CACHE_NAME);
       const total = ayahs.length;
-      let completed = 0;
 
       onProgress({
         total,
@@ -140,59 +146,65 @@ export class AudioCacheService {
         status: 'downloading'
       });
 
-      for (const ayah of ayahs) {
-        if (signal?.aborted) {
-          throw new Error('Aborted');
-        }
-
-        const url = getQuranAudioUrl(reciterId, ayah.number, surahNumber, ayah.numberInSurah);
-        
-        const alreadyCached = await cache.match(url);
-        if (alreadyCached) {
-          completed++;
-          onProgress({
-            total,
-            completed,
-            percentage: Math.round((completed / total) * 100),
-            status: 'downloading'
-          });
-          continue;
-        }
-
-        try {
-          const fetchController = new AbortController();
-          if (signal) {
-            signal.addEventListener('abort', () => fetchController.abort());
+      const batchResult = await ResilientDownloader.runBatch(
+        ayahs,
+        async (ayah, index, batchSignal) => {
+          if (batchSignal?.aborted || signal?.aborted) {
+            throw new Error('Aborted');
           }
-          
-          const response = await fetch(url, { signal: fetchController.signal });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+          const url = getQuranAudioUrl(reciterId, ayah.number, surahNumber, ayah.numberInSurah);
+          const alreadyCached = await cache.match(url);
+          if (alreadyCached) {
+            return true;
+          }
+
+          const blob = await ResilientDownloader.fetchAudioBlob(url, {
+            retries: 3,
+            timeoutMs: 15000,
+            minBytes: 1500,
+            signal: batchSignal || signal
+          });
+
+          if (!blob) {
+            console.error(`Failed to download ayah ${ayah.number} after retries:`, url);
+            return false;
+          }
+
+          const response = new Response(blob, {
+            headers: {
+              'Content-Type': 'audio/mpeg',
+              'Content-Length': blob.size.toString()
+            }
+          });
+
           await cache.put(url, response);
-          completed++;
-          
-          onProgress({
-            total,
-            completed,
-            percentage: Math.round((completed / total) * 100),
-            status: 'downloading'
-          });
-        } catch (err: any) {
-          if (err.name === 'AbortError' || signal?.aborted || err.message?.includes('aborted')) {
-            throw err;
+          return true;
+        },
+        {
+          concurrency: 3,
+          signal,
+          onProgress: (completed, totalCount, percentage) => {
+            onProgress({
+              total: totalCount,
+              completed,
+              percentage,
+              status: 'downloading'
+            });
           }
-          console.error(`Failed to download ayah ${ayah.number}:`, err);
         }
-      }
+      );
 
+      const allSuccess = batchResult.succeeded === total;
       onProgress({
         total,
-        completed,
-        percentage: Math.round((completed / total) * 100),
-        status: completed === total ? 'completed' : 'error',
-        error: completed < total ? 'بعض الآيات لم تُحمل بنجاح بسبب مشكلة في الاتصال.' : undefined
+        completed: batchResult.succeeded,
+        percentage: Math.round((batchResult.succeeded / total) * 100),
+        status: allSuccess ? 'completed' : 'error',
+        error: !allSuccess ? `تم تحميل ${batchResult.succeeded} من أصل ${total} آية. تعذر تحميل البقية بسبب جودة الاتصال.` : undefined
       });
     } catch (e: any) {
-      if (e.name === 'AbortError' || signal?.aborted || e.message?.includes('aborted')) {
+      if (e.name === 'AbortError' || signal?.aborted || e.message?.includes('aborted') || e.message === 'Aborted') {
         throw e;
       }
       console.error('Download surah failed:', e);
@@ -209,12 +221,13 @@ export class AudioCacheService {
   /**
    * Remove cached audio files for a surah and reciter to save space
    */
-  static async deleteSurahCache(reciterId: string, ayahs: any[]): Promise<void> {
+  static async deleteSurahCache(reciterId: string, ayahs: any[], surahNumber?: number): Promise<void> {
     try {
       if (!('caches' in window)) return;
       const cache = await caches.open(CACHE_NAME);
       for (const ayah of ayahs) {
-        const url = getQuranAudioUrl(reciterId, ayah.number, undefined, ayah.numberInSurah);
+        const sNum = surahNumber || (ayah.number ? getAyahLocationFromGlobal(ayah.number).surah : undefined);
+        const url = getQuranAudioUrl(reciterId, ayah.number, sNum, ayah.numberInSurah);
         await cache.delete(url);
       }
     } catch (e) {

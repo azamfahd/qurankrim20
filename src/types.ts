@@ -3,14 +3,16 @@ declare global {
 }
 
 export type GeminiModel = 
+  | 'gemini-3.8-flash'
+  | 'gemini-3.7-flash'
   | 'gemini-3.6-flash'
   | 'gemini-3.5-flash'
   | 'gemini-3.1-pro-preview'
+  | 'gemini-3.1-flash-lite'
   | 'gemini-1.5-pro'
   | 'gemini-2.5-pro'
   | 'gemini-2.5-flash'
-  | 'gemini-3-flash-preview'
-  | 'gemini-3.1-flash-lite';
+  | 'gemini-3-flash-preview';
 
 export interface UserLocation {
   latitude: number;
@@ -118,6 +120,8 @@ export interface QuranResponse {
   tafakkur?: string;
   summary?: string;
   analysisStyle?: 'smart_adaptive' | 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | 'practical_life' | 'tadabbur' | string;
+  isOfflineFallback?: boolean;
+  error?: string;
 }
 
 export interface ChatMessage {

@@ -33,6 +33,9 @@ import { DhikrReminderService } from './services/dhikrReminderService';
 import { DhikrFloatingBanner } from './components/DhikrFloatingBanner';
 import { AppStatePreservation } from './services/appStatePreservation';
 import { NativeNotificationService } from './services/nativeNotificationService';
+import { PermissionsBanner } from './components/PermissionsBanner';
+import { BatteryOptimizationGuideModal } from './components/BatteryOptimizationGuideModal';
+import { appEventBus } from './services/appEventBus';
 
 // Lazy loaded modals for performance optimization with auto-retry on app updates
 const SettingsModal = lazyWithRetry(() => import('./components/SettingsModal'), 'SettingsModal');
@@ -176,6 +179,7 @@ const App: React.FC = () => {
   const [isMiraclesOpen, setIsMiraclesOpen] = useState(() => initialPreservedState?.activeView === 'miracles');
   const [isProphetsOpen, setIsProphetsOpen] = useState(() => initialPreservedState?.activeView === 'prophets');
   const [isAboutOpen, setIsAboutOpen] = useState(() => initialPreservedState?.activeView === 'about');
+  const [isPermissionsGuideOpen, setIsPermissionsGuideOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(() => initialPreservedState?.activeView === 'feedback');
   const [apkUpdateInfo, setApkUpdateInfo] = useState<{ version: string; releaseNotes?: string; sizeFormatted?: string } | null>(null);
@@ -505,14 +509,14 @@ const App: React.FC = () => {
       // 1. Check inside ProphetsModal detail
       const prophetSelected = localStorage.getItem('anis_prophet_selected_id');
       if (isProphetsOpen && prophetSelected) {
-        window.dispatchEvent(new CustomEvent('anis_back_prophet_detail'));
+        appEventBus.emit('NAVIGATE_BACK_MODAL_DETAIL', { modal: 'prophets' });
         return true;
       }
 
       // 2. Check inside MiraclesModal detail
       const miracleSelected = localStorage.getItem('anis_miracle_selected_category_id');
       if (isMiraclesOpen && miracleSelected) {
-        window.dispatchEvent(new CustomEvent('anis_back_miracle_detail'));
+        appEventBus.emit('NAVIGATE_BACK_MODAL_DETAIL', { modal: 'miracles' });
         return true;
       }
 
@@ -1076,10 +1080,6 @@ const App: React.FC = () => {
   };
 
   const handleEmotionSubmit = async (text: string) => {
-    if (!isOnline) {
-      setError("لا يمكن إرسال الرسائل في وضع عدم الاتصال.");
-      return;
-    }
     setState(AppState.LOADING);
     setLoadingText(LOADING_MESSAGES[0]);
     setError(null);
@@ -1097,9 +1097,9 @@ const App: React.FC = () => {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
 
+    const displayName = settings.username || (settings.email ? settings.email.split('@')[0] : undefined);
+
     try {
-      const displayName = settings.username || (settings.email ? settings.email.split('@')[0] : undefined);
-      
       const onProgressUpdate = (stage: string) => {
         const messagesMap: Record<string, string> = {
           'thinking': "نستلهم الحكمة من فيض الوحي لقلبك...",
@@ -1118,28 +1118,37 @@ const App: React.FC = () => {
       saveCurrentSessionToHistory(finalMessages);
     } catch (err: any) {
       console.error("FULL ERROR DETAILS:", err);
-      let errorMessage = "عذراً، حدث خطأ غير متوقع أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.";
-      if (err.message) {
-        const msg = err.message.toLowerCase();
-        if (msg.includes("quota") || msg.includes("429")) {
-          errorMessage = "يبدو أن هناك ضغطاً كبيراً على الخادم حالياً. يرجى المحاولة بعد قليل، أو إضافة مفتاح API الخاص بك في الإعدادات لتجربة أسرع.";
-        } else if (msg.includes("api key not valid") || msg.includes("invalid api key") || msg.includes("403") || msg.includes("api_key")) {
-          errorMessage = "مفتاح API الذي قمت بإدخاله غير صالح. يرجى التأكد من صحته في الإعدادات، أو مسحه لاستخدام الوضع التلقائي.";
-        } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to fetch")) {
-          errorMessage = "يبدو أن هناك مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
-        } else if (msg.includes("استجابة فارغة") || msg.includes("لم يتم العثور على استجابة")) {
-          errorMessage = "لم نتمكن من صياغة إجابة مناسبة في الوقت الحالي. يرجى إعادة صياغة سؤالك والمحاولة مرة أخرى.";
-        } else if (msg.includes("timeout") || msg.includes("فشل الاتصال")) {
-          errorMessage = "استغرق الخادم وقتاً طويلاً للاستجابة. يرجى المحاولة مرة أخرى لاحقاً.";
-        } else if (msg.includes("json") || err.name === "SyntaxError") {
-          errorMessage = "حدث خطأ في تنسيق البيانات الواردة من الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
-        } else {
-          // Show the actual error message to help identify the root cause
-          errorMessage = `عذراً، حدث خطأ: ${err.message}`;
+      try {
+        // Attempt seamless fallback to ensure smooth user experience
+        const fallbackData = await chatSessionRef.current.getOfflineFallbackResponse(text, displayName);
+        const aiMsg: ChatMessage = { id: generateId(), type: 'ai', data: { ...fallbackData, isOfflineFallback: true } };
+        const finalMessages = [...newMessages, aiMsg];
+        setMessages(finalMessages);
+        setState(AppState.SUCCESS);
+        saveCurrentSessionToHistory(finalMessages);
+      } catch (fallbackErr) {
+        let errorMessage = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.";
+        if (err?.message) {
+          const msg = err.message.toLowerCase();
+          if (msg.includes("quota") || msg.includes("429")) {
+            errorMessage = "يبدو أن هناك ضغطاً كبيراً على الخادم حالياً. يرجى المحاولة بعد قليل، أو إضافة مفتاح API الخاص بك في الإعدادات لتجربة أسرع.";
+          } else if (msg.includes("api key not valid") || msg.includes("invalid api key") || msg.includes("403") || msg.includes("api_key")) {
+            errorMessage = "مفتاح API الذي قمت بإدخاله غير صالح. يرجى التأكد من صحته في الإعدادات، أو مسحه لاستخدام الوضع التلقائي.";
+          } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to fetch")) {
+            errorMessage = "يبدو أن هناك مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
+          } else if (msg.includes("استجابة فارغة") || msg.includes("لم يتم العثور على استجابة")) {
+            errorMessage = "لم نتمكن من صياغة إجابة مناسبة في الوقت الحالي. يرجى إعادة صياغة سؤالك والمحاولة مرة أخرى.";
+          } else if (msg.includes("timeout") || msg.includes("فشل الاتصال")) {
+            errorMessage = "استغرق الخادم وقتاً طويلاً للاستجابة. يرجى المحاولة مرة أخرى لاحقاً.";
+          } else if (msg.includes("json") || err.name === "SyntaxError") {
+            errorMessage = "حدث خطأ في تنسيق البيانات الواردة من الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
+          } else {
+            errorMessage = `عذراً، حدث خطأ: ${err.message}`;
+          }
         }
+        setError(errorMessage);
+        setState(AppState.ERROR);
       }
-      setError(errorMessage);
-      setState(AppState.ERROR);
     }
   };
 
@@ -1804,6 +1813,16 @@ const App: React.FC = () => {
           }));
           showToast(`تم تعيين الموقع بنجاح: ${newLocation.name}`, 'success');
         }}
+      />
+
+      <PermissionsBanner 
+        onOpenSettings={() => setIsPermissionsGuideOpen(true)}
+      />
+
+      <BatteryOptimizationGuideModal
+        isOpen={isPermissionsGuideOpen}
+        onClose={() => setIsPermissionsGuideOpen(false)}
+        onShowToast={showToast}
       />
 
       <LocationPromptBanner

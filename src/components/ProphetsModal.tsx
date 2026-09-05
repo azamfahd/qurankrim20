@@ -27,6 +27,7 @@ import {
   Users
 } from 'lucide-react';
 import { PROPHETS_DATA, Prophet } from '../data/prophetsData';
+import { useAppEvent } from '../services/appEventBus';
 
 interface ProphetsModalProps {
   isOpen: boolean;
@@ -67,17 +68,10 @@ export const ProphetsModal: React.FC<ProphetsModalProps> = ({ isOpen, onClose, o
     } catch (e) {}
   }, [selectedProphetId, activeTab]);
 
-  // Listen for hardware back request inside Prophets modal
-  useEffect(() => {
-    const handleProphetsBack = (e: CustomEvent) => {
-      if (selectedProphetId) {
-        setSelectedProphetId(null);
-        e.preventDefault();
-        if (e.detail && typeof e.detail.stopProp === 'function') e.detail.stopProp();
-      }
-    };
-    window.addEventListener('anis_back_prophet_detail', handleProphetsBack as EventListener);
-    return () => window.removeEventListener('anis_back_prophet_detail', handleProphetsBack as EventListener);
+  useAppEvent('NAVIGATE_BACK_MODAL_DETAIL', (payload) => {
+    if (payload.modal === 'prophets' && selectedProphetId) {
+      setSelectedProphetId(null);
+    }
   }, [selectedProphetId]);
   
   // Font Size scaling

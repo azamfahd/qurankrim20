@@ -326,18 +326,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="block text-xs font-bold text-gray-600 mb-2">النموذج المستخدم (قوة الذكاء الاصطناعي)</label>
                   <div className="relative group/select">
                     <select 
-                      value={localSettings.model || (localSettings.isLoggedIn ? 'gemini-3.6-flash' : 'gemini-3.5-flash')}
+                      value={localSettings.model || 'gemini-3.6-flash'}
                       onChange={(e) => setLocalSettings({ ...localSettings, model: e.target.value as GeminiModel })}
                       className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer text-gray-800"
                     >
-                      <option value="gemini-3.6-flash">✨ Gemini 3.6 Flash Ultra (الأحدث والأقوى - الجيل 3.6 الفائق دقة وسرعة)</option>
-                      <option value="gemini-3.1-pro-preview">🔬 Gemini 3.1 Pro Advanced (العقل المفكر - للتنقيب والتدبر الاستراتيجي والبلاغي العميق)</option>
-                      <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro (Long-Context - نطاق سياقي عميق 2M للبحث الشامل في كامل القرآن والتفاسير)</option>
-                      <option value="gemini-2.5-pro">🏛️ Gemini 2.5 Pro (النموذج الأكاديمي والعمق التفسيري والفقهي المتقدم)</option>
-                      <option value="gemini-3.5-flash">⚡ Gemini 3.5 Flash (فائق السرعة والاستقرار - الافتراضي لجميع المستخدمين والزوار)</option>
-                      <option value="gemini-2.5-flash">🚀 Gemini 2.5 Flash (سرعة خفيفة واستجابة فورية متوازنة)</option>
-                      <option value="gemini-3-flash-preview">🎯 Gemini 3 Flash (الجيل الثالث - متوازن وسريع)</option>
-                      <option value="gemini-3.1-flash-lite">🕊️ Gemini 3.1 Flash Lite (الخفيف والأسرع - للردود اللحظية المبسطة)</option>
+                      <option value="gemini-3.8-flash">🚀 Gemini 3.8 Flash Next-Gen (الجيل الجديد - فائق السرعة والذكاء الفائق)</option>
+                      <option value="gemini-3.7-flash">⚡ Gemini 3.7 Flash Advanced (الجيل المتقدم - توازن استثنائي في التدبر والسرعة)</option>
+                      <option value="gemini-3.6-flash">✨ Gemini 3.6 Flash Ultra (الأحدث والأسرع - الافتراضي المستقر)</option>
+                      <option value="gemini-3.1-pro-preview">🔬 Gemini 3.1 Pro Advanced (العقل المفكر - للتحليل والتدبر البلاغي العميق)</option>
+                      <option value="gemini-3.5-flash">⚡ Gemini 3.5 Flash (فائق الاستقرار والسرعة اللحظية)</option>
+                      <option value="gemini-3.1-flash-lite">🕊️ Gemini 3.1 Flash Lite (الخفيف والسريع - للردود الموجزة المبسطة)</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/select:text-[var(--color-primary)] transition-colors">
                       <Sliders size={18} />
@@ -346,17 +344,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <ChevronDown size={16} />
                     </div>
                   </div>
-                  {!localSettings.isLoggedIn ? (
-                    <p className="text-[10px] text-amber-700 font-bold mt-2 leading-relaxed bg-amber-50/50 p-3 rounded-2xl border border-amber-100 flex items-center gap-2">
-                      <Sparkles size={14} className="shrink-0 text-amber-600 animate-pulse" />
-                      <span>أنت تستخدم التطبيق كزائر. تم تفعيل النموذج الافتراضي <b>Gemini 3.5 Flash</b> (فائق السرعة والاستقرار)، ويمكنك تجربة ومعاينة أي نموذج آخر من القائمة بحرية!</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-emerald-800 font-bold mt-2 leading-relaxed bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100 flex items-center gap-2">
-                      <Sparkles size={14} className="shrink-0 text-emerald-600" />
-                      <span>بصفتك مستخدماً مسجلاً، تم تفعيل النموذج الأحدث والأقوى <b>Gemini 3.6 Flash</b> افتراضياً مع كامل الحرية للتغيير بين النماذج!</span>
-                    </p>
-                  )}
                 </div>
 
                 <div>

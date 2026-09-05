@@ -188,6 +188,80 @@ function configureAndroid() {
   } catch (mainActErr) {
     console.warn('MainActivity configuration notice:', mainActErr);
   }
+
+  // 8. Configure build.gradle with permanent signing and incremented versionCode
+  try {
+    const buildGradlePath = path.join(__dirname, '..', 'android', 'app', 'build.gradle');
+    if (fs.existsSync(buildGradlePath)) {
+      let gradleContent = fs.readFileSync(buildGradlePath, 'utf8');
+
+      // Copy release.keystore to android/app/release.keystore if available
+      const srcKeystore = path.join(__dirname, '..', 'scripts', 'release.keystore');
+      const targetKeystore = path.join(__dirname, '..', 'android', 'app', 'release.keystore');
+      if (fs.existsSync(srcKeystore)) {
+        fs.copyFileSync(srcKeystore, targetKeystore);
+        console.log('✅ Copied persistent release.keystore to android/app/release.keystore');
+      }
+
+      // Calculate versionCode and versionName from package.json & GITHUB_RUN_NUMBER
+      let pkg = { version: '1.1.0' };
+      try {
+        pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+      } catch (e) {}
+
+      const runNumber = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
+      const versionParts = (pkg.version || '1.1.0').split('.').map(n => parseInt(n || '0', 10));
+      const major = versionParts[0] || 1;
+      const minor = versionParts[1] || 1;
+      const patch = versionParts[2] || 0;
+      const versionCode = (major * 10000) + (minor * 100) + (patch * 10) + runNumber;
+      const versionName = pkg.version || '1.1.0';
+
+      console.log(`ℹ️ Setting Android App versionCode=${versionCode}, versionName="${versionName}"`);
+
+      // 1. Enforce applicationId and update versionCode & versionName
+      gradleContent = gradleContent.replace(/applicationId\s+["'][^"']+["']/, 'applicationId "com.anisalqulub.app"');
+      gradleContent = gradleContent.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
+      gradleContent = gradleContent.replace(/versionName\s+["'][^"']+["']/, `versionName "${versionName}"`);
+
+      // 2. Inject signingConfigs if not present
+      if (!gradleContent.includes('signingConfigs {') && !gradleContent.includes("storeFile file('release.keystore')")) {
+        const signingBlock = `    signingConfigs {
+        release {
+            storeFile file('release.keystore')
+            storePassword 'anisalqulub123'
+            keyAlias 'anisalqulub'
+            keyPassword 'anisalqulub123'
+        }
+    }
+`;
+        gradleContent = gradleContent.replace('buildTypes {', signingBlock + `    buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }`);
+      }
+
+      // 3. Ensure release buildType also uses signingConfig
+      if (gradleContent.includes('signingConfigs.release')) {
+        if (!gradleContent.match(/release\s*\{[\s\S]*?signingConfig\s+signingConfigs\.release/)) {
+          gradleContent = gradleContent.replace(
+            /buildTypes\s*\{\s*debug\s*\{[\s\S]*?\}\s*release\s*\{/,
+            `buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
+        release {
+            signingConfig signingConfigs.release`
+          );
+        }
+      }
+
+      fs.writeFileSync(buildGradlePath, gradleContent, 'utf8');
+      console.log('✅ Successfully configured android/app/build.gradle with permanent signing and dynamic versionCode.');
+    }
+  } catch (gradleErr) {
+    console.warn('build.gradle configuration notice:', gradleErr);
+  }
 }
 
 try {

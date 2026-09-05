@@ -13,25 +13,9 @@ import { DownloadManager } from '../../services/DownloadManager';
 import { getCleanSurahName } from './AyahMarker';
 
 import { MediaSessionService } from '../../services/mediaSessionService';
+import { QURAN_RECITERS, getQuranAudioFallbackUrl } from '../../utils/quranAudio';
 
-export const RECITERS = [
-  { id: 'ar.faresabbad', name: 'فارس عباد', sub: 'مرتل' },
-  { id: 'ar.alafasy', name: 'مشاري راشد العفاسي', sub: 'العفاسي' },
-  { id: 'ar.abdulbasitmurattal', name: 'عبد الباسط عبد الصمد', sub: 'مرتل' },
-  { id: 'ar.minshawi', name: 'محمد صديق المنشاوي', sub: 'مرتل' },
-  { id: 'ar.minshawimujawwad', name: 'محمد صديق المنشاوي', sub: 'مجود' },
-  { id: 'ar.husary', name: 'محمود خليل الحصري', sub: 'مرتل' },
-  { id: 'ar.husarymujawwad', name: 'محمود خليل الحصري', sub: 'مجود' },
-  { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي', sub: 'الحرم المكي' },
-  { id: 'ar.yasseraddussary', name: 'ياسر الدوسري', sub: 'الحرم المكي' },
-  { id: 'ar.abdurrahmaansudais', name: 'عبد الرحمن السديس', sub: 'الحرم المكي' },
-  { id: 'ar.saoodshuraym', name: 'سعود الشريم', sub: 'مرتل' },
-  { id: 'ar.ahmedajamy', name: 'أحمد بن علي العجمي', sub: 'مرتل' },
-  { id: 'ar.hanirifai', name: 'هاني الرفاعي', sub: 'مرتل' },
-  { id: 'ar.hudhaify', name: 'علي الحذيفي', sub: 'الحرم المدني' },
-  { id: 'ar.shaatree', name: 'أبو بكر الشاطري', sub: 'مرتل' },
-  { id: 'ar.abdullahbasfar', name: 'عبد الله بصفر', sub: 'مرتل' },
-];
+export const RECITERS = QURAN_RECITERS;
 
 const QuranAudioPlayer = () => {
   const { 
@@ -77,6 +61,47 @@ const QuranAudioPlayer = () => {
   const [downloadStatus, setDownloadStatus] = useState<{ isDownloaded: boolean; downloadedCount: number }>({ isDownloaded: false, downloadedCount: 0 });
   const [downloadProgress, setDownloadProgress] = useState<CacheProgress | null>(null);
   const [resolvedAudioSrc, setResolvedAudioSrc] = useState<string>('');
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
+
+  // Reset fallback state when audio context changes
+  useEffect(() => {
+    setIsUsingFallback(false);
+  }, [playingAyahNumber, currentSurah, reciter]);
+
+  const handleAudioError = async () => {
+    if (!surahData || !isAudioPlaying) return;
+    console.warn("Audio element source error on:", resolvedAudioSrc);
+    
+    // Check if we are already using a fallback
+    const activeAyahInSurah = playingAyahNumber || rangeStart;
+    const ayahObj = surahData.ayahs?.find((a: any) => a.numberInSurah === activeAyahInSurah);
+    if (!ayahObj) {
+      setIsAudioPlaying(false);
+      return;
+    }
+
+    const primaryUrl = getQuranAudioUrl(reciter, ayahObj.number, currentSurah, activeAyahInSurah);
+    const fallbackUrl = getQuranAudioFallbackUrl(reciter, ayahObj.number, currentSurah, activeAyahInSurah);
+
+    // Only try fallback if we haven't already and a valid fallback exists
+    if (!isUsingFallback && fallbackUrl && fallbackUrl !== primaryUrl) {
+      console.log("Attempting fallback audio URL:", fallbackUrl);
+      setIsUsingFallback(true);
+      const fallbackSource = await AudioCacheService.getAudioSource(fallbackUrl);
+      setResolvedAudioSrc(fallbackSource);
+      // Wait for React to update src and then try play
+      setTimeout(() => {
+        if (audioRef.current && isAudioPlaying) {
+          audioRef.current.play().catch(e => {
+            console.warn("Fallback audio also failed:", e);
+            setIsAudioPlaying(false);
+          });
+        }
+      }, 200);
+    } else {
+      setIsAudioPlaying(false);
+    }
+  };
 
   const checkDownloadStatus = async () => {
     if (surahData && surahData.ayahs) {
@@ -94,8 +119,14 @@ const QuranAudioPlayer = () => {
     checkDownloadStatus();
   }, [currentSurah, reciter, surahData]);
 
-  const handleDownloadSurah = async () => {
+  const handleDownloadSurah = async (forceDownload = false) => {
     if (!surahData || !surahData.ayahs) return;
+    
+    if (!forceDownload && downloadStatus.isDownloaded) {
+      const reciterName = RECITERS.find(r => r.id === reciter)?.name || '';
+      alert(`سورة (${surahData.name}) بصوت ${reciterName} محملة وموجودة بالفعل لديك في الذاكرة وجاهزة للاستماع بدون إنترنت.`);
+      return;
+    }
     
     DownloadManager.addTask({
       id: `quran-surah-${currentSurah}-${reciter}`,
@@ -125,7 +156,7 @@ const QuranAudioPlayer = () => {
   const handleDeleteSurahCache = async () => {
     if (!surahData || !surahData.ayahs) return;
     if (window.confirm('هل أنت متأكد من حذف تلاوات هذه السورة المحفوظة أوفلاين لتوفير مساحة؟')) {
-      await AudioCacheService.deleteSurahCache(reciter, surahData.ayahs);
+      await AudioCacheService.deleteSurahCache(reciter, surahData.ayahs, currentSurah);
       await checkDownloadStatus();
     }
   };
@@ -426,11 +457,7 @@ const QuranAudioPlayer = () => {
           onEnded={handleAudioEnded}
           onPlay={applyPlaybackRate}
           onLoadedMetadata={applyPlaybackRate}
-          onError={(e) => {
-            const msg = (e.currentTarget as HTMLAudioElement)?.error?.message || "Audio source load error";
-            console.warn("Audio element source error:", msg);
-            setIsAudioPlaying(false);
-          }}
+          onError={handleAudioError}
         />
 
         {/* Playback Details */}
@@ -692,9 +719,14 @@ const QuranAudioPlayer = () => {
                       الاستماع دون اتصال (أوفلاين)
                     </span>
                     {downloadStatus.isDownloaded ? (
-                      <span className="text-[10px] text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSurah(false)}
+                        className="text-[10px] text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 px-2 py-0.5 rounded-full flex items-center gap-0.5 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                        title="اضغط لتأكيد حالة التحميل"
+                      >
                         <CheckCircle size={10} /> جاهز أوفلاين
-                      </span>
+                      </button>
                     ) : (
                       <span className="text-[10px] text-gray-400 dark:text-gray-500">
                         {downloadStatus.downloadedCount > 0 ? `محمل ${downloadStatus.downloadedCount}/${surahData.numberOfAyahs}` : 'غير محملة على الجهاز'}
@@ -728,7 +760,7 @@ const QuranAudioPlayer = () => {
                     <div className="flex gap-2">
                       {!downloadStatus.isDownloaded ? (
                         <button
-                          onClick={handleDownloadSurah}
+                          onClick={() => handleDownloadSurah(false)}
                           className="flex-1 py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer"
                         >
                           <Download size={12} />
