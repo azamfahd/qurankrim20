@@ -237,22 +237,15 @@ function configureAndroid() {
         gradleContent = gradleContent.replace('buildTypes {', signingBlock + 'buildTypes {');
       }
 
-      // 3. Ensure release and debug buildTypes use signingConfig
+      // 3. Ensure release and debug buildTypes use signingConfig safely without corrupting signingConfigs block
       if (gradleContent.includes('signingConfigs {') && !gradleContent.includes('signingConfig signingConfigs.release')) {
-        // Inject signingConfig into release block
+        // Inject signingConfig into the release block inside buildTypes
         gradleContent = gradleContent.replace(
-          /release\s*\{/,
-          `release {
+          /buildTypes\s*\{\s*release\s*\{/,
+          `buildTypes {
+        release {
             signingConfig signingConfigs.release`
         );
-        // Inject signingConfig into debug block if present
-        if (gradleContent.includes('debug {')) {
-          gradleContent = gradleContent.replace(
-            /debug\s*\{/,
-            `debug {
-            signingConfig signingConfigs.release`
-          );
-        }
       }
 
       fs.writeFileSync(buildGradlePath, gradleContent, 'utf8');
