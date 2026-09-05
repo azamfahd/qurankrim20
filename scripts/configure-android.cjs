@@ -224,8 +224,8 @@ function configureAndroid() {
       gradleContent = gradleContent.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
       gradleContent = gradleContent.replace(/versionName\s+["'][^"']+["']/, `versionName "${versionName}"`);
 
-      // 2. Inject signingConfigs if not present
-      if (!gradleContent.includes('signingConfigs {') && !gradleContent.includes("storeFile file('release.keystore')")) {
+      // 2. Inject signingConfigs block if not present
+      if (!gradleContent.includes('signingConfigs {')) {
         const signingBlock = `    signingConfigs {
         release {
             storeFile file('release.keystore')
@@ -233,24 +233,23 @@ function configureAndroid() {
             keyAlias 'anisalqulub'
             keyPassword 'anisalqulub123'
         }
-    }
-`;
-        gradleContent = gradleContent.replace('buildTypes {', signingBlock + `    buildTypes {
-        debug {
-            signingConfig signingConfigs.release
-        }`);
+    }\n\n`;
+        gradleContent = gradleContent.replace('buildTypes {', signingBlock + 'buildTypes {');
       }
 
-      // 3. Ensure release buildType also uses signingConfig
-      if (gradleContent.includes('signingConfigs.release')) {
-        if (!gradleContent.match(/release\s*\{[\s\S]*?signingConfig\s+signingConfigs\.release/)) {
+      // 3. Ensure release and debug buildTypes use signingConfig
+      if (gradleContent.includes('signingConfigs {') && !gradleContent.includes('signingConfig signingConfigs.release')) {
+        // Inject signingConfig into release block
+        gradleContent = gradleContent.replace(
+          /release\s*\{/,
+          `release {
+            signingConfig signingConfigs.release`
+        );
+        // Inject signingConfig into debug block if present
+        if (gradleContent.includes('debug {')) {
           gradleContent = gradleContent.replace(
-            /buildTypes\s*\{\s*debug\s*\{[\s\S]*?\}\s*release\s*\{/,
-            `buildTypes {
-        debug {
-            signingConfig signingConfigs.release
-        }
-        release {
+            /debug\s*\{/,
+            `debug {
             signingConfig signingConfigs.release`
           );
         }
