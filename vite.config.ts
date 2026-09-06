@@ -152,7 +152,8 @@ export default defineConfig(({ mode }) => {
         assetsInlineLimit: 4096,
         cssCodeSplit: true,
         minify: 'esbuild',
-        target: 'es2020',
+        target: ['es2017', 'chrome60'],
+        cssTarget: ['chrome60'],
         rollupOptions: {
           output: {
             entryFileNames: 'assets/[name]-[hash].js',

@@ -1,6 +1,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { requestDynamicPermission, PermissionService } from "./permissionService";
 import { NativeNotificationService } from "./nativeNotificationService";
 import { resolveAudioPath } from "./adhanService";
@@ -694,6 +695,53 @@ export class DhikrOfflineManager {
     } catch (e) {
       console.warn('Failed to save blob to IndexedDB:', e);
     }
+
+    // Save copy to the Native Filesystem on phone storage (App Folder)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            if (reader.result) {
+              const result = reader.result as string;
+              resolve(result.split(',')[1] || result);
+            } else {
+              reject(new Error('Failed to read blob'));
+            }
+          };
+          reader.onerror = reject;
+        });
+        await Filesystem.writeFile({
+          path: `dhikr_${key}.mp3`,
+          data: base64Data,
+          directory: Directory.Data,
+          recursive: true
+        });
+        console.log(`Successfully saved dhikr_${key}.mp3 copy directly to device files.`);
+      } catch (nativeErr) {
+        console.warn('Failed to save a copy of dhikr sound to native files:', nativeErr);
+      }
+    }
+  }
+
+  /**
+   * Retrieves the offline file URL from the native filesystem if it exists
+   */
+  public static async getOfflineAudioUrl(reciterId: string, categoryKey: string): Promise<string | null> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const fileKey = `${reciterId}_${categoryKey}`;
+        const result = await Filesystem.getUri({
+          directory: Directory.Data,
+          path: `dhikr_${fileKey}.mp3`
+        });
+        if (result && result.uri) {
+          return Capacitor.convertFileSrc(result.uri);
+        }
+      } catch {}
+    }
+    return null;
   }
 
   public static async getReciterAudioBlob(reciterId: string, categoryKey: string): Promise<Blob | null> {
@@ -868,6 +916,19 @@ export class DhikrOfflineManager {
           stores[this.STORE_NAME].delete(`${reciterId}_${catKey}`);
         }
       });
+
+      // 2.5. Delete from Native Filesystem (Capacitor)
+      if (Capacitor.isNativePlatform()) {
+        const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'preview'];
+        for (const catKey of categories) {
+          try {
+            await Filesystem.deleteFile({
+              path: `dhikr_${reciterId}_${catKey}.mp3`,
+              directory: Directory.Data
+            });
+          } catch {}
+        }
+      }
 
       // 3. Delete from Cache API
       if (typeof window !== 'undefined' && 'caches' in window) {
@@ -1111,6 +1172,21 @@ export class DhikrReminderService {
     return { ...this.settings };
   }
 
+  public static getOfflineReadyReciterId(): string {
+    const activeId = this.settings.reciterId;
+    if (activeId !== 'random') return activeId;
+
+    const actualReciters = DHIKR_RECITERS.filter(r => r.id !== 'random');
+    const offlineReciters = [];
+    for (const r of actualReciters) {
+      if (r.id === 'mishary' || localStorage.getItem(`anis_reciter_downloaded_${r.id}`) === 'true') {
+        offlineReciters.push(r.id);
+      }
+    }
+    const pool = offlineReciters.length > 0 ? offlineReciters : ['mishary'];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   public static updateSettings(newSettings: Partial<DhikrReminderSettings>): DhikrReminderSettings {
     this.settings = { ...this.settings, ...newSettings };
     try {
@@ -1126,8 +1202,8 @@ export class DhikrReminderService {
     this.restartIntervalTimer();
     this.syncWithServiceWorker();
 
-    if (Capacitor.isNativePlatform() && newSettings.reciterId) {
-      NativeNotificationService.syncChannelsWithActiveSettings(undefined, newSettings.reciterId).catch(() => {});
+    if (Capacitor.isNativePlatform()) {
+      NativeNotificationService.syncChannelsWithActiveSettings(undefined, this.settings.reciterId || 'mishary').catch(() => {});
     }
 
     return this.settings;
@@ -1339,8 +1415,9 @@ export class DhikrReminderService {
           const notifications = [];
           let idCounter = 80000;
           const today = new Date();
-          const channelId = NativeNotificationService.getDhikrChannelId('general', this.settings.soundType === 'silent');
-          const soundFile = NativeNotificationService.getDhikrSound('general');
+          const reciter = this.getOfflineReadyReciterId();
+          const channelId = NativeNotificationService.getDhikrChannelId('general', this.settings.soundType === 'silent', reciter);
+          const soundFile = NativeNotificationService.getDhikrSound('general', reciter);
 
           for (let i = 0; i < 30; i++) {
             const currentDay = new Date(today);
@@ -1481,8 +1558,9 @@ export class DhikrReminderService {
                 ? '💧 أنيس القلوب | استغفار وتوبة' 
                 : `🌿 أنيس القلوب | ${item.categoryName || 'تذكير بذكر الله'}`;
 
-              const channelId = NativeNotificationService.getDhikrChannelId(item.category, this.settings.soundType === 'silent', this.settings.reciterId);
-              const soundFile = NativeNotificationService.getDhikrSound(item.category, this.settings.reciterId);
+              const itemReciter = this.getOfflineReadyReciterId();
+              const channelId = NativeNotificationService.getDhikrChannelId(item.category, this.settings.soundType === 'silent', itemReciter);
+              const soundFile = NativeNotificationService.getDhikrSound(item.category, itemReciter);
 
               const cleanVirtue = item.virtue ? item.virtue.trim() : '';
               const fullBody = `« ${item.text} »${cleanVirtue ? '\n\n🤍 ' + cleanVirtue : ''}`;
@@ -1502,7 +1580,7 @@ export class DhikrReminderService {
                   dhikrItem: item, 
                   soundType: this.settings.soundType, 
                   volume: this.settings.volume, 
-                  reciterId: this.settings.reciterId 
+                  reciterId: itemReciter 
                 }
               });
             }
@@ -1712,6 +1790,19 @@ export class DhikrReminderService {
 
     const categoryKey = this.getCategoryAudioKey(dhikr.category);
     const reciterInfo = DHIKR_RECITERS.find(r => r.id === targetReciterId);
+
+    // 0. Check if we have natively saved file in phone storage first
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const nativeUrl = await DhikrOfflineManager.getOfflineAudioUrl(targetReciterId, categoryKey);
+        if (nativeUrl) {
+          const played = await this.tryPlayAudioUrl(nativeUrl, volume, targetReciterId, dhikr.id);
+          if (played) return;
+        }
+      } catch (nativeErr) {
+        console.warn('Native local file check error:', nativeErr);
+      }
+    }
 
     const candidates: string[] = [
       `/audio/adhkar/${targetReciterId}_${categoryKey}.mp3`,
@@ -2135,10 +2226,11 @@ export class DhikrReminderService {
     try {
       if (Capacitor.isNativePlatform()) {
         const LocalNotifications = (await import('@capacitor/local-notifications')).LocalNotifications;
-        await NativeNotificationService.syncChannelsWithActiveSettings(undefined, this.settings.reciterId || 'mishary');
+        const testReciter = this.getOfflineReadyReciterId();
+        await NativeNotificationService.syncChannelsWithActiveSettings(undefined, testReciter);
 
-        const channelId = NativeNotificationService.getDhikrChannelId(dhikr.category, this.settings.soundType === 'silent', this.settings.reciterId);
-        const soundFile = NativeNotificationService.getDhikrSound(dhikr.category, this.settings.reciterId);
+        const channelId = NativeNotificationService.getDhikrChannelId(dhikr.category, this.settings.soundType === 'silent', testReciter);
+        const soundFile = NativeNotificationService.getDhikrSound(dhikr.category, testReciter);
 
         await LocalNotifications.schedule({
           notifications: [{
@@ -2156,7 +2248,7 @@ export class DhikrReminderService {
               dhikrItem: dhikr,
               soundType: this.settings.soundType,
               volume: this.settings.volume,
-              reciterId: this.settings.reciterId
+              reciterId: testReciter
             }
           }]
         });

@@ -67,33 +67,24 @@ export class NativeNotificationService {
   }
 
   public static getDhikrSound(category?: string, reciterId?: string): string {
-    const effectiveReciter = reciterId || this.getActiveReciterId();
-    
-    // In Capacitor, native notification sounds MUST be bundled in res/raw.
-    // Currently, only Mishary's adhkar are bundled to save APK space.
-    // If a different reciter is chosen (e.g. husary, minshawi), we fallback to the default system notification sound
-    // by returning undefined, rather than playing the wrong Sheikh's voice.
-    // The correct downloaded voice will be played via the Foreground Service engine instead.
-    if (effectiveReciter === 'mishary') {
-      switch (category) {
-        case 'prophet_salawat':
-          return 'mishary_salawat.mp3';
-        case 'istighfar':
-          return 'mishary_istighfar.mp3';
-        case 'baqiyat':
-          return 'mishary_baqiyat.mp3';
-        case 'hawqala':
-          return 'mishary_hawqala.mp3';
-        case 'tahsin':
-          return 'mishary_tahsin.mp3';
-        default:
-          return 'mishary_salawat.mp3';
-      }
+    // In Capacitor, native notification sounds MUST be bundled inside the APK under res/raw.
+    // Currently, only 'mishary' adhkar files are bundled inside the APK to optimize file size.
+    // [Graceful Fallback Guard]: If a non-bundled الشيخ (like maher, husary) is selected, to prevent a silent
+    // "internal fade" or a dry system beep, we dynamically fallback to Mishary's beautiful bundled sound.
+    // Meanwhile, inside the app and foreground playback, the system will play the actual selected sheikh's voice from downloaded local files.
+    const rId = reciterId || this.getActiveReciterId() || 'mishary';
+    const isBundled = rId === 'mishary';
+    const effectiveReciter = isBundled ? rId : 'mishary';
+
+    let fileSuffix = 'salawat';
+    if (category) {
+      if (category.includes('salawat')) fileSuffix = 'salawat';
+      else if (category.includes('istighfar')) fileSuffix = 'istighfar';
+      else if (category.includes('baqiyat')) fileSuffix = 'baqiyat';
+      else if (category.includes('hawqala')) fileSuffix = 'hawqala';
+      else if (category.includes('tahsin')) fileSuffix = 'tahsin';
     }
-    
-    // For non-bundled reciters, we don't set a hardcoded sound. 
-    // Android will use the default system notification sound, OR our foreground service will play the correct audio.
-    return undefined as any;
+    return `${effectiveReciter}_${fileSuffix}.mp3`;
   }
 
   public static getAdhanChannelId(muezzinId?: string): string {
