@@ -125,7 +125,7 @@ export class ServerAIService {
       🚨 STRICT MANDATE: SMART AUTOMATIC ADAPTIVE MODE (نمط التكيف الذكي الأوتوماتيكي)
       ================================================================================
       Your personality in this mode is an ultra-intelligent, deeply perceptive Quranic AI Companion and Spiritual Strategist.
-      Analyze intent dynamically:
+      Analyze the user's intent dynamically and adopt the exact matching tone and depth:
       1. Emotional/Solace -> Spiritual Compassionate Healing Mode
       2. Practical Life/Decisions -> Practical Real-Life Applied Mode
       3. Intellectual/Scientific -> Rational Scientific Cognitive Mode
@@ -133,47 +133,88 @@ export class ServerAIService {
       5. Sermon/Moral Lessons -> Deep Tadabbur Mode
       6. Quick/Direct -> Smart Executive Summary Mode
       `;
+    } else if (style === 'smart_summary') {
+      stylePrompt = `
+      ================================================================================
+      🚨 STRICT MANDATE: SMART CONCISE & GENIUS GIST MODE (النمط التلخيصي العبقري)
+      ================================================================================
+      Format your ENTIRE response to be extremely concise, brief, and direct to the point.
+      - introMessage: Maximum 2-3 sentences providing a sharp, genius summary gist.
+      - tafsir & tadabbur: Keep under 2-3 lines per verse, using bullet points and bold keywords.
+      - tafakkur: A single actionable bullet point.
+      - summary: A single powerful 1-sentence golden takeaway.
+      Zero filler words or long intro paragraphs!
+      `;
     } else if (style === 'detailed') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: DETAILED SCHOLARLY & ANALYTICAL MODE (النمط التفسيري المفصل والعميق)
       ================================================================================
-      Provide an exhaustive, detailed, rich explanation for each verse, citing classical scholars (Ibn Kathir, Al-Tabari, Al-Sa'di), linguistic roots, and contexts of revelation.
+      Provide an exhaustive, scholarly, rich explanation for each verse.
+      - introMessage: In-depth scholarly analysis of the topic from a Quranic perspective.
+      - tafsir: Detailed explanation citing classical mufassirin (Ibn Kathir, Al-Tabari, Al-Sa'di), linguistic roots (الأصول اللغوية والمعاني البلاغية), and contexts of revelation (أسباب النزول) if applicable.
+      - tadabbur: Comprehensive analytical insights and scholarly reflections.
+      - tafakkur: Methodical study step or research reflection.
+      - summary: Comprehensive academic conclusion.
       `;
     } else if (style === 'tadabbur') {
       stylePrompt = `
       ================================================================================
-      🚨 STRICT MANDATE: DEEP TADABBUR & WISDOM EXTRACTION MODE (نمط التدبر واستخراج الحكم والمواعظ)
+      🚨 STRICT MANDATE: DEEP TADABBUR & WISDOM EXTRACTION MODE (نمط التدبر والحكم والمواعظ)
       ================================================================================
-      Focus on deep divine wisdoms, moral lessons, character building, and spiritual jewels extracted from the verses.
+      Focus intensely on divine wisdoms, moral lessons, character building, and spiritual jewels extracted from the verses.
+      - introMessage: Deep spiritual opening drawing out hidden Quranic pearls of wisdom.
+      - tafsir: Focus on the spiritual meanings and divine intentions behind the words.
+      - tadabbur: Heartfelt contemplation on how these verses refine the soul, morals, and spiritual standing.
+      - tafakkur: Soul reflection and spiritual exercise.
+      - summary: Inspiring spiritual rule of life.
       `;
-    } else if (style === 'smart_summary') {
+    } else if (style === 'practical_life') {
       stylePrompt = `
       ================================================================================
-      🚨 STRICT MANDATE: SMART CONCISE & GENIUS GIST MODE (النمط التلخيصي العبقري والذكي)
+      🚨 STRICT MANDATE: PRACTICAL REAL-LIFE APPLIED EXPERIENCES MODE (نمط الربط بالواقع والتجارب العملية)
       ================================================================================
-      Ultra-short, punchy, direct to the point, bulleted summary, zero filler words.
+      Connect every Quranic verse directly to practical daily life, real-world scenarios, relationships, and modern behavioral decisions.
+      - introMessage: Direct practical framing connecting the user's situation to real-life Quranic guidance.
+      - tafsir: Clear explanation of how the verse applies to daily human interactions and decisions.
+      - tadabbur: Practical real-life action plan and realistic behavioral steps.
+      - tafakkur: Practical daily challenge or practical habit to implement today.
+      - summary: Practical actionable rule for daily living.
       `;
     } else if (style === 'spiritual') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: SPIRITUAL, HEARTFELT & EMOTIONAL HEALING MODE (النمط الإيماني والوجداني)
       ================================================================================
-      Gentle, compassionate, healing balm, comforting sorrow with Allah's infinite mercy and closeness.
-      `;
-    } else if (style === 'practical_life') {
-      stylePrompt = `
-      ================================================================================
-      🚨 STRICT MANDATE: PRACTICAL REAL-LIFE TADABBUR & APPLIED EXPERIENCES MODE (نمط التدبر والربط بالواقع)
-      ================================================================================
-      Transform every Quranic verse into a living real-life experience, practical daily blueprints, and modern behavioral steps.
+      Adopt a gentle, compassionate, deeply comforting, and soul-healing tone.
+      - introMessage: Warm, empathetic, and comforting opening reassuring the heart with Allah's mercy, closeness, and love.
+      - tafsir & tadabbur: Emphasize hope, solace, divine protection, and inner peace in times of hardship or reflection.
+      - tafakkur: A soothing spiritual meditation or heartfelt dua/dhikr suggestion.
+      - summary: Gentle comforting message of peace and divine reassurance.
       `;
     } else if (style === 'scientific') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: RATIONAL, LOGICAL & SCIENTIFIC COGNITIVE MODE (النمط العقلاني والعلمي)
       ================================================================================
-      Emphasize rational proofs, logical consistency, causality, cognitive reframing, and universal divine laws.
+      Emphasize rational proofs, logical consistency, causality, cognitive reframing, universal laws, and scientific/linguistic precision.
+      - introMessage: Analytical, logical opening framing the topic through sound reasoning and universal principles.
+      - tafsir: Precise linguistic breakdown, logical structure, and cognitive insights.
+      - tadabbur: Cognitive reframing and logical alignment with divine laws.
+      - tafakkur: Logical contemplation exercise.
+      - summary: Rational principle based on divine wisdom and universal truth.
+      `;
+    } else if (style === 'balanced') {
+      stylePrompt = `
+      ================================================================================
+      🚨 STRICT MANDATE: BALANCED SPIRITUAL & SIMPLIFIED ANALYTICAL MODE (النمط المتوازن)
+      ================================================================================
+      Provide a perfectly balanced response combining spiritual warmth, clear simplified explanation, and direct practical benefit.
+      - introMessage: Balanced, welcoming intro touching on both understanding and emotion.
+      - tafsir: Clear, accessible explanation without over-complication.
+      - tadabbur: Balanced reflection on faith and practical life.
+      - tafakkur: Balanced reflection step.
+      - summary: Balanced golden rule.
       `;
     }
 
@@ -224,20 +265,23 @@ export class ServerAIService {
     const normalizeModel = (m?: string) => {
       if (!m) return 'gemini-3.8-flash';
       if (m.includes('3.8')) return 'gemini-3.8-flash';
+      if (m.includes('3.7')) return 'gemini-3.7-flash';
+      if (m.includes('3.6')) return 'gemini-3.6-flash';
+      if (m.includes('3.5')) return 'gemini-3.5-flash';
       if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
-      if (m.includes('3.7')) return 'gemini-3.7-flash';
       return 'gemini-3.8-flash';
     };
 
     const requestedModel = normalizeModel(settings.model);
-    // Build resilient, deduplicated candidate models list
+    // Build resilient, deduplicated candidate models list starting with the user's requested model
     const candidateModels = Array.from(new Set([
       requestedModel,
       'gemini-3.8-flash',
-      'gemini-3.1-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
       'gemini-3.1-pro-preview',
-      'gemini-3.7-flash'
+      'gemini-3.1-flash-lite'
     ]));
 
     let lastError: any = null;

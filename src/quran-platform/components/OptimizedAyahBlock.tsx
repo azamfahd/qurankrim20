@@ -44,8 +44,9 @@ export const OptimizedAyahItem: React.FC<OptimizedAyahProps> = memo(({
   onToggleVerseReveal
 }) => {
   let text = ayah.text;
-  if (currentSurah !== 1 && ayah.numberInSurah === 1 && text.startsWith('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ')) {
-    text = text.replace('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ', '');
+  if (currentSurah !== 1 && ayah.numberInSurah === 1) {
+    const bismillahRegex = /^ب\p{M}*س\p{M}*م\p{M}*\s+[ٱا]\p{M}*ل\p{M}*ل\p{M}*ه\p{M}*\s+[ٱا]\p{M}*ل\p{M}*ر\p{M}*ح\p{M}*م\p{M}*ن\p{M}*\s+[ٱا]\p{M}*ل\p{M}*ر\p{M}*ح\p{M}*ي\p{M}*م\p{M}*\s*/u;
+    text = text.replace(bismillahRegex, '');
   }
 
   const ayahNumber = ayah.numberInSurah || ayah.number;

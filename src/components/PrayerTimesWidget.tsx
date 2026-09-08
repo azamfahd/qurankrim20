@@ -185,12 +185,15 @@ export const PrayerTimesWidget = React.memo<PrayerTimesWidgetProps>(({
         </div>
       </div>
 
-      {!onOpenAdhanSettings && (
-        <Suspense fallback={<div className="hidden"></div>}><AdhanSettingsModal 
-          isOpen={localAdhanModalOpen} 
-          onClose={() => setLocalAdhanModalOpen(false)} 
-          settings={settings} 
-          onSave={onUpdateSettings} /></Suspense>
+      {!onOpenAdhanSettings && localAdhanModalOpen && (
+        <Suspense fallback={null}>
+          <AdhanSettingsModal 
+            isOpen={localAdhanModalOpen} 
+            onClose={() => setLocalAdhanModalOpen(false)} 
+            settings={settings} 
+            onSave={onUpdateSettings} 
+          />
+        </Suspense>
       )}
     </>
   );

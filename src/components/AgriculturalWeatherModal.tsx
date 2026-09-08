@@ -381,17 +381,17 @@ export default function AgriculturalWeatherModal({
           </div>
 
           {/* Integrated Region Auto Bar */}
-          <div className="px-5 py-3 bg-stone-50/90 dark:bg-gray-950/80 border-b border-stone-200/80 dark:border-gray-800 flex items-center justify-between gap-2 shrink-0 text-xs">
-            <div className="flex items-center gap-2 text-stone-700 dark:text-stone-200 font-bold">
+          <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-stone-50/90 dark:bg-gray-950/80 border-b border-stone-200/80 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-stone-700 dark:text-stone-200 font-bold">
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse shrink-0" />
-              <span>المنطقة المناخية المحددة بالنظام:</span>
-              <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-black border border-emerald-300/50 dark:border-emerald-700/50">
+              <span>المنطقة المحددة:</span>
+              <span className="px-2 sm:px-2.5 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-black border border-emerald-300/50 dark:border-emerald-700/50">
                 {selectedLoc.name}
               </span>
             </div>
 
-            <div className="flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 sm:px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>ربط ديناميكي مباشر</span>
             </div>
           </div>

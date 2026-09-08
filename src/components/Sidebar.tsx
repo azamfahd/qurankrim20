@@ -4,6 +4,7 @@ import { UserSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SmartAppButton } from './SmartAppButton';
 import { DhikrReminderService } from '../services/dhikrReminderService';
+import { AppUpdateService } from '../services/appUpdateService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -91,7 +92,11 @@ export const Sidebar = React.memo<SidebarProps>(({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative h-full w-[285px] sm:w-[330px] bg-gradient-to-b from-[#fdfbf7] via-[#fefdf9] to-[#faf6ea] shadow-3xl flex flex-col overflow-hidden rounded-l-[2.5rem] border-l-2 border-[var(--color-gold)]/35"
+            className="relative h-full w-[285px] sm:w-[330px] max-w-[88vw] bg-gradient-to-b from-[#fdfbf7] via-[#fefdf9] to-[#faf6ea] shadow-3xl flex flex-col overflow-hidden rounded-l-[2rem] sm:rounded-l-[2.5rem] border-l-2 border-[var(--color-gold)]/35"
+            style={{
+              paddingTop: 'var(--safe-area-top)',
+              paddingBottom: 'var(--safe-area-bottom)'
+            }}
           >
             
             <div className="p-6 pt-7 pb-7 border-b border-[var(--color-gold)]/30 flex justify-between items-center royal-gradient relative overflow-hidden shadow-lg">
@@ -291,6 +296,18 @@ export const Sidebar = React.memo<SidebarProps>(({
                     onClose();
                   }} 
                   variant="share"
+                />
+
+                {/* In-App Smart Update Button */}
+                <SidebarItem 
+                  icon={<Sparkles size={20} className="text-amber-500" />} 
+                  label="التحقق من التحديثات" 
+                  badge={`v${AppUpdateService.getCurrentVersion()}`}
+                  onClick={() => {
+                    onClose();
+                    window.dispatchEvent(new CustomEvent('check-for-app-updates'));
+                  }} 
+                  variant="dhikr_alert"
                 />
 
                 {/* Only show install button if user is running in browser and has NOT already installed the app */}

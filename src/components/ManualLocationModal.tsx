@@ -149,18 +149,18 @@ export const ManualLocationModal: React.FC<ManualLocationModalProps> = ({
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: "spring", stiffness: 350, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 z-10"
+            className="relative bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 z-10"
           >
           {/* Header */}
-          <div className="relative p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-md shadow-emerald-600/20">
-                <MapPin size={22} className="animate-pulse" />
+          <div className="relative p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2.5 sm:p-3 bg-emerald-600 text-white rounded-2xl shadow-md shadow-emerald-600/20 shrink-0">
+                <MapPin size={20} className="animate-pulse sm:w-[22px] sm:h-[22px]" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <span>تحديد موقعك الجغرافي</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                     مواقيت الصلاة والقبلة
                   </span>
                 </h3>

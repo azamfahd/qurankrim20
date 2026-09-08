@@ -57,13 +57,22 @@ export class NativeNotificationService {
     return 'mishary';
   }
 
+  public static normalizeCategoryKey(category?: string): string {
+    if (!category) return 'general';
+    const cat = category.toLowerCase();
+    if (cat.includes('salawat') || cat.includes('prophet')) return 'salawat';
+    if (cat.includes('istighfar')) return 'istighfar';
+    if (cat.includes('baqiyat')) return 'baqiyat';
+    if (cat.includes('hawqala')) return 'hawqala';
+    if (cat.includes('tahsin')) return 'tahsin';
+    return 'general';
+  }
+
   public static getDhikrChannelId(category?: string, isSilent: boolean = false, reciterId?: string): string {
-    if (isSilent) return 'dhikr_channel_silent';
+    if (isSilent) return 'dhikr_v5_silent';
     const effectiveReciter = reciterId || this.getActiveReciterId();
-    if (category) {
-      return `dhikr_channel_${effectiveReciter}_${category}`;
-    }
-    return `dhikr_channel_${effectiveReciter}_general`;
+    const cleanCategory = this.normalizeCategoryKey(category);
+    return `dhikr_v5_${effectiveReciter}_${cleanCategory}`;
   }
 
   public static getDhikrSound(category?: string, reciterId?: string): string {
@@ -75,20 +84,15 @@ export class NativeNotificationService {
     const validReciters = ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais'];
     const effectiveReciter = validReciters.includes(rId) ? rId : 'mishary';
 
-    let fileSuffix = 'salawat';
-    if (category) {
-      if (category.includes('salawat')) fileSuffix = 'salawat';
-      else if (category.includes('istighfar')) fileSuffix = 'istighfar';
-      else if (category.includes('baqiyat')) fileSuffix = 'baqiyat';
-      else if (category.includes('hawqala')) fileSuffix = 'hawqala';
-      else if (category.includes('tahsin')) fileSuffix = 'tahsin';
-    }
-    return `${effectiveReciter}_${fileSuffix}.mp3`;
+    const cleanCategory = this.normalizeCategoryKey(category);
+    // On Android native raw resources, use exact filename without extension
+    const soundSuffix = cleanCategory === 'general' ? 'salawat' : cleanCategory;
+    return `${effectiveReciter}_${soundSuffix}.mp3`;
   }
 
   public static getAdhanChannelId(muezzinId?: string): string {
     const effectiveMuezzin = muezzinId || this.getActiveMuezzinId();
-    return `adhan_channel_${effectiveMuezzin}`;
+    return `adhan_v5_${effectiveMuezzin}`;
   }
 
   public static getAdhanSound(muezzinId?: string): string {
@@ -97,7 +101,7 @@ export class NativeNotificationService {
   }
 
   public static getSilentChannelId(): string {
-    return 'adhan_channel_silent';
+    return 'adhan_v5_silent';
   }
 
   /**
@@ -218,7 +222,7 @@ export class NativeNotificationService {
       const activeAdhanChannelId = this.getAdhanChannelId(activeMuezzin);
       const silentAdhanChannelId = this.getSilentChannelId();
       const activeDhikrGeneralId = this.getDhikrChannelId(undefined, false, activeReciter);
-      const silentDhikrChannelId = 'dhikr_channel_silent';
+      const silentDhikrChannelId = this.getDhikrChannelId(undefined, true);
 
       const recitersToSetup = activeReciter === 'random' 
         ? ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais']
@@ -227,12 +231,12 @@ export class NativeNotificationService {
       const activeDhikrCategoryIds: string[] = [];
       recitersToSetup.forEach(r => {
         activeDhikrCategoryIds.push(
-          `dhikr_channel_${r}_salawat`,
-          `dhikr_channel_${r}_istighfar`,
-          `dhikr_channel_${r}_baqiyat`,
-          `dhikr_channel_${r}_hawqala`,
-          `dhikr_channel_${r}_tahsin`,
-          `dhikr_channel_${r}_general`
+          `dhikr_v5_${r}_salawat`,
+          `dhikr_v5_${r}_istighfar`,
+          `dhikr_v5_${r}_baqiyat`,
+          `dhikr_v5_${r}_hawqala`,
+          `dhikr_v5_${r}_tahsin`,
+          `dhikr_v5_${r}_general`
         );
       });
 
@@ -245,18 +249,21 @@ export class NativeNotificationService {
         'anis_foreground_prayer_tracker'
       ]);
 
-      // 1. Clean up legacy v3 & v4 channels and channels for inactive muezzins/reciters
+      // 1. Clean up legacy channels and channels for inactive muezzins/reciters
       try {
         const listResult = await LocalNotifications.listChannels();
         const existingChannels = listResult?.channels || [];
 
         for (const ch of existingChannels) {
-          // If channel is legacy v3 or v4, or is for another muezzin/reciter, delete it
-          const isLegacy = ch.id.includes('_v3') || ch.id.includes('_v4');
-          const isOldAdhan = ch.id.startsWith('adhan_channel_') && !allowedChannelIds.has(ch.id);
-          const isOldDhikr = ch.id.startsWith('dhikr_channel_') && !allowedChannelIds.has(ch.id);
+          // If channel is legacy (dhikr_channel_, adhan_channel_, _v3, _v4) or is for an inactive muezzin/reciter, delete it
+          const isLegacy = ch.id.startsWith('dhikr_channel_') || 
+                           ch.id.startsWith('adhan_channel_') || 
+                           ch.id.includes('_v3') || 
+                           ch.id.includes('_v4');
+          const isInactiveAdhan = ch.id.startsWith('adhan_v5_') && !allowedChannelIds.has(ch.id);
+          const isInactiveDhikr = ch.id.startsWith('dhikr_v5_') && !allowedChannelIds.has(ch.id);
 
-          if (isLegacy || isOldAdhan || isOldDhikr) {
+          if (isLegacy || isInactiveAdhan || isInactiveDhikr) {
             try {
               await LocalNotifications.deleteChannel({ id: ch.id });
             } catch {}
@@ -266,30 +273,33 @@ export class NativeNotificationService {
         console.warn('Channel cleanup listing notice:', e);
       }
 
-      // Also explicitly delete static legacy v4 muezzin channel IDs in case listChannels omitted them
+      // Also explicitly delete static legacy channel IDs in case listChannels omitted them
       const allMuezzinKeys = Object.keys(this.MUEZZIN_NAMES);
       for (const mId of allMuezzinKeys) {
         LocalNotifications.deleteChannel({ id: `adhan_channel_v4_${mId}` }).catch(() => {});
         LocalNotifications.deleteChannel({ id: `adhan_channel_v3_${mId}` }).catch(() => {});
+        LocalNotifications.deleteChannel({ id: `adhan_channel_${mId}` }).catch(() => {});
         if (mId !== activeMuezzin) {
-          LocalNotifications.deleteChannel({ id: `adhan_channel_${mId}` }).catch(() => {});
+          LocalNotifications.deleteChannel({ id: `adhan_v5_${mId}` }).catch(() => {});
         }
       }
 
-      // Clean up legacy dhikr channels
-      const legacyDhikrIds = [
-        'dhikr_channel_v3',
-        'dhikr_channel_v4_salawat',
-        'dhikr_channel_v4_istighfar',
-        'dhikr_channel_v4_baqiyat',
-        'dhikr_channel_v4_hawqala',
-        'dhikr_channel_v4_tahsin',
-        'dhikr_channel_v4_general',
-        'dhikr_channel_v4_silent'
-      ];
-      for (const chId of legacyDhikrIds) {
-        LocalNotifications.deleteChannel({ id: chId }).catch(() => {});
+      // Clean up legacy dhikr channels across all reciters
+      const allReciterKeys = ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais', 'random'];
+      const categories = ['salawat', 'istighfar', 'baqiyat', 'hawqala', 'tahsin', 'general'];
+      for (const rKey of allReciterKeys) {
+        for (const cat of categories) {
+          LocalNotifications.deleteChannel({ id: `dhikr_channel_${rKey}_${cat}` }).catch(() => {});
+          LocalNotifications.deleteChannel({ id: `dhikr_channel_v4_${cat}` }).catch(() => {});
+          if (!recitersToSetup.includes(rKey)) {
+            LocalNotifications.deleteChannel({ id: `dhikr_v5_${rKey}_${cat}` }).catch(() => {});
+          }
+        }
       }
+      LocalNotifications.deleteChannel({ id: 'dhikr_channel_silent' }).catch(() => {});
+      LocalNotifications.deleteChannel({ id: 'dhikr_channel_v3' }).catch(() => {});
+      LocalNotifications.deleteChannel({ id: 'dhikr_channel_v4_silent' }).catch(() => {});
+      LocalNotifications.deleteChannel({ id: 'adhan_channel_silent' }).catch(() => {});
 
       // 2. Create Active Adhan Channel specifically matched to chosen Sheikh
       try {
@@ -328,37 +338,37 @@ export class NativeNotificationService {
         const rName = this.RECITER_NAMES[rId] || rId;
         const dhikrCategories = [
           {
-            id: `dhikr_channel_${rId}_salawat`,
+            id: `dhikr_v5_${rId}_salawat`,
             name: `الصلاة على النبي ﷺ (${rName})`,
             description: `تنبيه صوتي بالصلاة على الحبيب المصطفى ﷺ بصوت ${rName}`,
             sound: this.getDhikrSound('prophet_salawat', rId)
           },
           {
-            id: `dhikr_channel_${rId}_istighfar`,
+            id: `dhikr_v5_${rId}_istighfar`,
             name: `الاستغفار والتوبة (${rName})`,
             description: `تنبيه صوتي بأذكار الاستغفار بصوت ${rName}`,
             sound: this.getDhikrSound('istighfar', rId)
           },
           {
-            id: `dhikr_channel_${rId}_baqiyat`,
+            id: `dhikr_v5_${rId}_baqiyat`,
             name: `الباقيات الصالحات (${rName})`,
             description: `تنبيه صوتي بالتسبيح والتحميد والتكبير بصوت ${rName}`,
             sound: this.getDhikrSound('baqiyat', rId)
           },
           {
-            id: `dhikr_channel_${rId}_hawqala`,
+            id: `dhikr_v5_${rId}_hawqala`,
             name: `الحوقلة والتوكل (${rName})`,
             description: `تنبيه صوتي بالحوقلة بصوت ${rName}`,
             sound: this.getDhikrSound('hawqala', rId)
           },
           {
-            id: `dhikr_channel_${rId}_tahsin`,
+            id: `dhikr_v5_${rId}_tahsin`,
             name: `أدعية التحصين والحفظ (${rName})`,
             description: `تنبيه صوتي بأدعية التحصين بصوت ${rName}`,
             sound: this.getDhikrSound('tahsin', rId)
           },
           {
-            id: `dhikr_channel_${rId}_general`,
+            id: `dhikr_v5_${rId}_general`,
             name: `أذكار وتسابيح المسلم (${rName})`,
             description: `تنبيهات الأذكار والتسبيح اليومية بصوت ${rName} وفق تخصيصك`,
             sound: this.getDhikrSound('general', rId)

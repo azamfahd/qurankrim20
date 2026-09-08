@@ -13,8 +13,17 @@ function versionGeneratorPlugin() {
       if (stat && stat.isDirectory()) {
         results = results.concat(getFilesRecursively(filePath, baseDir));
       } else {
-        // Exclude specific files if necessary, like sw.js itself to prevent recursion loop
-        if (file !== 'sw.js' && !file.endsWith('.map')) {
+        // Exclude specific files that should never be pre-cached in browser Service Worker
+        const isExcluded = 
+          file === 'sw.js' || 
+          file.endsWith('.map') || 
+          file.endsWith('.apk') || 
+          file.endsWith('.zip') ||
+          file === '_redirects' || 
+          file === '_headers' ||
+          file === 'netlify.toml';
+
+        if (!isExcluded) {
           const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
           results.push(relativePath.startsWith('/') ? relativePath : '/' + relativePath);
         }
@@ -25,31 +34,6 @@ function versionGeneratorPlugin() {
 
   return {
     name: 'version-generator-plugin',
-    buildStart() {
-      try {
-        const publicDir = path.resolve(__dirname, 'public');
-        if (!fs.existsSync(publicDir)) {
-          fs.mkdirSync(publicDir, { recursive: true });
-        }
-        const versionFile = path.join(publicDir, 'version.json');
-        let existingData: Record<string, unknown> = {};
-        try {
-          if (fs.existsSync(versionFile)) {
-            existingData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
-          }
-        } catch {}
-        const versionData = {
-          version: "1.1.0",
-          updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
-          releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
-          ...existingData,
-          timestamp: Date.now()
-        };
-        fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
-      } catch (err) {
-        console.warn('[versionGeneratorPlugin] Skipping source version.json write during build:', err);
-      }
-    },
     generateBundle(options: any, bundle: any) {
       try {
         const publicDir = path.resolve(__dirname, 'public');
@@ -62,7 +46,7 @@ function versionGeneratorPlugin() {
         };
         try {
           if (fs.existsSync(versionFile)) {
-            versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+            versionData = { ...versionData, ...JSON.parse(fs.readFileSync(versionFile, 'utf-8')) };
           }
         } catch {}
         
@@ -100,10 +84,6 @@ function versionGeneratorPlugin() {
           fileName: 'build-assets.json',
           source: JSON.stringify(manifestList, null, 2)
         });
-        
-        try {
-          fs.writeFileSync(path.join(publicDir, 'build-assets.json'), JSON.stringify(manifestList, null, 2));
-        } catch {}
       } catch (err) {
         console.warn('[versionGeneratorPlugin] Skipping asset manifest emission during build:', err);
       }

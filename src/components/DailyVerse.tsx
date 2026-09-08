@@ -23,7 +23,6 @@ interface DailyVerseProps {
 
 export const DailyVerse = React.memo<DailyVerseProps>(({ onOpenQuran }) => {
   const [verse, setVerse] = useState(VERSES[0]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     // Pick a verse based on the day of the year
@@ -32,21 +31,17 @@ export const DailyVerse = React.memo<DailyVerseProps>(({ onOpenQuran }) => {
   }, []);
 
   const refreshVerse = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      const currentIndex = VERSES.indexOf(verse);
-      let nextIndex = Math.floor(Math.random() * VERSES.length);
-      while (nextIndex === currentIndex) {
-        nextIndex = Math.floor(Math.random() * VERSES.length);
-      }
-      setVerse(VERSES[nextIndex]);
-      setIsRefreshing(false);
-    }, 500);
+    const currentIndex = VERSES.indexOf(verse);
+    let nextIndex = Math.floor(Math.random() * VERSES.length);
+    while (nextIndex === currentIndex) {
+      nextIndex = Math.floor(Math.random() * VERSES.length);
+    }
+    setVerse(VERSES[nextIndex]);
   };
 
   return (
     <div 
-      className="bg-[#FAF6EE] dark:bg-[#FAF6EE] rounded-2xl p-4 sm:p-5 shadow-[0_4px_20px_rgba(197,160,89,0.25)] border-2 border-[var(--color-gold)]/70 hover:border-[var(--color-gold)] relative overflow-hidden group transition-all duration-500 flex flex-col justify-between cursor-pointer active:scale-[0.99]"
+      className="bg-[#FAF6EE] dark:bg-[#FAF6EE] rounded-2xl p-3.5 sm:p-4 shadow-[0_4px_20px_rgba(197,160,89,0.18)] border border-[var(--color-gold)]/60 hover:border-[var(--color-gold)] relative overflow-hidden group transition-all duration-300 flex flex-col justify-between cursor-pointer active:scale-[0.99]"
       onClick={() => {
         // Map surah names to numbers for VERSES
         const surahMap: Record<string, number> = {
@@ -57,43 +52,55 @@ export const DailyVerse = React.memo<DailyVerseProps>(({ onOpenQuran }) => {
         onOpenQuran?.(surahNumber, verse.ayah, 'reader');
       }}
     >
+      {/* Background Glow Effect */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(197,160,89,0.12)_0%,_transparent_70%)] pointer-events-none"></div>
+
       <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-b from-[var(--color-gold)] via-[var(--color-gold-light)] to-[var(--color-gold-dark)]"></div>
       
       {/* Subtle gold top border line glow */}
-      <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-90"></div>
+      <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-80"></div>
 
-      <div className="flex items-center justify-between mb-2.5 relative z-10">
-        <div className="flex items-center gap-2 text-[#7A5812]">
-          <div className="p-1.5 bg-[#F1E5D1] rounded-lg border border-[var(--color-gold)]/40 shadow-inner group-hover:scale-105 transition-transform duration-500">
-            <BookOpen size={16} className="text-[#8B6B23]" />
+      <div className="flex items-center justify-between mb-2 relative z-10">
+        <div className="flex items-center gap-1.5 text-[#7A5812]">
+          <div className="p-1 bg-[#F1E5D1] rounded-md border border-[var(--color-gold)]/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
+            <BookOpen size={14} className="text-[#8B6B23]" />
           </div>
-          <h3 className="font-bold text-sm sm:text-base text-[#2C3E35]">آية وتأمل</h3>
+          <h3 className="font-bold text-xs sm:text-sm text-[#2C3E35]">آية وتأمل</h3>
         </div>
         <button 
           onClick={(e) => {
             e.stopPropagation();
             refreshVerse();
           }}
-          className={`p-1 text-[#8B6B23] hover:bg-[#F1E5D1] rounded-lg transition-all border border-transparent hover:border-[var(--color-gold)]/40 ${isRefreshing ? 'animate-spin' : ''}`}
+          className="p-1 text-[#8B6B23] hover:bg-[#F1E5D1] rounded-md transition-all border border-transparent hover:border-[var(--color-gold)]/40"
           title="آية أخرى"
         >
-          <RefreshCw size={15} />
+          <RefreshCw size={14} className="hover:rotate-180 transition-transform duration-500" />
         </button>
       </div>
 
       <AnimatePresence mode="wait">
         <motion.div
           key={`${verse.surah}-${verse.ayah}-${verse.text}`}
-          initial={{ opacity: 0, scale: 0.98, y: 8 }}
+          initial={{ opacity: 0, scale: 0.98, y: 6 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.98, y: -8 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col items-center relative z-10 my-0.5"
+          exit={{ opacity: 0, scale: 0.98, y: -6 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="flex flex-col items-center relative z-10 my-1"
         >
-          <p className="text-sm sm:text-base md:text-lg font-bold leading-[1.7] text-center text-[#1C2B26] mb-2.5 px-1 quran-text drop-shadow-xs tracking-normal">
-            "{verse.text}"
-          </p>
-          <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black text-[#7A5812] bg-[#F1E5D1]/80 px-3 py-1 rounded-lg border border-[var(--color-gold)]/50 shadow-2xs">
+          <div className="relative w-full text-center">
+            {/* Soft text glow effect */}
+            <div className="absolute inset-0 bg-[var(--color-gold-light)]/15 blur-lg rounded-full scale-105 pointer-events-none"></div>
+            
+            <p 
+              className="relative z-10 text-xl sm:text-2xl md:text-[26px] font-bold leading-[2.1] text-[#11241C] mb-3 px-2 quran-text tracking-normal drop-shadow-xs"
+              style={{ textShadow: '0 1px 2px rgba(197, 160, 89, 0.25)' }}
+            >
+              "{verse.text}"
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-1.5 text-xs sm:text-[13px] font-black text-[#7A5812] bg-[#F1E5D1]/90 px-3 py-1 rounded-lg border border-[var(--color-gold)]/50 shadow-2xs backdrop-blur-xs">
             <span className="font-outfit">سورة {verse.surah}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--color-gold)]"></span>
             <span className="font-outfit">الآية {verse.ayah}</span>

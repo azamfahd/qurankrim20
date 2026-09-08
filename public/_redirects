@@ -1,4 +1,5 @@
 /.well-known/assetlinks.json /.well-known/assetlinks.json 200
 /manifest.webmanifest /manifest.json 200
 /service-worker.js /sw.js 200
+/assets/* /assets/:splat 404
 /* /index.html 200

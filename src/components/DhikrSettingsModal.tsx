@@ -739,10 +739,13 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                     return (
                       <div
                         key={reciter.id}
-                        onClick={() => {
+                        onClick={async () => {
                           handleUpdate({ reciterId: reciter.id });
+                          if (Capacitor.isNativePlatform()) {
+                            await NativeNotificationService.syncChannelsWithActiveSettings(undefined, reciter.id);
+                          }
                           if (onShowToast) {
-                            onShowToast(`تم اختيار ${reciter.name} ومزامنة فئة إشعارات الأذكار بالنظام تلقائياً`, 'success');
+                            onShowToast(`تم تعيين ${reciter.name} كصوت رئيسي لتنبيهات الأذكار بالخلفية وشاشة القفل بنجاح`, 'success');
                           }
                         }}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${

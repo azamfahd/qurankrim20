@@ -2,9 +2,28 @@ import { QuranResponse, UserSettings, Verse, ChatMessage } from '../types';
 import { Capacitor } from '@capacitor/core';
 import { QuranDataService } from './quranDataService';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
-import { OfflineQuranService } from './offlineQuranService';
 
 // Intelligent Arabic prompt caching system to reduce network latency and prevent API quota limits
+export function getPrioritizedGeminiKey(userCustomKey?: string): string {
+  // 1. User's custom entered key in Settings (Highest Priority)
+  if (userCustomKey && typeof userCustomKey === 'string' && userCustomKey.trim().length > 0 && userCustomKey !== 'undefined' && userCustomKey !== 'null') {
+    return userCustomKey.trim();
+  }
+  // 2. Client environment key (e.g. VITE_GEMINI_API_KEY injected by Netlify or Vite build)
+  const viteKey = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+  if (viteKey && typeof viteKey === 'string' && viteKey.trim().length > 0 && viteKey !== 'undefined' && viteKey !== 'null') {
+    return viteKey.trim();
+  }
+  // 3. Process environment key if available in build/runtime
+  if (typeof process !== 'undefined' && process.env) {
+    const pKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+    if (pKey && typeof pKey === 'string' && pKey.trim().length > 0 && pKey !== 'undefined' && pKey !== 'null') {
+      return pKey.trim();
+    }
+  }
+  return '';
+}
+
 class PromptCache {
   private static CACHE_KEY = 'anis_prompt_cache';
 
@@ -83,10 +102,6 @@ export class QuranChatSession {
     this.model = settings.model || settings.geminiModel || smartDefaultModel;
   }
 
-  public async getOfflineFallbackResponse(userMessage: string, username?: string): Promise<QuranResponse> {
-    return await OfflineQuranService.analyzeQuestionOffline(userMessage, username);
-  }
-
   private cleanAndParseJSON(rawText: string): any {
     let text = rawText.trim();
     if (text.startsWith("```json")) {
@@ -114,8 +129,8 @@ export class QuranChatSession {
     style: string = 'smart_adaptive',
     apiKeyToUse?: string
   ): Promise<any> {
-    const key = (apiKeyToUse || this.settings.apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || "").trim();
-    if (!key || key === "undefined" || key === "null") {
+    const key = getPrioritizedGeminiKey(apiKeyToUse || this.settings.apiKey);
+    if (!key) {
       throw new Error("NO_API_KEY_FOUND");
     }
 
@@ -166,7 +181,7 @@ export class QuranChatSession {
       🚨 STRICT MANDATE: SMART AUTOMATIC ADAPTIVE MODE (نمط التكيف الذكي الأوتوماتيكي)
       ================================================================================
       Your personality in this mode is an ultra-intelligent, deeply perceptive Quranic AI Companion and Spiritual Strategist.
-      Analyze intent dynamically:
+      Analyze the user's intent dynamically and adopt the exact matching tone and depth:
       1. Emotional/Solace -> Spiritual Compassionate Healing Mode
       2. Practical Life/Decisions -> Practical Real-Life Applied Mode
       3. Intellectual/Scientific -> Rational Scientific Cognitive Mode
@@ -174,47 +189,88 @@ export class QuranChatSession {
       5. Sermon/Moral Lessons -> Deep Tadabbur Mode
       6. Quick/Direct -> Smart Executive Summary Mode
       `;
+    } else if (style === 'smart_summary') {
+      stylePrompt = `
+      ================================================================================
+      🚨 STRICT MANDATE: SMART CONCISE & GENIUS GIST MODE (النمط التلخيصي العبقري)
+      ================================================================================
+      Format your ENTIRE response to be extremely concise, brief, and direct to the point.
+      - introMessage: Maximum 2-3 sentences providing a sharp, genius summary gist.
+      - tafsir & tadabbur: Keep under 2-3 lines per verse, using bullet points and bold keywords.
+      - tafakkur: A single actionable bullet point.
+      - summary: A single powerful 1-sentence golden takeaway.
+      Zero filler words or long intro paragraphs!
+      `;
     } else if (style === 'detailed') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: DETAILED SCHOLARLY & ANALYTICAL MODE (النمط التفسيري المفصل والعميق)
       ================================================================================
-      Provide an exhaustive, detailed, rich explanation for each verse, citing classical scholars (Ibn Kathir, Al-Tabari, Al-Sa'di), linguistic roots, and contexts of revelation.
+      Provide an exhaustive, scholarly, rich explanation for each verse.
+      - introMessage: In-depth scholarly analysis of the topic from a Quranic perspective.
+      - tafsir: Detailed explanation citing classical mufassirin (Ibn Kathir, Al-Tabari, Al-Sa'di), linguistic roots (الأصول اللغوية والمعاني البلاغية), and contexts of revelation (أسباب النزول) if applicable.
+      - tadabbur: Comprehensive analytical insights and scholarly reflections.
+      - tafakkur: Methodical study step or research reflection.
+      - summary: Comprehensive academic conclusion.
       `;
     } else if (style === 'tadabbur') {
       stylePrompt = `
       ================================================================================
-      🚨 STRICT MANDATE: DEEP TADABBUR & WISDOM EXTRACTION MODE (نمط التدبر واستخراج الحكم والمواعظ)
+      🚨 STRICT MANDATE: DEEP TADABBUR & WISDOM EXTRACTION MODE (نمط التدبر والحكم والمواعظ)
       ================================================================================
-      Focus on deep divine wisdoms, moral lessons, character building, and spiritual jewels extracted from the verses.
+      Focus intensely on divine wisdoms, moral lessons, character building, and spiritual jewels extracted from the verses.
+      - introMessage: Deep spiritual opening drawing out hidden Quranic pearls of wisdom.
+      - tafsir: Focus on the spiritual meanings and divine intentions behind the words.
+      - tadabbur: Heartfelt contemplation on how these verses refine the soul, morals, and spiritual standing.
+      - tafakkur: Soul reflection and spiritual exercise.
+      - summary: Inspiring spiritual rule of life.
       `;
-    } else if (style === 'smart_summary') {
+    } else if (style === 'practical_life') {
       stylePrompt = `
       ================================================================================
-      🚨 STRICT MANDATE: SMART CONCISE & GENIUS GIST MODE (النمط التلخيصي العبقري والذكي)
+      🚨 STRICT MANDATE: PRACTICAL REAL-LIFE APPLIED EXPERIENCES MODE (نمط الربط بالواقع والتجارب العملية)
       ================================================================================
-      Ultra-short, punchy, direct to the point, bulleted summary, zero filler words.
+      Connect every Quranic verse directly to practical daily life, real-world scenarios, relationships, and modern behavioral decisions.
+      - introMessage: Direct practical framing connecting the user's situation to real-life Quranic guidance.
+      - tafsir: Clear explanation of how the verse applies to daily human interactions and decisions.
+      - tadabbur: Practical real-life action plan and realistic behavioral steps.
+      - tafakkur: Practical daily challenge or practical habit to implement today.
+      - summary: Practical actionable rule for daily living.
       `;
     } else if (style === 'spiritual') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: SPIRITUAL, HEARTFELT & EMOTIONAL HEALING MODE (النمط الإيماني والوجداني)
       ================================================================================
-      Gentle, compassionate, healing balm, comforting sorrow with Allah's infinite mercy and closeness.
-      `;
-    } else if (style === 'practical_life') {
-      stylePrompt = `
-      ================================================================================
-      🚨 STRICT MANDATE: PRACTICAL REAL-LIFE TADABBUR & APPLIED EXPERIENCES MODE (نمط التدبر والربط بالواقع)
-      ================================================================================
-      Transform every Quranic verse into a living real-life experience, practical daily blueprints, and modern behavioral steps.
+      Adopt a gentle, compassionate, deeply comforting, and soul-healing tone.
+      - introMessage: Warm, empathetic, and comforting opening reassuring the heart with Allah's mercy, closeness, and love.
+      - tafsir & tadabbur: Emphasize hope, solace, divine protection, and inner peace in times of hardship or reflection.
+      - tafakkur: A soothing spiritual meditation or heartfelt dua/dhikr suggestion.
+      - summary: Gentle comforting message of peace and divine reassurance.
       `;
     } else if (style === 'scientific') {
       stylePrompt = `
       ================================================================================
       🚨 STRICT MANDATE: RATIONAL, LOGICAL & SCIENTIFIC COGNITIVE MODE (النمط العقلاني والعلمي)
       ================================================================================
-      Emphasize rational proofs, logical consistency, causality, cognitive reframing, and universal divine laws.
+      Emphasize rational proofs, logical consistency, causality, cognitive reframing, universal laws, and scientific/linguistic precision.
+      - introMessage: Analytical, logical opening framing the topic through sound reasoning and universal principles.
+      - tafsir: Precise linguistic breakdown, logical structure, and cognitive insights.
+      - tadabbur: Cognitive reframing and logical alignment with divine laws.
+      - tafakkur: Logical contemplation exercise.
+      - summary: Rational principle based on divine wisdom and universal truth.
+      `;
+    } else if (style === 'balanced') {
+      stylePrompt = `
+      ================================================================================
+      🚨 STRICT MANDATE: BALANCED SPIRITUAL & SIMPLIFIED ANALYTICAL MODE (النمط المتوازن)
+      ================================================================================
+      Provide a perfectly balanced response combining spiritual warmth, clear simplified explanation, and direct practical benefit.
+      - introMessage: Balanced, welcoming intro touching on both understanding and emotion.
+      - tafsir: Clear, accessible explanation without over-complication.
+      - tadabbur: Balanced reflection on faith and practical life.
+      - tafakkur: Balanced reflection step.
+      - summary: Balanced golden rule.
       `;
     }
 
@@ -265,9 +321,11 @@ export class QuranChatSession {
     const normalizeModel = (m?: string) => {
       if (!m) return 'gemini-3.8-flash';
       if (m.includes('3.8')) return 'gemini-3.8-flash';
+      if (m.includes('3.7')) return 'gemini-3.7-flash';
+      if (m.includes('3.6')) return 'gemini-3.6-flash';
+      if (m.includes('3.5')) return 'gemini-3.5-flash';
       if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
-      if (m.includes('3.7')) return 'gemini-3.7-flash';
       return 'gemini-3.8-flash';
     };
 
@@ -275,9 +333,10 @@ export class QuranChatSession {
     const candidateModels = Array.from(new Set([
       requestedModel,
       'gemini-3.8-flash',
-      'gemini-3.1-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
       'gemini-3.1-pro-preview',
-      'gemini-3.7-flash'
+      'gemini-3.1-flash-lite'
     ]));
 
     let lastError: any = null;
@@ -347,19 +406,10 @@ export class QuranChatSession {
     history?: ChatMessage[],
     onProgress?: (stage: 'thinking' | 'mapping' | 'verifying' | 'formatting') => void
   ): Promise<QuranResponse> {
-    // 0. Offline Detection: If user is offline, analyze using local Quran service from downloaded Mushaf
+    // 0. Online Requirement: The smart AI assistant requires an active internet connection to provide deep cloud analysis
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     if (!isOnline) {
-      if (onProgress) {
-        onProgress('thinking');
-        await new Promise(resolve => setTimeout(resolve, 250));
-        onProgress('mapping');
-        await new Promise(resolve => setTimeout(resolve, 250));
-        onProgress('verifying');
-        await new Promise(resolve => setTimeout(resolve, 200));
-        onProgress('formatting');
-      }
-      return await OfflineQuranService.analyzeQuestionOffline(userMessage, username);
+      throw new Error("يتطلب المساعد القرآني الذكي اتصالاً نشطاً بالإنترنت لتقديم الإجابة السحابية الدقيقة والمفصلة. يرجى الاتصال بالإنترنت والمحاولة مجدداً.");
     }
 
     if (onProgress) onProgress('thinking');
@@ -384,22 +434,26 @@ export class QuranChatSession {
 
     let aiResult: any = null;
     let triedClientFallback = false;
+    const prioritizedKey = getPrioritizedGeminiKey(this.settings.apiKey);
 
-    // 2. Call backend server proxy endpoint securely, but fallback to direct client-side calling if server is unreachable (such as on Netlify)
+    // 2. Call backend server proxy endpoint securely, but fallback to direct client-side calling or Cloud Run proxy if server is unreachable (such as on Netlify)
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };
 
-      // If user entered their own custom key in settings, pass it securely via headers only
-      if (this.settings.apiKey && this.settings.apiKey.trim().length > 0) {
-        headers['x-user-gemini-key'] = this.settings.apiKey.trim();
+      // If user entered their own custom key in settings or we have a prioritized key, pass it securely via headers
+      if (prioritizedKey) {
+        headers['x-user-gemini-key'] = prioritizedKey;
       }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-      const baseUrl = Capacitor.isNativePlatform() ? 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app' : '';
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.includes('.run.app');
+      const baseUrl = (isLocalHost || isCloudRunHost) ? '' : 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app';
+
       const response = await fetch(`${baseUrl}/api/ai/chat`, {
         method: 'POST',
         headers,
@@ -425,10 +479,9 @@ export class QuranChatSession {
 
       if (!response.ok) {
         console.warn(`[GeminiService] Backend returned status ${response.status}. Attempting direct client-side Gemini fallback.`);
-        const clientKey = (this.settings.apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || "").trim();
-        if (clientKey && clientKey !== "undefined" && clientKey !== "null") {
+        if (prioritizedKey) {
           triedClientFallback = true;
-          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, clientKey);
+          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
         } else {
           throw new Error("SERVER_UNAVAILABLE_AND_NO_CLIENT_KEY");
         }
@@ -436,10 +489,9 @@ export class QuranChatSession {
         const jsonResult = await response.json();
         if (!jsonResult.success || !jsonResult.data) {
           console.warn("[GeminiService] AI generation unsuccessful on backend. Attempting direct client-side Gemini fallback.");
-          const clientKey = (this.settings.apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || "").trim();
-          if (clientKey && clientKey !== "undefined" && clientKey !== "null") {
+          if (prioritizedKey) {
             triedClientFallback = true;
-            aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, clientKey);
+            aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
           } else {
             throw new Error("BACKEND_FAILED_AND_NO_CLIENT_KEY");
           }
@@ -448,17 +500,47 @@ export class QuranChatSession {
         }
       }
     } catch (error: any) {
-      console.warn("[GeminiService] Backend proxy call failed. Attempting direct client-side calling fallback.", error);
-      const clientKey = (this.settings.apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || "").trim();
-      if (!triedClientFallback && clientKey && clientKey !== "undefined" && clientKey !== "null") {
+      console.warn("[GeminiService] Primary backend proxy call failed. Attempting resilient direct client-side calling fallback.", error);
+      if (!triedClientFallback && prioritizedKey) {
         try {
-          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, clientKey);
+          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
         } catch (clientErr) {
-          console.error("[GeminiService] Both server call and client-side fallback failed:", clientErr);
-          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
+          console.error("[GeminiService] Direct client-side generation also encountered an error:", clientErr);
+          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من صحة مفتاح API أو استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
         }
       } else {
-        throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
+        // As a last cloud resort if on static host without client key, attempt direct Cloud Run server
+        try {
+          const fallbackHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (prioritizedKey) fallbackHeaders['x-user-gemini-key'] = prioritizedKey;
+          const cloudRunRes = await fetch('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/api/ai/chat', {
+            method: 'POST',
+            headers: fallbackHeaders,
+            body: JSON.stringify({
+              userMessage,
+              history: (history || []).map(h => ({
+                role: h.type === 'user' ? 'user' : 'model',
+                content: h.content,
+                data: h.data
+              })),
+              settings: {
+                model: this.model,
+                creativityLevel: this.settings.creativityLevel,
+                analysisStyle: style
+              },
+              style,
+              username
+            })
+          });
+          const cloudRunJson = await cloudRunRes.json();
+          if (cloudRunJson.success && cloudRunJson.data) {
+            aiResult = cloudRunJson.data;
+          } else {
+            throw new Error(cloudRunJson.error || "Cloud run proxy failed");
+          }
+        } catch (cloudRunErr) {
+          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
+        }
       }
     }
 

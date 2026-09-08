@@ -39,7 +39,11 @@
     "recharts": "^3.10.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.8",
+    "vite": "^6.4.3",
+    "@vitejs/plugin-react": "^5.2.0"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -47,11 +51,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
-    "esbuild": "^0.28.2",
     "sharp": "^0.35.3",
-    "tsx": "^4.23.8",
-    "vite": "^6.4.3",
     "vite-plugin-pwa": "^1.2.0"
   },
   "engines": {

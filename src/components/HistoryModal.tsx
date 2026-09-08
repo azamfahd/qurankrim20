@@ -157,6 +157,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   onClearAll
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
   const formatDate = (timestamp: number | string | undefined) => {
     if (!timestamp) return '';
@@ -375,22 +376,46 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
             </div>
 
             {/* Footer with elegant controls & brand */}
-            <div className="p-4 border-t border-[#f0ebd8] bg-white flex justify-between items-center shrink-0">
-              <span className="text-[10px] text-gray-400 font-black tracking-wider flex items-center gap-1">
-                <Sparkles size={11} className="text-[#d4af37]" />
-                يتم حفظ كل الحوارات والتأملات محلياً بمتصفحك بشكل آمن
-              </span>
-              {sessions.length > 0 && (
-                <button 
-                  onClick={() => {
-                    if (window.confirm("هل أنت متأكد من رغبتك في حذف جميع المحادثات السابقة؟ لا يمكن التراجع عن هذا الإجراء.")) {
-                      onClearAll();
-                    }
-                  }}
-                  className="text-xs font-black text-red-500 hover:text-red-650 hover:bg-red-50/50 border border-transparent hover:border-red-100 px-3.5 py-1.5 rounded-xl transition-all"
-                >
-                  مسح السجل بالكامل
-                </button>
+            <div className="p-4 border-t border-[#f0ebd8] bg-white shrink-0">
+              {isConfirmingClear ? (
+                <div className="flex items-center justify-between gap-3 bg-red-50/80 border border-red-200/80 p-2.5 rounded-2xl animate-fade-in">
+                  <div className="flex items-center gap-2 text-xs font-bold text-red-700">
+                    <Trash2 size={16} className="text-red-500 shrink-0" />
+                    <span>هل تريد حقاً مسح كافة المحادثات؟</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        onClearAll();
+                        setIsConfirmingClear(false);
+                      }}
+                      className="text-xs font-bold bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-xl transition-all shadow-xs active:scale-95"
+                    >
+                      نعم، حذف الكل
+                    </button>
+                    <button
+                      onClick={() => setIsConfirmingClear(false)}
+                      className="text-xs font-bold bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-xl transition-all active:scale-95"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 font-black tracking-wider flex items-center gap-1">
+                    <Sparkles size={11} className="text-[#d4af37]" />
+                    يتم حفظ كل الحوارات والتأملات محلياً بمتصفحك بشكل آمن
+                  </span>
+                  {sessions.length > 0 && (
+                    <button 
+                      onClick={() => setIsConfirmingClear(true)}
+                      className="text-xs font-black text-red-500 hover:text-red-650 hover:bg-red-50/50 border border-transparent hover:border-red-100 px-3.5 py-1.5 rounded-xl transition-all"
+                    >
+                      مسح السجل بالكامل
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </motion.div>

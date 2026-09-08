@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, Quote, Download, BookOpen } from 'lucide-react';
+import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, Quote } from 'lucide-react';
 import { QuranResponse, Verse, Bookmark } from '../types';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { AudioCacheService } from '../quran-platform/services/audioCacheService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioPoolManager } from '../services/audioPoolManager';
-import { OfflineQuranService } from '../services/offlineQuranService';
 
 const CopyButton: React.FC<{ text: string, label?: string }> = ({ text, label }) => {
   const [copied, setCopied] = useState(false);
@@ -372,83 +371,17 @@ export const ResultCard: React.FC<{
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="bg-white/95 backdrop-blur-xl sm:rounded-3xl md:rounded-[2.5rem] shadow-2xl sm:border border-white/60 overflow-hidden flex flex-col flex-1 min-h-[calc(100vh-160px)] relative"
       >
-        
-        {/* 1. Offline Local Analysis Banner */}
-        {data.isOfflineLocalAnalysis && (
-          <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-3 text-emerald-950 text-xs sm:text-sm font-medium flex items-center justify-between gap-3 animate-fade-in relative z-20 backdrop-blur-md">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-emerald-500/20 rounded-lg text-emerald-800 flex-shrink-0">
-                <BookOpen size={16} />
-              </div>
-              <span className="leading-tight">
-                <strong className="font-bold text-emerald-950">تحليل محلي من المصحف المحمل:</strong> أنت حالياً غير متصل بالإنترنت. جرى استنباط هذه الآيات الكريمة وتفسيرها المعتمد محلياً من نسختك المحفوظة على جهازك.
+        {/* Header & Intro */}
+        <div className="p-6 sm:p-8 md:p-12 border-b border-gray-100 bg-gradient-to-b from-[var(--color-primary-light)]/20 to-transparent relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-gold)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+
+          <div className="flex justify-between items-center mb-6 relative z-10">
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100 shadow-sm animate-fade-in">
+              <Check size={14} />
+              <span className="text-[10px] font-black uppercase tracking-wider">
+                آيات موثقة ومحققة
               </span>
             </div>
-            <span className="text-[11px] bg-emerald-600/15 text-emerald-900 font-bold px-2.5 py-1 rounded-full flex-shrink-0 border border-emerald-600/20 whitespace-nowrap">
-              وضع أوفلاين محلي
-            </span>
-          </div>
-        )}
-
-        {/* 2. Legacy / Fallback Banner if applicable */}
-        {data.isOfflineFallback && !data.isOfflineLocalAnalysis && !data.isOfflineQuranMissing && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-amber-900 text-xs sm:text-sm font-medium flex items-center justify-between gap-3 animate-fade-in relative z-20 backdrop-blur-md">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-amber-500/20 rounded-lg text-amber-700 flex-shrink-0">
-                <WifiOff size={16} />
-              </div>
-              <span className="leading-tight">
-                <strong className="font-bold text-amber-900">تنبيه لطيف:</strong> جرى تقديم هذه الإجابة عبر النظام المحلي المباشر لعدم توفر الاتصال بالإنترنت.
-              </span>
-            </div>
-            <span className="text-[11px] bg-amber-500/20 text-amber-800 font-bold px-2.5 py-1 rounded-full flex-shrink-0 border border-amber-500/30 whitespace-nowrap">
-              وضع ملخص محلي
-            </span>
-          </div>
-        )}
-
-        {/* 3. Special View: Offline and Quran is NOT downloaded */}
-        {data.isOfflineQuranMissing ? (
-          <div className="p-8 sm:p-12 md:p-16 text-center flex flex-col items-center justify-center flex-1 my-auto">
-            <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-600 mb-6 border border-amber-200/80 shadow-lg shadow-amber-500/10">
-              <Download size={38} className="animate-bounce" />
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100/80 px-3.5 py-1 rounded-full mb-3 border border-amber-200">
-              <WifiOff size={13} />
-              <span>غير متصل بالإنترنت</span>
-            </span>
-            <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-4 font-amiri">
-              {data.title || 'المصحف الشريف غير محمل للعمل دون اتصال'}
-            </h3>
-            <p className="text-gray-700 max-w-xl leading-relaxed text-sm sm:text-base mb-8 text-center font-medium">
-              {data.introMessage}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => {
-                  OfflineQuranService.startQuranDownload();
-                  onShowToast('تمت إضافة تحميل المصحف الشريف والتفاسير لمدير التنزيلات بنجاح!', 'success');
-                }}
-                className="flex items-center justify-center gap-2.5 px-7 py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-2xl font-bold text-sm shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-95"
-              >
-                <Download size={18} />
-                <span>تحميل المصحف الشريف والتفاسير الآن (أوفلاين)</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Header & Intro */}
-            <div className="p-6 sm:p-8 md:p-12 border-b border-gray-100 bg-gradient-to-b from-[var(--color-primary-light)]/20 to-transparent relative">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-gold)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
-
-              <div className="flex justify-between items-center mb-6 relative z-10">
-                <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100 shadow-sm animate-fade-in">
-                  <Check size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-wider">
-                    {data.isOfflineLocalAnalysis ? 'آيات محققة من المصحف المحفوظ' : 'آيات موثقة ومحققة'}
-                  </span>
-                </div>
                 
                 <button 
                   onClick={() => {
@@ -464,13 +397,20 @@ export const ResultCard: React.FC<{
               </div>
 
               <div className="relative z-10 bg-white/60 backdrop-blur-sm p-5 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white shadow-sm">
-                <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                   <div className="p-2 bg-[var(--color-gold)]/10 rounded-xl text-[var(--color-gold-dark)]">
-                     <Info size={20} />
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+                   <div className="flex items-center gap-2.5">
+                     <div className="p-2 bg-[var(--color-gold)]/10 rounded-xl text-[var(--color-gold-dark)]">
+                       <Info size={20} />
+                     </div>
+                     <span className="text-sm font-bold text-gray-800">
+                       {data.isOfflineLocalAnalysis ? 'التحليل القرآني المحلي' : 'تحليل الحالة والرسالة'}
+                     </span>
                    </div>
-                   <span className="text-sm font-bold text-gray-800">
-                     {data.isOfflineLocalAnalysis ? 'التحليل القرآني المحلي' : 'تحليل الحالة والرسالة'}
-                   </span>
+                   
+                   <div className="px-3 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-amber-900 font-bold text-xs flex items-center gap-1.5 shadow-2xs">
+                     <Sparkles size={13} className="text-amber-600 animate-pulse" />
+                     <span>موجه حسب النمط المحدد</span>
+                   </div>
                 </div>
                 <p className="explanation-text text-gray-800 text-base sm:text-lg leading-relaxed text-justify font-medium">
                    {renderHighlightedText(data.introMessage)}
@@ -551,9 +491,6 @@ export const ResultCard: React.FC<{
               "{renderHighlightedText(data.summary, "text-[var(--color-gold-light)] font-bold")}"
             </p>
           </div>
-        )}
-
-          </>
         )}
 
       </motion.div>

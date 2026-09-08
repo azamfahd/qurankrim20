@@ -1,17 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, BookOpen, Layers, Bookmark, Heart, Settings, PlayCircle, Info, Target, BarChart2, Minimize2 } from 'lucide-react';
-import QuranReader from './components/QuranReader';
-import QuranIndex from './components/QuranIndex';
-import QuranAudioPlayer from './components/QuranAudioPlayer';
-import QuranTafsir from './components/QuranTafsir';
-import QuranInfo from './components/QuranInfo';
-import QuranMemorize from './components/QuranMemorize';
-import QuranStats from './components/QuranStats';
-import { QuranSettingsModal } from './components/QuranSettingsModal';
-import { SurahSettingsModal } from './components/SurahSettingsModal';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+
+const QuranReader = lazyWithRetry(() => import('./components/QuranReader'));
+const QuranIndex = lazyWithRetry(() => import('./components/QuranIndex'));
+const QuranAudioPlayer = lazyWithRetry(() => import('./components/QuranAudioPlayer'));
+const QuranTafsir = lazyWithRetry(() => import('./components/QuranTafsir'));
+const QuranInfo = lazyWithRetry(() => import('./components/QuranInfo'));
+const QuranMemorize = lazyWithRetry(() => import('./components/QuranMemorize'));
+const QuranStats = lazyWithRetry(() => import('./components/QuranStats'));
+const QuranSettingsModal = lazyWithRetry(() => import('./components/QuranSettingsModal').then(m => ({ default: m.QuranSettingsModal })));
+const SurahSettingsModal = lazyWithRetry(() => import('./components/SurahSettingsModal').then(m => ({ default: m.SurahSettingsModal })));
 import { FloatingImmersiveBar } from './components/FloatingImmersiveBar';
 import { QuranProvider, useQuranContext } from './store/QuranContext';
+
+const ViewSuspenseFallback = () => (
+  <div className="flex-1 h-full w-full flex items-center justify-center bg-[#FAFAF8] animate-fade-in">
+    <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
 
 interface QuranPlatformModalProps {
   isOpen: boolean;
@@ -189,13 +197,17 @@ const QuranPlatformContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto relative bg-[#FAFAF8] custom-scrollbar">
-        {renderContent()}
+      <main className="flex-1 overflow-y-auto relative bg-[#FAFAF8] custom-scrollbar flex flex-col">
+        <Suspense fallback={<ViewSuspenseFallback />}>
+          {renderContent()}
+        </Suspense>
       </main>
 
       {/* Unified Settings Modals */}
-      <QuranSettingsModal />
-      <SurahSettingsModal />
+      <Suspense fallback={null}>
+        <QuranSettingsModal />
+        <SurahSettingsModal />
+      </Suspense>
 
       {/* Floating Immersive Fullscreen Control Bar */}
       <FloatingImmersiveBar />

@@ -83,6 +83,16 @@
         <div style="margin-top: 2rem; width: 50px; height: 3.5px; background: rgba(212, 175, 55, 0.2); border-radius: 4px; overflow: hidden; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; width: 45%; background: linear-gradient(90deg, #d4af37, #fef08a); border-radius: 4px; animation: splashPulse 1.2s ease-in-out infinite alternate;"></div>
         </div>
+        
+        <!-- Smart Self-Healing & Web Recovery Button if loading stalls on Netlify/Web -->
+        <div id="splash-recovery-box" style="display: none; margin-top: 1.75rem; max-width: 290px; animation: splashFadeIn 0.4s ease forwards;">
+          <p style="font-size: 0.85rem; color: #fde68a; margin: 0 0 0.75rem 0; line-height: 1.4; opacity: 0.95;">
+            تحديث البيانات وتجهيز التطبيق...
+          </p>
+          <button id="splash-reload-btn" onclick="window.__anisForceRefresh()" style="padding: 9px 20px; border-radius: 9999px; background: linear-gradient(135deg, #fef08a 0%, #d4af37 100%); color: #022c22; border: none; font-weight: 700; font-size: 0.875rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4); font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            <span>فتح التطبيق والتحديث السريع ↺</span>
+          </button>
+        </div>
       </div>
       <style>
         @keyframes splashPulse {
@@ -92,6 +102,10 @@
         @keyframes pulseGlow {
           0% { opacity: 0.6; transform: scale(0.95); }
           100% { opacity: 1; transform: scale(1.05); }
+        }
+        @keyframes splashFadeIn {
+          0% { opacity: 0; transform: translateY(6px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
       </style>
     </div>

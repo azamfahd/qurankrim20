@@ -3,12 +3,17 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './main-styles.css';
-import { SplashScreen } from '@capacitor/splash-screen';
-
-// Instantly dismiss native Capacitor splash screen to prevent duplicate or stretched icon
-try {
-  SplashScreen.hide().catch(() => {});
-} catch {}
+// Safely dismiss native Capacitor splash screen ONLY on native mobile devices
+if (typeof window !== 'undefined') {
+  try {
+    const isNative = (window as any).Capacitor?.isNativePlatform?.() ?? false;
+    if (isNative) {
+      import('@capacitor/splash-screen').then(({ SplashScreen }) => {
+        SplashScreen.hide().catch(() => {});
+      }).catch(() => {});
+    }
+  } catch {}
+}
 
 // Global safety net: prevent aborted requests, audio play rejections, or minor DOM errors from freezing the app
 if (typeof window !== 'undefined') {
@@ -48,6 +53,10 @@ root.render(
     <App />
   </ErrorBoundary>
 );
+
+if (typeof window !== 'undefined') {
+  (window as any).__ANIS_APP_MOUNTED__ = true;
+}
 
 // Manage Service Worker for production & offline capability
 if ('serviceWorker' in navigator) {

@@ -122,7 +122,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 240 }}
-            className="bg-[#fdfbf7] w-full max-w-2xl rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col border border-white/40 max-h-[90vh] overflow-hidden text-right"
+            className="bg-[#fdfbf7] w-full max-w-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-2xl flex flex-col border border-white/40 max-h-[90vh] overflow-hidden text-right"
             dir="rtl"
             onClick={e => e.stopPropagation()}
           >
@@ -156,7 +156,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 min-w-[125px] py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    className={`flex-1 min-w-[100px] sm:min-w-[125px] py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-black transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                       isActive
                         ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-md scale-[1.02]'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
@@ -473,11 +473,28 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
                 </button>
               </div>
 
-              {/* Author Footer */}
-              <div id="about-credits-section" className="text-center pt-3 border-t border-gray-200/70 space-y-0.5">
+              {/* Author Footer & Update Checker */}
+              <div id="about-credits-section" className="text-center pt-3 border-t border-gray-200/70 space-y-1.5">
                 <p className="text-xs text-[var(--color-primary-dark)] font-black">أنيس القلوب - رفيقك القرآني للتدبر والسكينة</p>
                 <p className="text-[11px] text-gray-600 font-bold">إعداد وتطوير: المهندس / عزام فهد</p>
-                <p className="text-[9px] text-gray-400 font-medium">الإصدار 1.1.0 • صُنع بشرعية علمية وابتكار تقني لخدمة كتاب الله الشريف</p>
+                
+                <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2">
+                  <span className="text-[10px] text-gray-500 font-bold bg-gray-100 px-2.5 py-1 rounded-lg">
+                    الإصدار المثبت: v1.1.0
+                  </span>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      window.dispatchEvent(new CustomEvent('check-for-app-updates'));
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 text-[11px] font-black transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98"
+                  >
+                    <Sparkles size={13} className="text-amber-600" />
+                    <span>فحص التحديثات الجديدة (In-App Update)</span>
+                  </button>
+                </div>
+
+                <p className="text-[9px] text-gray-400 font-medium pt-1">صُنع بشرعية علمية وابتكار تقني لخدمة كتاب الله الشريف</p>
               </div>
 
             </div>

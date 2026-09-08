@@ -114,7 +114,8 @@ export const BatteryOptimizationGuideModal: React.FC<BatteryOptimizationGuideMod
             }
           ]
         });
-        onShowToast('تم إرسال تنبيه الذكر التجريبي بنجاح بصوت الشيخ مشاري! تفقّد شاشة القفل', 'success');
+        const reciterName = NativeNotificationService.RECITER_NAMES[activeReciter] || 'الشيخ مشاري راشد العفاسي';
+        onShowToast(`تم إرسال تنبيه الذكر التجريبي بنجاح بصوت ${reciterName}! تفقّد شاشة القفل`, 'success');
       } else {
         AudioPoolManager.playManaged('/audio/adhkar/mishary_salawat.mp3').then(() => {
           onShowToast('جاري تشغيل صوت الذكر التجريبي بصوت الشيخ مشاري...', 'info');

@@ -1,78 +1,87 @@
-import React, { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AppUpdateService, AppVersionInfo, UpdateCheckResult } from '../services/appUpdateService';
 import { ApkUpdateBanner } from './ApkUpdateBanner';
+import { InAppUpdateModal } from './InAppUpdateModal';
 
-export const UpdateNotifier: React.FC = () => {
-  const [updateInfo, setUpdateInfo] = useState<{
-    available: boolean;
-    version?: string;
-    updateUrl?: string;
-    releaseNotes?: string;
-  }>({ available: false });
-  const [isDismissed, setIsDismissed] = useState(false);
+interface UpdateNotifierProps {
+  onShowToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+}
+
+export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) => {
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const performCheck = useCallback(async () => {
+    try {
+      const result = await AppUpdateService.checkForUpdates();
+      if (result.hasUpdate) {
+        setUpdateResult(result);
+      }
+    } catch (err) {
+      console.warn('Update check note:', err);
+    }
+  }, []);
 
   useEffect(() => {
-    const checkForUpdates = async () => {
-      // Check updates ONLY on Native Android APK to avoid interfering with PWA updates
-      // Allow testing on web if needed by removing the capacitor check temporarily, but let's keep it safe.
-      if (!Capacitor.isNativePlatform()) return;
+    // Perform check slightly after initial launch
+    const timer = setTimeout(() => {
+      performCheck();
+    }, 3500);
 
+    // Listen to manual update check trigger from any component (e.g., Sidebar or About)
+    const handleManualCheck = async () => {
+      onShowToast?.('جاري التحقق من وجود تحديثات...', 'info');
       try {
-        const timestamp = Date.now();
-        // Fetch the remote version.json to see if there's a newer APK published
-        const response = await fetch(`https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json?t=${timestamp}`);
-        if (response.ok) {
-          const data = await response.json();
-          const remoteVersion = data.version;
-          
-          if (remoteVersion && isNewerVersion(__APP_VERSION__, remoteVersion)) {
-            setUpdateInfo({
-              available: true,
-              version: remoteVersion,
-              updateUrl: data.updateUrl,
-              releaseNotes: data.releaseNotes
-            });
-          }
+        const result = await AppUpdateService.checkForUpdates();
+        if (result.hasUpdate && result.details) {
+          setUpdateResult(result);
+          setIsModalOpen(true);
+        } else {
+          onShowToast?.(`تطبيقك محدث إلى أحدث إصدار (v${result.currentVersion}) ✨`, 'success');
         }
       } catch (err) {
-        console.warn('Update check failed:', err);
+        onShowToast?.('تعذر الاتصال بخادم التحديثات حالياً، يرجى المحاولة لاحقاً.', 'error');
       }
     };
 
-    // Delay check slightly to not block initial app render
-    setTimeout(checkForUpdates, 3000);
-  }, []);
+    window.addEventListener('check-for-app-updates', handleManualCheck);
 
-  const isNewerVersion = (local: string, remote: string) => {
-    const lParts = local.split('.').map(Number);
-    const rParts = remote.split('.').map(Number);
-    for (let i = 0; i < Math.max(lParts.length, rParts.length); i++) {
-      const l = lParts[i] || 0;
-      const r = rParts[i] || 0;
-      if (r > l) return true;
-      if (l > r) return false;
-    }
-    return false;
-  };
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('check-for-app-updates', handleManualCheck);
+    };
+  }, [performCheck, onShowToast]);
+
+  if (!updateResult || !updateResult.hasUpdate || !updateResult.details) {
+    return null;
+  }
 
   return (
-    <ApkUpdateBanner
-      isOpen={updateInfo.available && !isDismissed}
-      versionInfo={{
-        version: updateInfo.version || '',
-        releaseNotes: updateInfo.releaseNotes
-      }}
-      onUpdate={() => {
-        setIsDismissed(true);
-        const downloadUrl = updateInfo.updateUrl || 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/app-release.apk';
-        try {
-          // Open in external system browser/download manager so Android triggers package installer prompt
-          window.open(downloadUrl, '_system');
-        } catch {
-          window.location.href = downloadUrl;
-        }
-      }}
-      onDismiss={() => setIsDismissed(true)}
-    />
+    <>
+      {/* Quick top banner if modal is not open yet */}
+      <ApkUpdateBanner
+        isOpen={!isBannerDismissed && !isModalOpen}
+        versionInfo={{
+          version: updateResult.remoteVersion,
+          releaseNotes: updateResult.details.releaseNotes,
+          sizeFormatted: updateResult.details.apkSize
+        }}
+        onUpdate={() => {
+          setIsBannerDismissed(true);
+          setIsModalOpen(true);
+        }}
+        onDismiss={() => setIsBannerDismissed(true)}
+      />
+
+      {/* Comprehensive In-App Update Modal with Hot Update & APK Download */}
+      <InAppUpdateModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        updateInfo={updateResult.details}
+        currentVersion={updateResult.currentVersion}
+        onShowToast={onShowToast}
+      />
+    </>
   );
 };

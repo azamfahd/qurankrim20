@@ -14,10 +14,8 @@ import { LocationService } from './services/locationService';
 import { LocationPromptBanner } from './components/LocationPromptBanner';
 import { getCurrentHijriDate, getHijriReminders } from './utils/hijri';
 import { InstallPrompt } from './components/InstallPrompt';
-import { InstallModal } from './components/InstallModal';
 import { ApkUpdateBanner } from './components/ApkUpdateBanner';
 import { UpdateNotifier } from './components/UpdateNotifier';
-import { PullToRefresh } from './components/PullToRefresh';
 import { QuranChatSession } from './services/geminiService';
 import { SupabaseService } from './services/supabaseService';
 import { SyncService } from './services/syncService';
@@ -34,7 +32,6 @@ import { DhikrFloatingBanner } from './components/DhikrFloatingBanner';
 import { AppStatePreservation } from './services/appStatePreservation';
 import { NativeNotificationService } from './services/nativeNotificationService';
 import { PermissionsBanner } from './components/PermissionsBanner';
-import { BatteryOptimizationGuideModal } from './components/BatteryOptimizationGuideModal';
 import { appEventBus } from './services/appEventBus';
 
 // Lazy loaded modals for performance optimization with auto-retry on app updates
@@ -56,6 +53,8 @@ const ProphetsModal = lazyWithRetry(() => import('./components/ProphetsModal'), 
 const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPlatformModal'), 'QuranPlatformModal');
 const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
 const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
+const InstallModal = lazyWithRetry(() => import('./components/InstallModal').then(module => ({ default: module.InstallModal })));
+const BatteryOptimizationGuideModal = lazyWithRetry(() => import('./components/BatteryOptimizationGuideModal').then(module => ({ default: module.BatteryOptimizationGuideModal })));
 
 const StartupPermissionOnboarding = lazyWithRetry(() => import('./components/StartupPermissionOnboarding').then(module => ({ default: module.StartupPermissionOnboarding })));
 
@@ -251,6 +250,35 @@ const App: React.FC = () => {
     AdhanAudioEngine.setupInteractionAudioUnlock();
     AdhanOfflineManager.seedLocalAssets(settings.adhanSettings);
     DhikrReminderService.init(settings.dhikrReminderSettings);
+
+    // Idle-time prefetching of all feature modals for instantaneous (0ms) opening
+    const preloadModals = () => {
+      import('./quran-platform/QuranPlatformModal').catch(() => {});
+      import('./components/TasbihModal').catch(() => {});
+      import('./components/AdhkarModal').catch(() => {});
+      import('./components/HijriCalendarModal').catch(() => {});
+      import('./components/ProphetsModal').catch(() => {});
+      import('./components/MiraclesModal').catch(() => {});
+      import('./components/QiblaModal').catch(() => {});
+      import('./components/ZakatCalculatorModal').catch(() => {});
+      import('./components/NamesOfAllahModal').catch(() => {});
+      import('./components/BookmarksModal').catch(() => {});
+      import('./components/AgriculturalCalendarModal').catch(() => {});
+      import('./components/SettingsModal').catch(() => {});
+      import('./components/DhikrSettingsModal').catch(() => {});
+      import('./components/AdhanSettingsModal').catch(() => {});
+      import('./components/AboutModal').catch(() => {});
+      import('./components/FeedbackModal').catch(() => {});
+      import('./components/HistoryModal').catch(() => {});
+    };
+
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(preloadModals, { timeout: 2000 });
+      } else {
+        setTimeout(preloadModals, 1200);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -1101,21 +1129,13 @@ const App: React.FC = () => {
 
     try {
       const onProgressUpdate = (stage: string) => {
-        const isCurrentlyOnline = typeof navigator !== 'undefined' ? navigator.onLine : isOnline;
         const onlineMessagesMap: Record<string, string> = {
           'thinking': "نستلهم الحكمة من فيض الوحي لقلبك...",
           'mapping': "نغوص في أعماق آيات الذكر الحكيم...",
           'verifying': "نتثبّت من مرجعيات الآيات وسياقها...",
           'formatting': "نجلو لك المعاني في أبهى صورها..."
         };
-        const offlineMessagesMap: Record<string, string> = {
-          'thinking': "نستحضر الهدايات القرآنية محلياً دون إنترنت...",
-          'mapping': "نستخرج الآيات المناسبة من المصحف والتفاسير المحفوظة...",
-          'verifying': "نتثبّت من صحة النصوص والتفاسير المعتمدة...",
-          'formatting': "نصيغ لك التدبر القرآني في الوضع المحلي..."
-        };
-        const activeMap = isCurrentlyOnline ? onlineMessagesMap : offlineMessagesMap;
-        setLoadingText(activeMap[stage] || (isCurrentlyOnline ? LOADING_MESSAGES[0] : "جاري التحليل القرآني محلياً..."));
+        setLoadingText(onlineMessagesMap[stage] || LOADING_MESSAGES[0]);
       };
 
       const data = await chatSessionRef.current.sendMessage(text, displayName, messages, onProgressUpdate);
@@ -1126,23 +1146,6 @@ const App: React.FC = () => {
       saveCurrentSessionToHistory(finalMessages);
     } catch (err: any) {
       console.error("FULL ERROR DETAILS:", err);
-      // STRICT REQUIREMENT:
-      // When connected to internet, NEVER display cold local fallback results!
-      // Only invoke offline analysis if the user is truly offline.
-      const currentOnlineStatus = typeof navigator !== 'undefined' ? navigator.onLine : isOnline;
-      if (!currentOnlineStatus) {
-        try {
-          const fallbackData = await chatSessionRef.current.getOfflineFallbackResponse(text, displayName);
-          const aiMsg: ChatMessage = { id: generateId(), type: 'ai', data: fallbackData };
-          const finalMessages = [...newMessages, aiMsg];
-          setMessages(finalMessages);
-          setState(AppState.SUCCESS);
-          saveCurrentSessionToHistory(finalMessages);
-          return;
-        } catch (fallbackErr) {
-          console.error("Offline analysis error:", fallbackErr);
-        }
-      }
 
       let errorMessage = "عذراً، تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً للحصول على الإجابة الاحترافية الدقيقة.";
       if (err?.message) {
@@ -1213,8 +1216,6 @@ const App: React.FC = () => {
 
   return (
     <div className="app-wrapper royal-gradient selection:bg-[var(--color-gold)] selection:text-white">
-      <PullToRefresh onRefresh={handleSilentRefresh} />
-      
       <AnimatePresence>
         {!isOnline && !isOfflineBannerDismissed && (
           <motion.div 
@@ -1298,15 +1299,20 @@ const App: React.FC = () => {
           <motion.div 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg"
+            className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-lg"
+            style={{
+              paddingTop: 'max(0.75rem, var(--safe-area-top))',
+              paddingLeft: 'max(0.75rem, calc(0.75rem + var(--safe-area-left)))',
+              paddingRight: 'max(0.75rem, calc(0.75rem + var(--safe-area-right)))'
+            }}
           >
-             <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2.5 sm:gap-4">
                <button 
                  onClick={startNewChat} 
-                 className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all shadow-sm border border-white/10 flex items-center justify-center" 
+                 className="p-2 sm:p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl sm:rounded-2xl transition-all shadow-sm border border-white/10 flex items-center justify-center shrink-0" 
                  title="الرئيسية"
                >
-                 <ArrowRight size={22} />
+                 <ArrowRight size={20} className="sm:w-[22px] sm:h-[22px]" />
                </button>
                <div className="flex flex-col">
                  <div className="flex items-center gap-2">
@@ -1409,7 +1415,7 @@ const App: React.FC = () => {
                 <div className="bg-white/90 backdrop-blur-md px-6 py-4 rounded-2xl shadow-sm flex items-center gap-4 border border-[var(--color-primary)]/10">
                   <div className="relative flex items-center justify-center w-6 h-6">
                     <div className="absolute inset-0 border-2 border-[var(--color-primary)]/20 rounded-full"></div>
-                    <div className="absolute inset-0 border-2 border-[var(--color-primary)] border-t-transparent rounded-full spin"></div>
+                    <div className="absolute inset-0 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
                   </div>
                   <span className="text-sm font-bold text-[var(--color-primary-dark)] animate-pulse">{loadingText}</span>
                 </div>
@@ -1458,7 +1464,7 @@ const App: React.FC = () => {
                         <div className="flex justify-center mb-5 w-full max-w-sm lg:max-w-md px-2">
                           <button
                             onClick={() => openQuran(undefined, undefined, "index")}
-                            className="group relative overflow-hidden inline-flex items-center justify-between gap-3.5 px-6 py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
+                            className="group relative overflow-hidden inline-flex items-center justify-between gap-2 sm:gap-3.5 px-3.5 sm:px-6 py-3 sm:py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
                             style={{
                               background: "linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)",
                               boxShadow: "0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
@@ -1520,7 +1526,7 @@ const App: React.FC = () => {
                           <button
                             key={idx}
                             onClick={() => handleEmotionSubmit(prompt)}
-                            className="text-[10px] sm:text-[11px] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 select-none cursor-pointer"
+                            className="text-[10px] sm:text-[11px] font-bold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 select-none cursor-pointer max-w-full"
                           >
                             {prompt}
                           </button>
@@ -1677,7 +1683,7 @@ const App: React.FC = () => {
         {isChatStarted && (
           <div className="fixed bottom-0 left-0 right-0 z-40">
              <div style={{ height: '40px', background: 'linear-gradient(to bottom, transparent, var(--color-bg))', pointerEvents: 'none' }}></div>
-             <div style={{ background: 'var(--color-bg)', padding: '0 1rem', paddingBottom: 'calc(1rem + var(--safe-area-bottom))' }}>
+             <div style={{ background: 'var(--color-bg)', paddingLeft: 'max(0.75rem, calc(0.75rem + var(--safe-area-left)))', paddingRight: 'max(0.75rem, calc(0.75rem + var(--safe-area-right)))', paddingBottom: 'calc(0.75rem + var(--safe-area-bottom))' }}>
                <div className="max-w-3xl mx-auto w-full">
                  <EmotionForm onSubmit={handleEmotionSubmit} isLoading={state === AppState.LOADING} isOnline={isOnline} variant="bottom" />
                </div>
@@ -1717,257 +1723,300 @@ const App: React.FC = () => {
       />
 
       <Suspense fallback={<ModalSuspenseFallback />}>
-      <TasbihModal 
-        isOpen={isTasbihOpen} 
-        onClose={() => setIsTasbihOpen(false)} 
-      />
+        {isTasbihOpen && (
+          <TasbihModal 
+            isOpen={isTasbihOpen} 
+            onClose={() => setIsTasbihOpen(false)} 
+          />
+        )}
 
-      <HijriCalendarModal
-        isOpen={isHijriOpen}
-        onClose={() => setIsHijriOpen(false)}
-        hijriOffset={hijriOffset}
-        setHijriOffset={setHijriOffset}
-      />
+        {isHijriOpen && (
+          <HijriCalendarModal
+            isOpen={isHijriOpen}
+            onClose={() => setIsHijriOpen(false)}
+            hijriOffset={hijriOffset}
+            setHijriOffset={setHijriOffset}
+          />
+        )}
 
-      <QiblaModal
-        isOpen={isQiblaOpen}
-        onClose={() => setIsQiblaOpen(false)}
-        settings={settings}
-        onUpdateSettings={setSettings}
-      />
+        {isQiblaOpen && (
+          <QiblaModal
+            isOpen={isQiblaOpen}
+            onClose={() => setIsQiblaOpen(false)}
+            settings={settings}
+            onUpdateSettings={setSettings}
+          />
+        )}
 
-      <ZakatCalculatorModal
-        isOpen={isZakatOpen}
-        onClose={() => setIsZakatOpen(false)}
-      />
+        {isZakatOpen && (
+          <ZakatCalculatorModal
+            isOpen={isZakatOpen}
+            onClose={() => setIsZakatOpen(false)}
+          />
+        )}
 
-      <AgriculturalCalendarModal
-        isOpen={isAgriCalendarOpen}
-        onClose={() => setIsAgriCalendarOpen(false)}
-        location={settings.location}
-      />
+        {isAgriCalendarOpen && (
+          <AgriculturalCalendarModal
+            isOpen={isAgriCalendarOpen}
+            onClose={() => setIsAgriCalendarOpen(false)}
+            location={settings.location}
+          />
+        )}
 
-      <MiraclesModal
-        isOpen={isMiraclesOpen}
-        onClose={() => setIsMiraclesOpen(false)}
-        isOnline={isOnline}
-        onShowToast={showToast}
-      />
+        {isMiraclesOpen && (
+          <MiraclesModal
+            isOpen={isMiraclesOpen}
+            onClose={() => setIsMiraclesOpen(false)}
+            isOnline={isOnline}
+            onShowToast={showToast}
+          />
+        )}
 
-      <ProphetsModal
-        isOpen={isProphetsOpen}
-        onClose={() => setIsProphetsOpen(false)}
-        onShowToast={showToast}
-      />
+        {isProphetsOpen && (
+          <ProphetsModal
+            isOpen={isProphetsOpen}
+            onClose={() => setIsProphetsOpen(false)}
+            onShowToast={showToast}
+          />
+        )}
 
-      <AdhkarModal 
-        isOpen={isAdhkarOpen} 
-        onClose={() => setIsAdhkarOpen(false)} 
-      />
+        {isAdhkarOpen && (
+          <AdhkarModal 
+            isOpen={isAdhkarOpen} 
+            onClose={() => setIsAdhkarOpen(false)} 
+          />
+        )}
 
-      <NamesOfAllahModal
-        isOpen={isNamesOfAllahOpen}
-        onClose={() => setIsNamesOfAllahOpen(false)}
-      />
+        {isNamesOfAllahOpen && (
+          <NamesOfAllahModal
+            isOpen={isNamesOfAllahOpen}
+            onClose={() => setIsNamesOfAllahOpen(false)}
+          />
+        )}
 
-      <BookmarksModal
-        isOpen={isBookmarksOpen}
-        onClose={() => setIsBookmarksOpen(false)}
-        bookmarks={settings.bookmarks || []}
-        onRemoveBookmark={(id) => {
-          setSettings(prev => {
-            const newBookmarks = (prev.bookmarks || []).filter(b => b.id !== id);
-            const newSettings = { ...prev, bookmarks: newBookmarks };
-            
-            showToast('تمت إزالة الآية من المحفوظات', 'info');
-            
-            // Explicitly sync deletion to backend
-            if (userIdRef.current) {
-              SyncService.deleteBookmark(userIdRef.current, id, newSettings).catch(console.error);
+        {isBookmarksOpen && (
+          <BookmarksModal
+            isOpen={isBookmarksOpen}
+            onClose={() => setIsBookmarksOpen(false)}
+            bookmarks={settings.bookmarks || []}
+            onRemoveBookmark={(id) => {
+              setSettings(prev => {
+                const newBookmarks = (prev.bookmarks || []).filter(b => b.id !== id);
+                const newSettings = { ...prev, bookmarks: newBookmarks };
+                
+                showToast('تمت إزالة الآية من المحفوظات', 'info');
+                
+                // Explicitly sync deletion to backend
+                if (userIdRef.current) {
+                  SyncService.deleteBookmark(userIdRef.current, id, newSettings).catch(console.error);
+                }
+                
+                return newSettings;
+              });
+            }}
+            isOnline={isOnline}
+            reciter={settings.reciter}
+            onShowToast={showToast}
+            onOpenQuran={openQuran}
+          />
+        )}
+
+        {isSettingsOpen && (
+          <SettingsModal 
+            isOpen={isSettingsOpen} 
+            onClose={() => setIsSettingsOpen(false)}
+            settings={settings}
+            onSave={setSettings}
+            onShowToast={showToast}
+            onOpenLocationModal={() => setIsLocationModalOpen(true)}
+            onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
+            isSyncing={isSyncing}
+            lastSynced={lastSynced}
+          />
+        )}
+
+        {isLocationModalOpen && (
+          <ManualLocationModal
+            isOpen={isLocationModalOpen}
+            onClose={() => setIsLocationModalOpen(false)}
+            currentLocation={settings.location}
+            onSelectLocation={(newLocation, calculationMethod) => {
+              setSettings(prev => ({
+                ...prev,
+                location: newLocation,
+                adhanSettings: calculationMethod ? {
+                  ...(prev.adhanSettings || {
+                    enabled: true,
+                    muezzin: 'mishary',
+                    fajrEnabled: true,
+                    dhuhrEnabled: true,
+                    asrEnabled: true,
+                    maghribEnabled: true,
+                    ishaEnabled: true,
+                    volume: 0.8
+                  }),
+                  calculationMethod
+                } : prev.adhanSettings
+              }));
+              showToast(`تم تعيين الموقع بنجاح: ${newLocation.name}`, 'success');
+            }}
+          />
+        )}
+
+        <PermissionsBanner 
+          onOpenSettings={() => setIsPermissionsGuideOpen(true)}
+        />
+
+        {isPermissionsGuideOpen && (
+          <BatteryOptimizationGuideModal
+            isOpen={isPermissionsGuideOpen}
+            onClose={() => setIsPermissionsGuideOpen(false)}
+            onShowToast={showToast}
+          />
+        )}
+
+        <LocationPromptBanner
+          isVisible={showLocationBanner}
+          onClose={() => setShowLocationBanner(false)}
+          location={locationBannerData.location || settings.location}
+          isHighAccuracy={locationBannerData.isHighAccuracy}
+          onOpenLocationSettings={() => setIsLocationModalOpen(true)}
+        />
+
+        {isAdhanSettingsOpen && (
+          <AdhanSettingsModal 
+            isOpen={isAdhanSettingsOpen} 
+            onClose={() => setIsAdhanSettingsOpen(false)} 
+            settings={settings} 
+            onSave={setSettings} 
+          />
+        )}
+
+        {isLiveAdhanBannerOpen && (
+          <AdhanNotificationBanner 
+            isOpen={isLiveAdhanBannerOpen}
+            prayerName={liveAdhanPrayer}
+            muezzinName={MUEZZINS_LIST.find(m => m.id === (settings.adhanSettings?.muezzin || 'mishary'))?.name}
+            muezzinId={settings.adhanSettings?.muezzin || 'mishary'}
+            volume={settings.adhanSettings?.volume ?? 85}
+            onClose={() => setIsLiveAdhanBannerOpen(false)}
+          />
+        )}
+
+        {isHistoryOpen && (
+          <HistoryModal
+            isOpen={isHistoryOpen}
+            onClose={() => setIsHistoryOpen(false)}
+            sessions={sessions}
+            onSelectSession={loadSession}
+            onDeleteSession={(id, e) => {
+              e.stopPropagation();
+              setSessions(prev => prev.filter(s => s.id !== id));
+              
+              // Also delete from Backend
+              if (isOnline && userIdRef.current) {
+                SyncService.deleteSession(userIdRef.current, id, settings).catch(err => {
+                  console.error('Error deleting session from Backend:', err);
+                });
+              }
+            }}
+            onClearAll={() => {
+              const sessionsToClear = [...sessions];
+              setSessions([]);
+              localStorage.removeItem('anis_history');
+              
+              // Also clear from Backend
+              if (isOnline && userIdRef.current) {
+                SyncService.clearAllSessions(userIdRef.current, sessionsToClear, settings).catch(err => {
+                  console.error('Error clearing sessions from Backend:', err);
+                });
+              }
+            }}
+          />
+        )}
+
+        {isQuranPlatformOpen && (
+          <QuranPlatformModal 
+            isOpen={isQuranPlatformOpen} 
+            onClose={() => setIsQuranPlatformOpen(false)} 
+            initialSurah={quranInitialState.surah}
+            initialAyah={quranInitialState.ayah}
+            initialView={quranInitialState.view}
+          />
+        )}
+
+        {isAboutOpen && (
+          <AboutModal 
+            isOpen={isAboutOpen} 
+            onClose={() => setIsAboutOpen(false)} 
+            onOpenFeedback={() => setIsFeedbackOpen(true)}
+          />
+        )}
+
+        {isFeedbackOpen && (
+          <FeedbackModal 
+            isOpen={isFeedbackOpen} 
+            onClose={() => setIsFeedbackOpen(false)} 
+            onShowToast={showToast}
+            userInfo={settings}
+          />
+        )}
+
+        <InstallPrompt />
+
+        {isInstallModalOpen && (
+          <InstallModal
+            isOpen={isInstallModalOpen}
+            onClose={() => setIsInstallModalOpen(false)}
+            onShowToast={showToast}
+          />
+        )}
+
+        <ApkUpdateBanner
+          isOpen={isApkUpdateBannerOpen}
+          versionInfo={apkUpdateInfo || undefined}
+          onUpdate={() => {
+            setIsApkUpdateBannerOpen(false);
+            const link = document.createElement('a');
+            link.href = '/app-release.apk';
+            link.download = 'أنيس القلوب - القرآن الذكي.apk';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            if (apkUpdateInfo?.version) {
+              localStorage.setItem('anis_apk_installed_version', apkUpdateInfo.version);
             }
-            
-            return newSettings;
-          });
-        }}
-        isOnline={isOnline}
-        reciter={settings.reciter}
-        onShowToast={showToast}
-        onOpenQuran={openQuran}
-      />
+            showToast('جاري تحميل التحديث الجديد لملف الـ APK...', 'success');
+          }}
+          onDismiss={() => {
+            setIsApkUpdateBannerOpen(false);
+          }}
+        />
 
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSave={setSettings}
-        onShowToast={showToast}
-        onOpenLocationModal={() => setIsLocationModalOpen(true)}
-        onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
-        isSyncing={isSyncing}
-        lastSynced={lastSynced}
-      />
+        <UpdateNotifier onShowToast={showToast} />
 
-      <ManualLocationModal
-        isOpen={isLocationModalOpen}
-        onClose={() => setIsLocationModalOpen(false)}
-        currentLocation={settings.location}
-        onSelectLocation={(newLocation, calculationMethod) => {
-          setSettings(prev => ({
-            ...prev,
-            location: newLocation,
-            adhanSettings: calculationMethod ? {
-              ...(prev.adhanSettings || {
-                enabled: true,
-                muezzin: 'mishary',
-                fajrEnabled: true,
-                dhuhrEnabled: true,
-                asrEnabled: true,
-                maghribEnabled: true,
-                ishaEnabled: true,
-                volume: 0.8
-              }),
-              calculationMethod
-            } : prev.adhanSettings
-          }));
-          showToast(`تم تعيين الموقع بنجاح: ${newLocation.name}`, 'success');
-        }}
-      />
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          isVisible={toast.isVisible} 
+          onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
+        />
 
-      <PermissionsBanner 
-        onOpenSettings={() => setIsPermissionsGuideOpen(true)}
-      />
+        <GlobalDownloadOverlay />
+        <StartupPermissionOnboarding />
 
-      <BatteryOptimizationGuideModal
-        isOpen={isPermissionsGuideOpen}
-        onClose={() => setIsPermissionsGuideOpen(false)}
-        onShowToast={showToast}
-      />
+        {isDhikrReminderOpen && (
+          <DhikrSettingsModal
+            isOpen={isDhikrReminderOpen}
+            onClose={() => setIsDhikrReminderOpen(false)}
+            onShowToast={showToast}
+          />
+        )}
 
-      <LocationPromptBanner
-        isVisible={showLocationBanner}
-        onClose={() => setShowLocationBanner(false)}
-        location={locationBannerData.location || settings.location}
-        isHighAccuracy={locationBannerData.isHighAccuracy}
-        onOpenLocationSettings={() => setIsLocationModalOpen(true)}
-      />
-
-      <AdhanSettingsModal 
-        isOpen={isAdhanSettingsOpen} 
-        onClose={() => setIsAdhanSettingsOpen(false)} 
-        settings={settings} 
-        onSave={setSettings} 
-      />
-
-      <AdhanNotificationBanner 
-        isOpen={isLiveAdhanBannerOpen}
-        prayerName={liveAdhanPrayer}
-        muezzinName={MUEZZINS_LIST.find(m => m.id === (settings.adhanSettings?.muezzin || 'mishary'))?.name}
-        muezzinId={settings.adhanSettings?.muezzin || 'mishary'}
-        volume={settings.adhanSettings?.volume ?? 85}
-        onClose={() => setIsLiveAdhanBannerOpen(false)}
-      />
-
-      <HistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        sessions={sessions}
-        onSelectSession={loadSession}
-        onDeleteSession={(id, e) => {
-          e.stopPropagation();
-          setSessions(prev => prev.filter(s => s.id !== id));
-          
-          // Also delete from Backend
-          if (isOnline && userIdRef.current) {
-            SyncService.deleteSession(userIdRef.current, id, settings).catch(err => {
-              console.error('Error deleting session from Backend:', err);
-            });
-          }
-        }}
-        onClearAll={() => {
-          const sessionsToClear = [...sessions];
-          setSessions([]);
-          localStorage.removeItem('anis_history');
-          
-          // Also clear from Backend
-          if (isOnline && userIdRef.current) {
-            SyncService.clearAllSessions(userIdRef.current, sessionsToClear, settings).catch(err => {
-              console.error('Error clearing sessions from Backend:', err);
-            });
-          }
-        }}
-      />
-
-      <QuranPlatformModal 
-        isOpen={isQuranPlatformOpen} 
-        onClose={() => setIsQuranPlatformOpen(false)} 
-        initialSurah={quranInitialState.surah}
-        initialAyah={quranInitialState.ayah}
-        initialView={quranInitialState.view}
-      />
-      <AboutModal 
-        isOpen={isAboutOpen} 
-        onClose={() => setIsAboutOpen(false)} 
-        onOpenFeedback={() => setIsFeedbackOpen(true)}
-      />
-
-      <FeedbackModal 
-        isOpen={isFeedbackOpen} 
-        onClose={() => setIsFeedbackOpen(false)} 
-        onShowToast={showToast}
-        userInfo={settings}
-      />
-
-      <InstallPrompt />
-
-      <InstallModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-        onShowToast={showToast}
-      />
-
-      <ApkUpdateBanner
-        isOpen={isApkUpdateBannerOpen}
-        versionInfo={apkUpdateInfo || undefined}
-        onUpdate={() => {
-          setIsApkUpdateBannerOpen(false);
-          const link = document.createElement('a');
-          link.href = '/app-release.apk';
-          link.download = 'أنيس القلوب - القرآن الذكي.apk';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          if (apkUpdateInfo?.version) {
-            localStorage.setItem('anis_apk_installed_version', apkUpdateInfo.version);
-          }
-          showToast('جاري تحميل التحديث الجديد لملف الـ APK...', 'success');
-        }}
-        onDismiss={() => {
-          setIsApkUpdateBannerOpen(false);
-        }}
-      />
-
-      <UpdateNotifier />
-
-      <Toast 
-        message={toast.message} 
-        type={toast.type} 
-        isVisible={toast.isVisible} 
-        onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
-      />
-
-      <GlobalDownloadOverlay />
-      <StartupPermissionOnboarding />
-
-      <DhikrSettingsModal
-        isOpen={isDhikrReminderOpen}
-        onClose={() => setIsDhikrReminderOpen(false)}
-        onShowToast={showToast}
-      />
-
-      <DhikrFloatingBanner
-        onOpenSettings={() => setIsDhikrReminderOpen(true)}
-      />
-    </Suspense>
+        <DhikrFloatingBanner
+          onOpenSettings={() => setIsDhikrReminderOpen(true)}
+        />
+      </Suspense>
   </div>
   );
 };

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'anis-al-qulub-app-v8';
-const RUNTIME_CACHE = 'anis-al-qulub-runtime-v8';
+const CACHE_NAME = 'anis-al-qulub-app-v9';
+const RUNTIME_CACHE = 'anis-al-qulub-runtime-v9';
 
 // الموارد الأساسية القليلة الثابتة جداً
 const BASE_PRECACHE = [
@@ -37,10 +37,19 @@ self.addEventListener('install', (event) => {
           if (Array.isArray(dynamicAssets)) {
             const dynamicPromises = dynamicAssets.map(async (assetPath) => {
               try {
-                // Ensure we don't re-fetch what's already in BASE_PRECACHE to save slightly
+                // Skip APK binaries, sourcemaps, and heavy downloads from SW precache
+                if (assetPath.endsWith('.apk') || assetPath.endsWith('.map') || assetPath.endsWith('.zip')) {
+                  return;
+                }
+                // Ensure we don't re-fetch what's already in BASE_PRECACHE
                 if (!BASE_PRECACHE.includes(assetPath)) {
                   const aRes = await fetch(assetPath, { cache: 'no-cache' });
                   if (aRes.ok) {
+                    const cType = (aRes.headers.get('content-type') || '').toLowerCase();
+                    // Do not cache SPA HTML fallbacks pretending to be JS/CSS
+                    if ((assetPath.endsWith('.js') || assetPath.endsWith('.css')) && cType.includes('text/html')) {
+                      return;
+                    }
                     await cache.put(assetPath, aRes);
                   }
                 }
@@ -160,6 +169,15 @@ self.addEventListener('fetch', (event) => {
       try {
         const networkResponse = await fetch(event.request);
         if (networkResponse && networkResponse.status === 200) {
+          const cType = (networkResponse.headers.get('content-type') || '').toLowerCase();
+          // Check if server returned HTML (SPA fallback) for a JS or CSS asset request
+          const isJsOrCss = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+          if (isJsOrCss && cType.includes('text/html')) {
+            // This is an invalid HTML response for a script - do not cache it!
+            if (cachedResponse) return cachedResponse;
+            return new Response('Asset Not Found', { status: 404, statusText: 'Not Found' });
+          }
+
           const cache = await caches.open(CACHE_NAME);
           cache.put(event.request, networkResponse.clone());
         }

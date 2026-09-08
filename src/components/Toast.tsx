@@ -50,12 +50,12 @@ export const Toast: React.FC<ToastProps> = ({
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
-          className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${bgColors[type]} min-w-[300px] max-w-[90vw] backdrop-blur-md`}
+          className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl shadow-2xl border ${bgColors[type]} w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-md backdrop-blur-md`}
         >
           <div className="flex-shrink-0">
             {icons[type]}
           </div>
-          <p className="text-sm font-bold text-gray-800 flex-1">{message}</p>
+          <p className="text-xs sm:text-sm font-bold text-gray-800 flex-1 leading-relaxed break-words">{message}</p>
           <button 
             onClick={onClose}
             className="p-1 hover:bg-black/5 rounded-full transition-colors text-gray-400"

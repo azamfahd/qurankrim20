@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { Coordinates, CalculationMethod, PrayerTimes, Madhab } from "adhan";
-import { ServerAIService } from "./server/aiService";
+import { ServerAIService } from "./server/aiService.ts";
 
 async function startServer() {
   const app = express();
