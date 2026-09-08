@@ -26,77 +26,87 @@ function versionGeneratorPlugin() {
   return {
     name: 'version-generator-plugin',
     buildStart() {
-      const publicDir = path.resolve(__dirname, 'public');
-      if (!fs.existsSync(publicDir)) {
-        fs.mkdirSync(publicDir, { recursive: true });
-      }
-      const versionFile = path.join(publicDir, 'version.json');
-      let existingData: Record<string, unknown> = {};
       try {
-        if (fs.existsSync(versionFile)) {
-          existingData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+        const publicDir = path.resolve(__dirname, 'public');
+        if (!fs.existsSync(publicDir)) {
+          fs.mkdirSync(publicDir, { recursive: true });
         }
-      } catch {}
-      const versionData = {
-        version: "1.1.0",
-        updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
-        releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
-        ...existingData,
-        timestamp: Date.now()
-      };
-      fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
+        const versionFile = path.join(publicDir, 'version.json');
+        let existingData: Record<string, unknown> = {};
+        try {
+          if (fs.existsSync(versionFile)) {
+            existingData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+          }
+        } catch {}
+        const versionData = {
+          version: "1.1.0",
+          updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
+          releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
+          ...existingData,
+          timestamp: Date.now()
+        };
+        fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
+      } catch (err) {
+        console.warn('[versionGeneratorPlugin] Skipping source version.json write during build:', err);
+      }
     },
     generateBundle(options: any, bundle: any) {
-      const publicDir = path.resolve(__dirname, 'public');
-      const versionFile = path.join(publicDir, 'version.json');
-      let versionData: Record<string, unknown> = {
-        version: "1.1.0",
-        updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
-        releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
-        timestamp: Date.now()
-      };
       try {
-        if (fs.existsSync(versionFile)) {
-          versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+        const publicDir = path.resolve(__dirname, 'public');
+        const versionFile = path.join(publicDir, 'version.json');
+        let versionData: Record<string, unknown> = {
+          version: "1.1.0",
+          updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
+          releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
+          timestamp: Date.now()
+        };
+        try {
+          if (fs.existsSync(versionFile)) {
+            versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+          }
+        } catch {}
+        
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify(versionData, null, 2)
+        });
+        
+        const emittedFiles = Object.keys(bundle).map((fileName) => '/' + fileName);
+        
+        let publicFiles: string[] = [];
+        if (fs.existsSync(publicDir)) {
+          try {
+            publicFiles = getFilesRecursively(publicDir, publicDir);
+          } catch {}
         }
-      } catch {}
-      
-      this.emitFile({
-        type: 'asset',
-        fileName: 'version.json',
-        source: JSON.stringify(versionData, null, 2)
-      });
-      
-      const emittedFiles = Object.keys(bundle).map((fileName) => '/' + fileName);
-      
-      let publicFiles: string[] = [];
-      if (fs.existsSync(publicDir)) {
-         publicFiles = getFilesRecursively(publicDir, publicDir);
-      }
-      
-      // Ensure unique list and specific base files
-      const allAssets = new Set([
-        '/',
-        '/index.html',
-        ...publicFiles,
-        ...emittedFiles
-      ]);
-      
-      // Remove sw.js to prevent caching itself, and build-assets.json to avoid loop caching
-      allAssets.delete('/sw.js');
-      allAssets.delete('/build-assets.json');
+        
+        // Ensure unique list and specific base files
+        const allAssets = new Set([
+          '/',
+          '/index.html',
+          ...publicFiles,
+          ...emittedFiles
+        ]);
+        
+        // Remove sw.js to prevent caching itself, and build-assets.json to avoid loop caching
+        allAssets.delete('/sw.js');
+        allAssets.delete('/build-assets.json');
 
-      const manifestList = Array.from(allAssets);
-      
-      this.emitFile({
-        type: 'asset',
-        fileName: 'build-assets.json',
-        source: JSON.stringify(manifestList, null, 2)
-      });
-      
-      try {
-        fs.writeFileSync(path.join(publicDir, 'build-assets.json'), JSON.stringify(manifestList, null, 2));
-      } catch {}
+        const manifestList = Array.from(allAssets);
+        
+        this.emitFile({
+          type: 'asset',
+          fileName: 'build-assets.json',
+          source: JSON.stringify(manifestList, null, 2)
+        });
+        
+        try {
+          fs.writeFileSync(path.join(publicDir, 'build-assets.json'), JSON.stringify(manifestList, null, 2));
+        } catch {}
+      } catch (err) {
+        console.warn('[versionGeneratorPlugin] Skipping asset manifest emission during build:', err);
+      }
     }
   };
 }

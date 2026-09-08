@@ -67,14 +67,13 @@ export class NativeNotificationService {
   }
 
   public static getDhikrSound(category?: string, reciterId?: string): string {
-    // In Capacitor, native notification sounds MUST be bundled inside the APK under res/raw.
-    // Currently, only 'mishary' adhkar files are bundled inside the APK to optimize file size.
-    // [Graceful Fallback Guard]: If a non-bundled الشيخ (like maher, husary) is selected, to prevent a silent
-    // "internal fade" or a dry system beep, we dynamically fallback to Mishary's beautiful bundled sound.
-    // Meanwhile, inside the app and foreground playback, the system will play the actual selected sheikh's voice from downloaded local files.
-    const rId = reciterId || this.getActiveReciterId() || 'mishary';
-    const isBundled = rId === 'mishary';
-    const effectiveReciter = isBundled ? rId : 'mishary';
+    let rId = reciterId || this.getActiveReciterId() || 'mishary';
+    if (rId === 'random') {
+      const allReciters = ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais'];
+      rId = allReciters[Math.floor(Math.random() * allReciters.length)];
+    }
+    const validReciters = ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais'];
+    const effectiveReciter = validReciters.includes(rId) ? rId : 'mishary';
 
     let fileSuffix = 'salawat';
     if (category) {
@@ -221,13 +220,21 @@ export class NativeNotificationService {
       const activeDhikrGeneralId = this.getDhikrChannelId(undefined, false, activeReciter);
       const silentDhikrChannelId = 'dhikr_channel_silent';
 
-      const activeDhikrCategoryIds = [
-        `dhikr_channel_${activeReciter}_salawat`,
-        `dhikr_channel_${activeReciter}_istighfar`,
-        `dhikr_channel_${activeReciter}_baqiyat`,
-        `dhikr_channel_${activeReciter}_hawqala`,
-        `dhikr_channel_${activeReciter}_tahsin`
-      ];
+      const recitersToSetup = activeReciter === 'random' 
+        ? ['mishary', 'maher', 'abdulbasit', 'husary', 'minshawi', 'alghamdi', 'qatami', 'sudais']
+        : [activeReciter];
+
+      const activeDhikrCategoryIds: string[] = [];
+      recitersToSetup.forEach(r => {
+        activeDhikrCategoryIds.push(
+          `dhikr_channel_${r}_salawat`,
+          `dhikr_channel_${r}_istighfar`,
+          `dhikr_channel_${r}_baqiyat`,
+          `dhikr_channel_${r}_hawqala`,
+          `dhikr_channel_${r}_tahsin`,
+          `dhikr_channel_${r}_general`
+        );
+      });
 
       const allowedChannelIds = new Set<string>([
         activeAdhanChannelId,
@@ -316,60 +323,63 @@ export class NativeNotificationService {
         });
       } catch (e) {}
 
-      // 3. Create Active Dhikr Channels matched to chosen Reciter
-      const dhikrCategories = [
-        {
-          id: `dhikr_channel_${activeReciter}_salawat`,
-          name: `الصلاة على النبي ﷺ (${reciterName})`,
-          description: `تنبيه صوتي بالصلاة على الحبيب المصطفى ﷺ بصوت ${reciterName}`,
-          sound: this.getDhikrSound('prophet_salawat', activeReciter)
-        },
-        {
-          id: `dhikr_channel_${activeReciter}_istighfar`,
-          name: `الاستغفار والتوبة (${reciterName})`,
-          description: `تنبيه صوتي بأذكار الاستغفار بصوت ${reciterName}`,
-          sound: this.getDhikrSound('istighfar', activeReciter)
-        },
-        {
-          id: `dhikr_channel_${activeReciter}_baqiyat`,
-          name: `الباقيات الصالحات (${reciterName})`,
-          description: `تنبيه صوتي بالتسبيح والتحميد والتكبير بصوت ${reciterName}`,
-          sound: this.getDhikrSound('baqiyat', activeReciter)
-        },
-        {
-          id: `dhikr_channel_${activeReciter}_hawqala`,
-          name: `الحوقلة والتوكل (${reciterName})`,
-          description: `تنبيه صوتي بالحوقلة بصوت ${reciterName}`,
-          sound: this.getDhikrSound('hawqala', activeReciter)
-        },
-        {
-          id: `dhikr_channel_${activeReciter}_tahsin`,
-          name: `أدعية التحصين والحفظ (${reciterName})`,
-          description: `تنبيه صوتي بأدعية التحصين بصوت ${reciterName}`,
-          sound: this.getDhikrSound('tahsin', activeReciter)
-        },
-        {
-          id: activeDhikrGeneralId,
-          name: `أذكار وتسابيح المسلم (${reciterName})`,
-          description: `تنبيهات الأذكار والتسبيح اليومية بصوت ${reciterName} وفق تخصيصك`,
-          sound: this.getDhikrSound('general', activeReciter)
-        }
-      ];
+      // 3. Create Active Dhikr Channels matched to chosen Reciters
+      for (const rId of recitersToSetup) {
+        const rName = this.RECITER_NAMES[rId] || rId;
+        const dhikrCategories = [
+          {
+            id: `dhikr_channel_${rId}_salawat`,
+            name: `الصلاة على النبي ﷺ (${rName})`,
+            description: `تنبيه صوتي بالصلاة على الحبيب المصطفى ﷺ بصوت ${rName}`,
+            sound: this.getDhikrSound('prophet_salawat', rId)
+          },
+          {
+            id: `dhikr_channel_${rId}_istighfar`,
+            name: `الاستغفار والتوبة (${rName})`,
+            description: `تنبيه صوتي بأذكار الاستغفار بصوت ${rName}`,
+            sound: this.getDhikrSound('istighfar', rId)
+          },
+          {
+            id: `dhikr_channel_${rId}_baqiyat`,
+            name: `الباقيات الصالحات (${rName})`,
+            description: `تنبيه صوتي بالتسبيح والتحميد والتكبير بصوت ${rName}`,
+            sound: this.getDhikrSound('baqiyat', rId)
+          },
+          {
+            id: `dhikr_channel_${rId}_hawqala`,
+            name: `الحوقلة والتوكل (${rName})`,
+            description: `تنبيه صوتي بالحوقلة بصوت ${rName}`,
+            sound: this.getDhikrSound('hawqala', rId)
+          },
+          {
+            id: `dhikr_channel_${rId}_tahsin`,
+            name: `أدعية التحصين والحفظ (${rName})`,
+            description: `تنبيه صوتي بأدعية التحصين بصوت ${rName}`,
+            sound: this.getDhikrSound('tahsin', rId)
+          },
+          {
+            id: `dhikr_channel_${rId}_general`,
+            name: `أذكار وتسابيح المسلم (${rName})`,
+            description: `تنبيهات الأذكار والتسبيح اليومية بصوت ${rName} وفق تخصيصك`,
+            sound: this.getDhikrSound('general', rId)
+          }
+        ];
 
-      for (const dc of dhikrCategories) {
-        try {
-          await LocalNotifications.createChannel({
-            id: dc.id,
-            name: dc.name,
-            description: dc.description,
-            importance: 5,
-            sound: dc.sound,
-            visibility: 1,
-            vibration: true,
-            lights: true,
-            lightColor: '#10B981'
-          });
-        } catch (e) {}
+        for (const dc of dhikrCategories) {
+          try {
+            await LocalNotifications.createChannel({
+              id: dc.id,
+              name: dc.name,
+              description: dc.description,
+              importance: 5,
+              sound: dc.sound,
+              visibility: 1,
+              vibration: true,
+              lights: true,
+              lightColor: '#10B981'
+            });
+          } catch (e) {}
+        }
       }
 
       // Silent Dhikr Channel

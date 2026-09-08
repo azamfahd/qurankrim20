@@ -1,6 +1,8 @@
 import { QuranResponse, UserSettings, Verse, ChatMessage } from '../types';
+import { Capacitor } from '@capacitor/core';
 import { QuranDataService } from './quranDataService';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { OfflineQuranService } from './offlineQuranService';
 
 // Intelligent Arabic prompt caching system to reduce network latency and prevent API quota limits
 class PromptCache {
@@ -14,6 +16,12 @@ class PromptCache {
       const cache = JSON.parse(cacheStr);
       const cachedItem = cache[normalized];
       if (cachedItem && (Date.now() - cachedItem.timestamp < 10 * 24 * 60 * 60 * 1000)) { // 10 days cache
+        // Strictly ignore and purge any fallback or offline records from prompt cache
+        if (cachedItem.data?.isOfflineFallback || cachedItem.data?.isOfflineQuranMissing || cachedItem.data?.isOfflineLocalAnalysis) {
+          delete cache[normalized];
+          localStorage.setItem(this.CACHE_KEY, JSON.stringify(cache));
+          return null;
+        }
         return cachedItem.data;
       }
     } catch (e) {
@@ -24,6 +32,11 @@ class PromptCache {
 
   static set(prompt: string, data: any, style?: string, model?: string): void {
     try {
+      // NEVER cache offline or fallback responses
+      if (!data || data.isOfflineFallback || data.isOfflineQuranMissing || data.isOfflineLocalAnalysis) {
+        return;
+      }
+
       const normalized = `${this.normalize(prompt)}::${style || 'smart_adaptive'}::${model || 'default'}`;
       const cacheStr = localStorage.getItem(this.CACHE_KEY) || '{}';
       const cache = JSON.parse(cacheStr);
@@ -71,121 +84,7 @@ export class QuranChatSession {
   }
 
   public async getOfflineFallbackResponse(userMessage: string, username?: string): Promise<QuranResponse> {
-    // Simulate thinking delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const greeting = username ? `أهلاً بك يا ${username}` : 'أهلاً بك يا صديقي';
-    
-    const fallbacks = [
-      {
-        title: 'سكينة وطمأنينة',
-        introMessage: `${greeting}، أياً كان ما تمر به الآن، تذكر أن الله لطيف بعباده. لقد استمعت لقلبك، والقرآن الكريم يحمل لك رسالة طمأنينة وبشارة بأن كل ضيق يعقبه فرج واتساع.`,
-        verses: [
-          {
-            text: 'فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
-            arabicText: 'فَإِنَّ مَعَ الْعُسْرِ يُسْرًا',
-            surah: 'الشرح',
-            surahName: 'الشرح',
-            number: 5,
-            surahNumber: 94,
-            ayahNumber: 5,
-            tafsir: 'أي: فإن مع الشدة والضيق سهولة واتساعاً.',
-            translation: 'For indeed, with hardship [will be] ease.'
-          },
-          {
-            text: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا',
-            arabicText: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا',
-            surah: 'الشرح',
-            surahName: 'الشرح',
-            number: 6,
-            surahNumber: 94,
-            ayahNumber: 6,
-            tafsir: 'تأكيد للوعد بأن مع الشدة والضيق سهولة واتساعاً.',
-            translation: 'Indeed, with hardship [will be] ease.'
-          }
-        ],
-        tafakkur: 'مهما ضاقت بك السبل، تذكر أن الله سبحانه وتعالى قد قرن العسر بيسرين. هذه رسالة ربانية تدعوك للتفاؤل واليقين بأن الفرج قريب، وأن كل أزمة تمر بها هي مجرد محطة عابرة نحو خير أكبر.',
-        summary: 'العسر لا يدوم، ومعية الله ترافقك في كل خطوة، فاستبشر خيراً.'
-      },
-      {
-        title: 'رحمة واسعة',
-        introMessage: `${greeting}، أحياناً تثقلنا الحياة وتتعبنا أخطاؤنا، لكن أبواب رحمة الله لا تُغلق أبداً. إليك هذه الآية العظيمة التي تعتبر من أرجى آيات القرآن الكريم، لتمسح على قلبك بالسكينة.`,
-        verses: [
-          {
-            text: 'قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ ۚ إِنَّ اللَّهَ يَغْفِرُ الذُّنُوبَ جَمِيعًا ۚ إِنَّهُ هُوَ الْغَفُورُ الرَّحِيمُ',
-            arabicText: 'قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ ۚ إِنَّ اللَّهَ يَغْفِرُ الذُّنُوبَ جَمِيعًا ۚ إِنَّهُ هُوَ الْغَفُورُ الرَّحِيمُ',
-            surah: 'الزمر',
-            surahName: 'الزمر',
-            number: 53,
-            surahNumber: 39,
-            ayahNumber: 53,
-            tafsir: 'لا تيأسوا من رحمة الله بسبب كثرة ذنوبكم، فالله يغفر الذنوب جميعاً لمن تاب.',
-            translation: 'Say, "O My servants who have transgressed against themselves [by sinning], do not despair of the mercy of Allah. Indeed, Allah forgives all sins. Indeed, it is He who is the Forgiving, the Merciful."'
-          }
-        ],
-        tafakkur: 'باب التوبة والرحمة مفتوح دائماً. مهما شعرت بالابتعاد، فإن خطوة واحدة صادقة نحو الله تكفي ليمحو كل ما مضى ويبدله خيراً. لا تدع اليأس يتسلل إلى قلبك.',
-        summary: 'رحمة الله تسع كل شيء، والعودة إليه هي بداية السلام الداخلي.'
-      },
-      {
-        title: 'معية الله',
-        introMessage: `${greeting}، في لحظات الوحدة أو الخوف من المستقبل، نحتاج إلى تذكير بأننا لسنا وحدنا. القرآن يهمس في أرواحنا بأعظم رسالة أمان لتسكن أرواحنا.`,
-        verses: [
-          {
-            text: 'لَا تَحْزَنْ إِنَّ اللَّهَ مَعَنَا',
-            arabicText: 'لَا تَحْزَنْ إِنَّ اللَّهَ مَعَنَا',
-            surah: 'التوبة',
-            surahName: 'التوبة',
-            number: 40,
-            surahNumber: 9,
-            ayahNumber: 40,
-            tafsir: 'لا تحزن، فإن الله معنا بنصره وتأييده وحفظه.',
-            translation: 'Do not grieve; indeed Allah is with us.'
-          }
-        ],
-        tafakkur: 'عندما تشعر بالوحدة أو الخوف من المستقبل، تذكر أن الله معك. ومن كان الله معه، فمن عليه؟ استشعر هذه المعية في كل لحظة من حياتك، وستجد أن كل مخاوفك تتلاشى.',
-        summary: 'استشعار معية الله هو أعظم حصن للقلب ضد كل مخاوف الحياة.'
-      },
-      {
-        title: 'الصبر الجميل',
-        introMessage: `${greeting}، الصبر ليس مجرد احتمال للألم، بل هو يقين بأن الله يخبئ لك الأفضل. إليك هذه الرسالة القرآنية التي تواسي كل قلب صابر وتعده بالخير.`,
-        verses: [
-          {
-            text: 'يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ',
-            arabicText: 'يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ',
-            surah: 'البقرة',
-            surahName: 'البقرة',
-            number: 153,
-            surahNumber: 2,
-            ayahNumber: 153,
-            tafsir: 'استعينوا على كل أموركم بالصبر وبإقامة الصلاة، إن الله مع الصابرين بعونه وتوفيقه.',
-            translation: 'O you who have believed, seek help through patience and prayer. Indeed, Allah is with the patient.'
-          }
-        ],
-        tafakkur: 'الصلاة والصبر هما زاد المؤمن في رحلة الحياة. حينما تضيق بك الأمور، الجأ إلى الصلاة، واعلم أن الله مع الصابرين، يساندهم، ويقويهم، ويجزيهم بغير حساب.',
-        summary: 'استعن بالصبر والصلاة، وتأكد أن الله لا يضيع أجر من أحسن عملاً.'
-      },
-      {
-        title: 'التوكل واليقين',
-        introMessage: `${greeting}، عندما تتشابك الأمور وتغيب الحلول، يأتي التوكل على الله ليفتح أبواباً لم تكن في الحسبان. تأمل معي هذا الوعد الرباني القاطع الذي يريح القلب.`,
-        verses: [
-          {
-            text: 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ ۚ إِنَّ اللَّهَ بَالِغُ أَمْرِهِ ۚ قَدْ جَعَلَ اللَّهُ لِكُلِّ شَيْءٍ قَدْرًا',
-            arabicText: 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ ۚ إِنَّ اللَّهَ بَالِغُ أَمْرِهِ ۚ قَدْ جَعَلَ اللَّهُ لِكُلِّ شَيْءٍ قَدْرًا',
-            surah: 'الطلاق',
-            surahName: 'الطلاق',
-            number: 3,
-            surahNumber: 65,
-            ayahNumber: 3,
-            tafsir: 'ومن يعتمد على الله في أموره يكفه ما أهمه. إن الله نافذ أمره، لا يعجزه شيء.',
-            translation: 'And whoever relies upon Allah - then He is sufficient for him. Indeed, Allah will accomplish His purpose. Allah has already set for everything a [decreed] extent.'
-          }
-        ],
-        tafakkur: 'التوكل الحقيقي هو أن تفعل ما بوسعك ثم تترك الأمر كله لله، موقناً أنه سيكفيك ويدبر لك أمرك بأفضل مما تتخيل. الله بالغ أمره، فلا تقلق.',
-        summary: 'من توكل على الله كفاه، وسلم أمره لمن بيده ملكوت كل شيء.'
-      }
-    ];
-
-    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    return await OfflineQuranService.analyzeQuestionOffline(userMessage, username);
   }
 
   private cleanAndParseJSON(rawText: string): any {
@@ -364,23 +263,21 @@ export class QuranChatSession {
     contents.push({ role: 'user', parts: [{ text: `${userMessage}\n\n${styleReminder}` }] });
 
     const normalizeModel = (m?: string) => {
-      if (!m) return 'gemini-3.6-flash';
+      if (!m) return 'gemini-3.8-flash';
       if (m.includes('3.8')) return 'gemini-3.8-flash';
-      if (m.includes('3.7')) return 'gemini-3.7-flash';
       if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
-      if (m.includes('3.5')) return 'gemini-3.5-flash';
-      return 'gemini-3.6-flash';
+      if (m.includes('3.7')) return 'gemini-3.7-flash';
+      return 'gemini-3.8-flash';
     };
 
     const requestedModel = normalizeModel(this.model);
     const candidateModels = Array.from(new Set([
       requestedModel,
       'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
+      'gemini-3.1-flash-lite',
       'gemini-3.1-pro-preview',
-      'gemini-3.1-flash-lite'
+      'gemini-3.7-flash'
     ]));
 
     let lastError: any = null;
@@ -412,7 +309,32 @@ export class QuranChatSession {
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`[GeminiService ClientFallback] Model ${modelName} failed, trying next:`, err);
+        const errMsg = err?.message || String(err);
+        if (err?.status === 503 || errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("high demand")) {
+          await new Promise(r => setTimeout(r, 500));
+          try {
+            const retryConfig: any = {
+              systemInstruction,
+              responseMimeType: "application/json",
+              responseSchema,
+              temperature: this.settings.creativityLevel ?? 0.5,
+            };
+            if (modelName.includes('pro')) {
+              retryConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
+            }
+            const retryRes = await ai.models.generateContent({
+              model: modelName,
+              contents,
+              config: retryConfig,
+            });
+            if (retryRes && retryRes.text) {
+              return this.cleanAndParseJSON(retryRes.text);
+            }
+          } catch (retryErr) {
+            // Proceed to next model silently
+          }
+        }
+        console.info(`[GeminiService ClientFallback] Model ${modelName} temporary issue, switching to next candidate...`);
       }
     }
 
@@ -425,6 +347,21 @@ export class QuranChatSession {
     history?: ChatMessage[],
     onProgress?: (stage: 'thinking' | 'mapping' | 'verifying' | 'formatting') => void
   ): Promise<QuranResponse> {
+    // 0. Offline Detection: If user is offline, analyze using local Quran service from downloaded Mushaf
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (!isOnline) {
+      if (onProgress) {
+        onProgress('thinking');
+        await new Promise(resolve => setTimeout(resolve, 250));
+        onProgress('mapping');
+        await new Promise(resolve => setTimeout(resolve, 250));
+        onProgress('verifying');
+        await new Promise(resolve => setTimeout(resolve, 200));
+        onProgress('formatting');
+      }
+      return await OfflineQuranService.analyzeQuestionOffline(userMessage, username);
+    }
+
     if (onProgress) onProgress('thinking');
 
     const style = this.settings.analysisStyle || 'smart_adaptive';
@@ -462,7 +399,8 @@ export class QuranChatSession {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-      const response = await fetch('/api/ai/chat', {
+      const baseUrl = Capacitor.isNativePlatform() ? 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app' : '';
+      const response = await fetch(`${baseUrl}/api/ai/chat`, {
         method: 'POST',
         headers,
         signal: controller.signal,
@@ -517,20 +455,10 @@ export class QuranChatSession {
           aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, clientKey);
         } catch (clientErr) {
           console.error("[GeminiService] Both server call and client-side fallback failed:", clientErr);
-          const fallback = await this.getOfflineFallbackResponse(userMessage, username);
-          return {
-            ...fallback,
-            analysisStyle: style,
-            isOfflineFallback: true
-          };
+          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
         }
       } else {
-        const fallback = await this.getOfflineFallbackResponse(userMessage, username);
-        return {
-          ...fallback,
-          analysisStyle: style,
-          isOfflineFallback: true
-        };
+        throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
       }
     }
 
@@ -594,13 +522,8 @@ export class QuranChatSession {
 
       return finalResult;
     } catch (error: any) {
-      console.warn("[GeminiService] Error formatting response, falling back to offline", error);
-      const fallback = await this.getOfflineFallbackResponse(userMessage, username);
-      return {
-        ...fallback,
-        analysisStyle: style,
-        isOfflineFallback: true
-      };
+      console.warn("[GeminiService] Error formatting response:", error);
+      throw error;
     }
   }
 }

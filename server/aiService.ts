@@ -222,13 +222,12 @@ export class ServerAIService {
     contents.push({ role: 'user', parts: [{ text: `${userMessage}\n\n${styleReminder}` }] });
 
     const normalizeModel = (m?: string) => {
-      if (!m) return 'gemini-3.6-flash';
+      if (!m) return 'gemini-3.8-flash';
       if (m.includes('3.8')) return 'gemini-3.8-flash';
-      if (m.includes('3.7')) return 'gemini-3.7-flash';
       if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
-      if (m.includes('3.5')) return 'gemini-3.5-flash';
-      return 'gemini-3.6-flash';
+      if (m.includes('3.7')) return 'gemini-3.7-flash';
+      return 'gemini-3.8-flash';
     };
 
     const requestedModel = normalizeModel(settings.model);
@@ -236,10 +235,9 @@ export class ServerAIService {
     const candidateModels = Array.from(new Set([
       requestedModel,
       'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
+      'gemini-3.1-flash-lite',
       'gemini-3.1-pro-preview',
-      'gemini-3.1-flash-lite'
+      'gemini-3.7-flash'
     ]));
 
     let lastError: any = null;
@@ -279,7 +277,6 @@ export class ServerAIService {
       } catch (err: any) {
         lastError = err;
         const errMsg = err?.message || String(err);
-        console.warn(`[ServerAIService] Model ${modelName} encountered error (attempt ${i + 1}/${candidateModels.length}):`, errMsg);
         
         // If API key is rejected immediately, no need to retry with other models
         if (errMsg.includes("API key not valid") || err?.status === 400 || err?.status === 403 || errMsg.includes("API_KEY_INVALID") || errMsg.includes("API key")) {
@@ -290,8 +287,40 @@ export class ServerAIService {
           };
         }
 
-        // For any other error (including 503, 500, timeouts, high demand), fallback to the next candidate model
-        console.info(`[ServerAIService] Falling back to the next candidate model due to error on ${modelName}...`);
+        // Handle 503 high demand with a quick retry before moving to next candidate
+        if (err?.status === 503 || errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("high demand")) {
+          await new Promise(r => setTimeout(r, 500));
+          try {
+            const retryConfig: any = {
+              systemInstruction,
+              responseMimeType: "application/json",
+              responseSchema,
+              temperature: settings.creativityLevel ?? 0.5,
+            };
+            if (modelName.includes('pro')) {
+              retryConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
+            }
+            const retryRes = await ai.models.generateContent({
+              model: modelName,
+              contents,
+              config: retryConfig,
+            });
+            if (retryRes && retryRes.text) {
+              const parsed = this.cleanAndParseJSON(retryRes.text);
+              return {
+                success: true,
+                data: {
+                  ...parsed,
+                  analysisStyle: style
+                }
+              };
+            }
+          } catch (retryErr) {
+            // Proceed to next model silently
+          }
+        }
+
+        console.info(`[ServerAIService] Model ${modelName} temporary issue, seamlessly switching to next model...`);
         continue;
       }
     }

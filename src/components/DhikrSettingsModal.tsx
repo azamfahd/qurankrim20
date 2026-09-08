@@ -18,7 +18,6 @@ import {
 } from '../services/dhikrReminderService';
 import { NativeNotificationService } from '../services/nativeNotificationService';
 import { PermissionService } from '../services/permissionService';
-import { AdhanBackgroundGuideModal } from './AdhanBackgroundGuideModal';
 import { useAppEvent } from '../services/appEventBus';
 
 interface DhikrSettingsModalProps {
@@ -56,7 +55,6 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
   const [settings, setSettings] = useState<DhikrReminderSettings>(() => DhikrReminderService.getSettings());
   const [dailyStats, setDailyStats] = useState<DhikrDailyStats>(() => DhikrReminderService.getDailyStats());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const [isBackgroundGuideOpen, setIsBackgroundGuideOpen] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'reciters' | 'categories'>('general');
   const [downloadedReciters, setDownloadedReciters] = useState<{ [id: string]: boolean }>({});
@@ -459,31 +457,6 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                   </button>
                 </div>
 
-                {/* Background & Notifications Professional Guide Banner for Dhikr */}
-                <div className="bg-gradient-to-br from-emerald-500/15 via-white dark:via-slate-800 to-amber-500/15 p-4 rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-500/50 shadow-xs flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                      <BellRing size={20} className="animate-pulse" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 truncate">
-                        دليل تشغيل الأذكار والإشعارات الفورية في الخلفية
-                      </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 truncate">
-                        إرشادات لأجهزة سامسونج، شاومي، هواوي وآيفون لضمان وصول التنبيهات والأذكار بانتظام.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsBackgroundGuideOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 transition-all shadow-md cursor-pointer active:scale-95 flex items-center gap-1.5"
-                  >
-                    <span>فتح الدليل</span>
-                    <ChevronLeft size={14} />
-                  </button>
-                </div>
-
                 {/* Custom Toggle: Alert upon opening app (التنبيه عند فتح البرنامج) */}
                 <div className="bg-white/80 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-xs flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -685,38 +658,40 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
             {/* 2. RECITERS TAB */}
             {activeTab === 'reciters' && (
               <div className="space-y-3">
-                {/* Header Information and Batch Download Panel */}
-                <div className="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-slate-800 dark:text-amber-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                  <div className="flex items-start gap-2.5">
-                    <HardDrive size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold block mb-0.5 text-sm text-slate-900 dark:text-amber-200">
-                        مكتبة أصوات كبار المشايخ (بدون إنترنت)
-                      </span>
-                      <span className="text-[11px] text-slate-600 dark:text-slate-300">
-                        يمكنك تحميل وتخزين أصوات أي قارئ مباشرة على جهازك لتعمل الأذكار أوفلاين بدون أي انقطاع.
-                      </span>
+                {/* Header Information and Batch Download Panel - Hide on Native */}
+                {!Capacitor.isNativePlatform() && (
+                  <div className="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-teal-500/15 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-slate-800 dark:text-amber-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-start gap-2.5">
+                      <HardDrive size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block mb-0.5 text-sm text-slate-900 dark:text-amber-200">
+                          مكتبة أصوات كبار المشايخ (بدون إنترنت)
+                        </span>
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                          يمكنك تحميل وتخزين أصوات أي قارئ مباشرة على جهازك لتعمل الأذكار أوفلاين بدون أي انقطاع.
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <button
-                    onClick={handleDownloadAllReciters}
-                    disabled={isDownloadingAll}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer ${
-                      isDownloadingAll
-                        ? 'bg-amber-400/50 text-slate-800 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
-                    }`}
-                    title="تحميل أصوات كافة المشايخ للعمل بدون إنترنت"
-                  >
-                    {isDownloadingAll ? (
-                      <RefreshCw size={13} className="animate-spin" />
-                    ) : (
-                      <Download size={13} />
-                    )}
-                    <span>{isDownloadingAll ? 'جاري التحميل...' : 'تحميل جميع القراء'}</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={handleDownloadAllReciters}
+                      disabled={isDownloadingAll}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer ${
+                        isDownloadingAll
+                          ? 'bg-amber-400/50 text-slate-800 cursor-not-allowed'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                      }`}
+                      title="تحميل أصوات كافة المشايخ للعمل بدون إنترنت"
+                    >
+                      {isDownloadingAll ? (
+                        <RefreshCw size={13} className="animate-spin" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      <span>{isDownloadingAll ? 'جاري التحميل...' : 'تحميل جميع القراء'}</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Android Notification Category Live Sync Notice for Dhikr */}
                 <div className="bg-emerald-500/10 dark:bg-emerald-950/30 p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between gap-2.5">
@@ -787,7 +762,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
                                 {reciter.name}
                               </h4>
                               
-                              {reciter.id !== 'random' && (
+                              {!Capacitor.isNativePlatform() && reciter.id !== 'random' && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -835,7 +810,7 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
 
                         {/* Action Buttons: Download / Delete / Preview */}
                         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center" onClick={(e) => e.stopPropagation()}>
-                          {reciter.id !== 'random' && (
+                          {!Capacitor.isNativePlatform() && reciter.id !== 'random' && (
                             <>
                               {isCurrentlyDownloading ? (
                                 <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5">
@@ -990,24 +965,6 @@ export const DhikrSettingsModal: React.FC<DhikrSettingsModalProps> = ({
               حفظ وإغلاق
             </button>
           </div>
-          
-          {/* Background Execution & Permissions Guide Modal */}
-          <AdhanBackgroundGuideModal
-            isOpen={isBackgroundGuideOpen}
-            onClose={() => setIsBackgroundGuideOpen(false)}
-            settings={{
-              adhanSettings: {
-                enabled: true,
-                muezzin: settings.reciterId || 'mishary',
-                fajrEnabled: true,
-                dhuhrEnabled: true,
-                asrEnabled: true,
-                maghribEnabled: true,
-                ishaEnabled: true,
-                volume: settings.volume || 85
-              }
-            }}
-          />
         </motion.div>
       </motion.div>
       )}

@@ -60,9 +60,9 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
     id: 'maher',
     name: 'الشيخ ماهر المعيقلي',
     title: 'إمام المسجد الحرام بمكة المكرمة',
-    description: 'تلاوة وأذكار شجية من رحاب البيت الحرام (تحميل عند الطلب)',
+    description: 'تلاوة وأذكار شجية من رحاب البيت الحرام (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '🕋',
-    previewUrl: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/maher_preview.mp3',
     sizeFormatted: '750 كيلوبايت',
     audioUrls: {
       salawat: '/audio/adhkar/maher_salawat.mp3',
@@ -80,15 +80,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Maher_AlMuaiqly_64kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'abdulbasit',
     name: 'الشيخ عبد الباسط عبد الصمد',
     title: 'صوت مكة الخالد وسفير القرآن',
-    description: 'نبرة تاريخية ذهبية تفيض خشوعاً وجلالاً (تحميل عند الطلب)',
+    description: 'نبرة تاريخية ذهبية تفيض خشوعاً وجلالاً (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '📜',
-    previewUrl: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/abdulbasit_preview.mp3',
     sizeFormatted: '3.1 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/abdulbasit_salawat.mp3',
@@ -106,15 +106,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'husary',
     name: 'الشيخ محمود خليل الحصري',
     title: 'شيخ عموم المقارئ المصرية وإمام الترتيل المتقن',
-    description: 'أداء متقن ورصين يملأ القلب سكينة وخشوعاً (تحميل عند الطلب)',
+    description: 'أداء متقن ورصين يملأ القلب سكينة وخشوعاً (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '📖',
-    previewUrl: 'https://everyayah.com/data/Husary_128kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/husary_preview.mp3',
     sizeFormatted: '2.8 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/husary_salawat.mp3',
@@ -132,15 +132,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Husary_128kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Husary_128kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'minshawi',
     name: 'الشيخ محمد صديق المنشاوي',
     title: 'الصوت الباكي ذو الخشوع والوقار العالي',
-    description: 'تلاوة وأذكار ترق لها القلوب وتخشع لسماعها (تحميل عند الطلب)',
+    description: 'تلاوة وأذكار ترق لها القلوب وتخشع لسماعها (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '🕊️',
-    previewUrl: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/minshawi_preview.mp3',
     sizeFormatted: '2.3 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/minshawi_salawat.mp3',
@@ -158,15 +158,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Minshawy_Murattal_128kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'alghamdi',
     name: 'الشيخ سعد الغامدي',
     title: 'تلاوة متقنة هادئة وسكينة للنفس',
-    description: 'أذكار وأدعية بصوت الشيخ سعد الغامدي الصافي (تحميل عند الطلب)',
+    description: 'أذكار وأدعية بصوت الشيخ سعد الغامدي الصافي (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '🌿',
-    previewUrl: 'https://everyayah.com/data/Ghamadi_40kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/alghamdi_preview.mp3',
     sizeFormatted: '580 كيلوبايت',
     audioUrls: {
       salawat: '/audio/adhkar/alghamdi_salawat.mp3',
@@ -184,15 +184,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Ghamadi_40kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Ghamadi_40kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'qatami',
     name: 'الشيخ ناصر القطامي',
     title: 'نبرة خاشعة ورقيقة تأسر القلوب',
-    description: 'تسجيلات مميزة بصوت ندي وخشوع مؤثر (تحميل عند الطلب)',
+    description: 'تسجيلات مميزة بصوت ندي وخشوع مؤثر (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '✨',
-    previewUrl: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/qatami_preview.mp3',
     sizeFormatted: '1.5 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/qatami_salawat.mp3',
@@ -210,15 +210,15 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Nasser_Alqatami_128kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'sudais',
     name: 'الشيخ عبد الرحمن السديس',
     title: 'إمام وخطيب المسجد الحرام',
-    description: 'أدعية وأذكار بصوت الشيخ السديس المكي الشهير (تحميل عند الطلب)',
+    description: 'أدعية وأذكار بصوت الشيخ السديس المكي الشهير (مدمج في التطبيق جاهز أوفلاين)',
     avatar: '🕌',
-    previewUrl: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/033056.mp3',
+    previewUrl: '/audio/adhkar/sudais_preview.mp3',
     sizeFormatted: '2.1 ميغابايت',
     audioUrls: {
       salawat: '/audio/adhkar/sudais_salawat.mp3',
@@ -236,13 +236,13 @@ export const DHIKR_RECITERS: DhikrReciterInfo[] = [
       tahsin: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/002255.mp3',
       preview: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/033056.mp3'
     },
-    isBuiltIn: false
+    isBuiltIn: true
   },
   {
     id: 'random',
     name: 'منوع بين كبار المشايخ (تبديل تلقائي)',
     title: 'تبديل تلقائي بين أصوات المشايخ الثمانية مع كل تذكير',
-    description: 'استمع في كل مرة لصوت قارئ مختلف من خيرة الأصوات المسجلة',
+    description: 'استمع في كل مرة لصوت قارئ مختلف من خيرة الأصوات المسجلة والمدمجة بالكامل',
     avatar: '🔀',
     previewUrl: '/audio/adhkar/mishary_preview.mp3',
     sizeFormatted: 'حزمة كاملة',
@@ -774,9 +774,14 @@ export class DhikrOfflineManager {
 
   public static async isReciterDownloaded(reciterId: string): Promise<boolean> {
     if (reciterId === 'random') return true;
+    if (Capacitor.isNativePlatform()) return true;
     try {
+      const reciter = DHIKR_RECITERS.find(r => r.id === reciterId);
+      if (reciter?.isBuiltIn) return true;
+
       const flag = localStorage.getItem(`anis_reciter_downloaded_${reciterId}`);
       if (flag === 'false') return false;
+      if (flag === 'true') return true;
 
       return await ResilientIndexedDB.executeRead(this.DB_CONFIG, this.STORE_NAME, async (store) => {
         return new Promise<boolean>((resolve) => {
@@ -1174,12 +1179,17 @@ export class DhikrReminderService {
 
   public static getOfflineReadyReciterId(): string {
     const activeId = this.settings.reciterId;
-    if (activeId !== 'random') return activeId;
+    if (activeId && activeId !== 'random') return activeId;
 
     const actualReciters = DHIKR_RECITERS.filter(r => r.id !== 'random');
+    if (Capacitor.isNativePlatform()) {
+      const allIds = actualReciters.map(r => r.id);
+      return allIds[Math.floor(Math.random() * allIds.length)];
+    }
+
     const offlineReciters = [];
     for (const r of actualReciters) {
-      if (r.id === 'mishary' || localStorage.getItem(`anis_reciter_downloaded_${r.id}`) === 'true') {
+      if (r.isBuiltIn || r.id === 'mishary' || localStorage.getItem(`anis_reciter_downloaded_${r.id}`) === 'true') {
         offlineReciters.push(r.id);
       }
     }

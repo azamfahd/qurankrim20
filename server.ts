@@ -11,6 +11,17 @@ async function startServer() {
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
 
+  // Enable CORS for API routes so Capacitor APK can reach them
+  app.use("/api", (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-user-gemini-key");
+    if (req.method === "OPTIONS") {
+      return res.status(200).end();
+    }
+    next();
+  });
+
   // Root healthcheck endpoints for Cloud Run and load balancers
   app.get(["/healthz", "/api/health"], (req, res) => {
     res.status(200).json({ status: "ok", port: PORT, timestamp: new Date().toISOString() });

@@ -121,6 +121,8 @@ export interface QuranResponse {
   summary?: string;
   analysisStyle?: 'smart_adaptive' | 'balanced' | 'detailed' | 'smart_summary' | 'spiritual' | 'scientific' | 'practical_life' | 'tadabbur' | string;
   isOfflineFallback?: boolean;
+  isOfflineLocalAnalysis?: boolean;
+  isOfflineQuranMissing?: boolean;
   error?: string;
 }
 

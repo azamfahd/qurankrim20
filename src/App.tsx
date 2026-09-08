@@ -23,7 +23,7 @@ import { SupabaseService } from './services/supabaseService';
 import { SyncService } from './services/syncService';
 import { LocalDatabaseService } from './db/localDb';
 import { ChatMessage, AppState, UserSettings, UserLocation, ChatSession, Bookmark, Verse } from './types';
-import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll, Smartphone, Download, Bell } from 'lucide-react';
+import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll, Smartphone, Download, Bell, Cpu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -57,7 +57,7 @@ const QuranPlatformModal = lazyWithRetry(() => import('./quran-platform/QuranPla
 const AgriculturalCalendarModal = lazyWithRetry(() => import('./components/AgriculturalCalendarModal'));
 const MiraclesModal = lazyWithRetry(() => import('./components/MiraclesModal'));
 
-const DynamicPermissionModal = lazyWithRetry(() => import('./components/DynamicPermissionModal').then(module => ({ default: module.DynamicPermissionModal })));
+const StartupPermissionOnboarding = lazyWithRetry(() => import('./components/StartupPermissionOnboarding').then(module => ({ default: module.StartupPermissionOnboarding })));
 
 const ModalSuspenseFallback = () => null;
 
@@ -1101,13 +1101,21 @@ const App: React.FC = () => {
 
     try {
       const onProgressUpdate = (stage: string) => {
-        const messagesMap: Record<string, string> = {
+        const isCurrentlyOnline = typeof navigator !== 'undefined' ? navigator.onLine : isOnline;
+        const onlineMessagesMap: Record<string, string> = {
           'thinking': "نستلهم الحكمة من فيض الوحي لقلبك...",
           'mapping': "نغوص في أعماق آيات الذكر الحكيم...",
           'verifying': "نتثبّت من مرجعيات الآيات وسياقها...",
           'formatting': "نجلو لك المعاني في أبهى صورها..."
         };
-        setLoadingText(messagesMap[stage] || LOADING_MESSAGES[0]);
+        const offlineMessagesMap: Record<string, string> = {
+          'thinking': "نستحضر الهدايات القرآنية محلياً دون إنترنت...",
+          'mapping': "نستخرج الآيات المناسبة من المصحف والتفاسير المحفوظة...",
+          'verifying': "نتثبّت من صحة النصوص والتفاسير المعتمدة...",
+          'formatting': "نصيغ لك التدبر القرآني في الوضع المحلي..."
+        };
+        const activeMap = isCurrentlyOnline ? onlineMessagesMap : offlineMessagesMap;
+        setLoadingText(activeMap[stage] || (isCurrentlyOnline ? LOADING_MESSAGES[0] : "جاري التحليل القرآني محلياً..."));
       };
 
       const data = await chatSessionRef.current.sendMessage(text, displayName, messages, onProgressUpdate);
@@ -1118,37 +1126,45 @@ const App: React.FC = () => {
       saveCurrentSessionToHistory(finalMessages);
     } catch (err: any) {
       console.error("FULL ERROR DETAILS:", err);
-      try {
-        // Attempt seamless fallback to ensure smooth user experience
-        const fallbackData = await chatSessionRef.current.getOfflineFallbackResponse(text, displayName);
-        const aiMsg: ChatMessage = { id: generateId(), type: 'ai', data: { ...fallbackData, isOfflineFallback: true } };
-        const finalMessages = [...newMessages, aiMsg];
-        setMessages(finalMessages);
-        setState(AppState.SUCCESS);
-        saveCurrentSessionToHistory(finalMessages);
-      } catch (fallbackErr) {
-        let errorMessage = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.";
-        if (err?.message) {
-          const msg = err.message.toLowerCase();
-          if (msg.includes("quota") || msg.includes("429")) {
-            errorMessage = "يبدو أن هناك ضغطاً كبيراً على الخادم حالياً. يرجى المحاولة بعد قليل، أو إضافة مفتاح API الخاص بك في الإعدادات لتجربة أسرع.";
-          } else if (msg.includes("api key not valid") || msg.includes("invalid api key") || msg.includes("403") || msg.includes("api_key")) {
-            errorMessage = "مفتاح API الذي قمت بإدخاله غير صالح. يرجى التأكد من صحته في الإعدادات، أو مسحه لاستخدام الوضع التلقائي.";
-          } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to fetch")) {
-            errorMessage = "يبدو أن هناك مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
-          } else if (msg.includes("استجابة فارغة") || msg.includes("لم يتم العثور على استجابة")) {
-            errorMessage = "لم نتمكن من صياغة إجابة مناسبة في الوقت الحالي. يرجى إعادة صياغة سؤالك والمحاولة مرة أخرى.";
-          } else if (msg.includes("timeout") || msg.includes("فشل الاتصال")) {
-            errorMessage = "استغرق الخادم وقتاً طويلاً للاستجابة. يرجى المحاولة مرة أخرى لاحقاً.";
-          } else if (msg.includes("json") || err.name === "SyntaxError") {
-            errorMessage = "حدث خطأ في تنسيق البيانات الواردة من الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
-          } else {
-            errorMessage = `عذراً، حدث خطأ: ${err.message}`;
-          }
+      // STRICT REQUIREMENT:
+      // When connected to internet, NEVER display cold local fallback results!
+      // Only invoke offline analysis if the user is truly offline.
+      const currentOnlineStatus = typeof navigator !== 'undefined' ? navigator.onLine : isOnline;
+      if (!currentOnlineStatus) {
+        try {
+          const fallbackData = await chatSessionRef.current.getOfflineFallbackResponse(text, displayName);
+          const aiMsg: ChatMessage = { id: generateId(), type: 'ai', data: fallbackData };
+          const finalMessages = [...newMessages, aiMsg];
+          setMessages(finalMessages);
+          setState(AppState.SUCCESS);
+          saveCurrentSessionToHistory(finalMessages);
+          return;
+        } catch (fallbackErr) {
+          console.error("Offline analysis error:", fallbackErr);
         }
-        setError(errorMessage);
-        setState(AppState.ERROR);
       }
+
+      let errorMessage = "عذراً، تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً للحصول على الإجابة الاحترافية الدقيقة.";
+      if (err?.message) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes("quota") || msg.includes("429")) {
+          errorMessage = "يبدو أن هناك ضغطاً كبيراً على الخادم حالياً. يرجى المحاولة بعد قليل، أو إضافة مفتاح API الخاص بك في الإعدادات لتجربة أسرع.";
+        } else if (msg.includes("api key not valid") || msg.includes("invalid api key") || msg.includes("403") || msg.includes("api_key")) {
+          errorMessage = "مفتاح API الذي قمت بإدخاله غير صالح. يرجى التأكد من صحته في الإعدادات، أو مسحه لاستخدام الوضع التلقائي.";
+        } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to fetch")) {
+          errorMessage = "يبدو أن هناك مشكلة في استقرار الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.";
+        } else if (msg.includes("استجابة فارغة") || msg.includes("لم يتم العثور على استجابة")) {
+          errorMessage = "لم نتمكن من صياغة إجابة مناسبة في الوقت الحالي. يرجى إعادة صياغة سؤالك والمحاولة مرة أخرى.";
+        } else if (msg.includes("timeout") || msg.includes("فشل الاتصال")) {
+          errorMessage = "استغرق الخادم وقتاً طويلاً للاستجابة. يرجى المحاولة مرة أخرى لاحقاً.";
+        } else if (msg.includes("json") || err.name === "SyntaxError") {
+          errorMessage = "حدث خطأ في تنسيق البيانات الواردة من الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.";
+        } else {
+          errorMessage = err.message.startsWith("تعذر") ? err.message : `عذراً، تعذر الاتصال بالذكاء الاصطناعي: ${err.message}`;
+        }
+      }
+      setError(errorMessage);
+      setState(AppState.ERROR);
     }
   };
 
@@ -1206,14 +1222,16 @@ const App: React.FC = () => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="offline-banner relative overflow-hidden"
+            className="bg-emerald-600/90 text-white border-b border-emerald-400/30 text-xs sm:text-sm font-medium backdrop-blur-md relative overflow-hidden shadow-md"
           >
-            <div className="flex items-center justify-center gap-3 py-2 px-8">
-              <WifiOff size={16} className="animate-pulse" />
-              <span className="text-sm">أنت في وضع عدم الاتصال. قد تكون بعض الميزات محدودة.</span>
+            <div className="flex items-center justify-center gap-2.5 py-2 px-8">
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
+              <Cpu size={15} className="text-emerald-200" />
+              <span>أنت تعمل محلياً (دون إنترنت) • يمكنك طرح أي سؤال وتصفح الآيات والتدبر محلياً بكل يسر وسرعة.</span>
               <button 
                 onClick={() => setIsOfflineBannerDismissed(true)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/20 rounded-full transition-colors"
+                title="إغلاق التنبيه"
               >
                 <X size={14} />
               </button>
@@ -1938,7 +1956,7 @@ const App: React.FC = () => {
       />
 
       <GlobalDownloadOverlay />
-      <DynamicPermissionModal />
+      <StartupPermissionOnboarding />
 
       <DhikrSettingsModal
         isOpen={isDhikrReminderOpen}
