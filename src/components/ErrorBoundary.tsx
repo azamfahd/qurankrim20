@@ -23,6 +23,10 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo);
 
+    try {
+      sessionStorage.setItem('anis_crash_loop_prevent', 'true');
+    } catch (e) {}
+
     // Dynamic import / chunk error detection during app update
     const errorMessage = error?.message || '';
     const isChunkError =
@@ -53,6 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleHardRefresh = async () => {
     sessionStorage.removeItem('anis_error_boundary_refreshed');
     sessionStorage.removeItem('anis_chunk_retry_refreshed');
+    sessionStorage.setItem('anis_crash_loop_prevent', 'true');
+    try {
+      localStorage.removeItem('anis_active_view_state');
+    } catch (e) {}
     if (typeof caches !== 'undefined') {
       try {
         const keys = await caches.keys();
@@ -74,7 +82,12 @@ export class ErrorBoundary extends Component<Props, State> {
     try {
       localStorage.removeItem('anis_active_chat');
       localStorage.removeItem('anis_active_session_id');
+      localStorage.removeItem('anis_active_view_state');
+      localStorage.removeItem('quran_last_surah');
+      localStorage.removeItem('quran_last_ayah');
+      localStorage.removeItem('quran_last_page');
       sessionStorage.clear();
+      sessionStorage.setItem('anis_crash_loop_prevent', 'true');
     } catch (e) {}
     await this.handleHardRefresh();
   };

@@ -24,6 +24,7 @@ import { ChatMessage, AppState, UserSettings, UserLocation, ChatSession, Bookmar
 import { AlertCircle, Plus, Menu, ArrowRight, ArrowLeft, WifiOff, BookOpen, Key, X, Compass, Calculator, Bookmark as BookmarkIcon, RefreshCw, Calendar, Leaf, Sparkles, User, Scroll, Smartphone, Download, Bell, Cpu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { triggerApkDownload } from './utils/apkConfig';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Suspense } from 'react';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -1108,6 +1109,11 @@ const App: React.FC = () => {
   };
 
   const handleEmotionSubmit = async (text: string) => {
+    if (!isOnline) {
+      setError("لا يوجد اتصال بالإنترنت. يرجى تفعيل أو الاتصال بالإنترنت لاستخدام البحث والاستفسار.");
+      setState(AppState.ERROR);
+      return;
+    }
     setState(AppState.LOADING);
     setLoadingText(LOADING_MESSAGES[0]);
     setError(null);
@@ -1223,12 +1229,12 @@ const App: React.FC = () => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="bg-emerald-600/90 text-white border-b border-emerald-400/30 text-xs sm:text-sm font-medium backdrop-blur-md relative overflow-hidden shadow-md"
+            className="bg-amber-600/90 text-white border-b border-amber-400/30 text-xs sm:text-sm font-medium backdrop-blur-md relative overflow-hidden shadow-md"
           >
             <div className="flex items-center justify-center gap-2.5 py-2 px-8">
-              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
-              <Cpu size={15} className="text-emerald-200" />
-              <span>أنت تعمل محلياً (دون إنترنت) • يمكنك طرح أي سؤال وتصفح الآيات والتدبر محلياً بكل يسر وسرعة.</span>
+              <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping"></span>
+              <WifiOff size={15} className="text-amber-200" />
+              <span>أنت تعمل حالياً دون اتصال بالإنترنت • تم إغلاق مربع البحث والاستفسار الذكي. يرجى تفعيل أو الاتصال بالإنترنت لتمكين البحث والأسئلة.</span>
               <button 
                 onClick={() => setIsOfflineBannerDismissed(true)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/20 rounded-full transition-colors"
@@ -1525,8 +1531,14 @@ const App: React.FC = () => {
                         ].map((prompt, idx) => (
                           <button
                             key={idx}
-                            onClick={() => handleEmotionSubmit(prompt)}
-                            className="text-[10px] sm:text-[11px] font-bold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] transition-all duration-300 hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 shadow-sm shrink-0 select-none cursor-pointer max-w-full"
+                            disabled={!isOnline}
+                            onClick={() => isOnline && handleEmotionSubmit(prompt)}
+                            title={isOnline ? prompt : "يتطلب الاتصال بالإنترنت"}
+                            className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border transition-all duration-300 shadow-sm shrink-0 select-none max-w-full ${
+                              isOnline
+                                ? 'bg-white/5 border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 cursor-pointer'
+                                : 'bg-white/5 border-white/5 text-white/30 cursor-not-allowed opacity-50'
+                            }`}
                           >
                             {prompt}
                           </button>
@@ -1722,8 +1734,9 @@ const App: React.FC = () => {
         onShowToast={showToast}
       />
 
-      <Suspense fallback={<ModalSuspenseFallback />}>
-        {isTasbihOpen && (
+      <ErrorBoundary fallback={null}>
+        <Suspense fallback={<ModalSuspenseFallback />}>
+          {isTasbihOpen && (
           <TasbihModal 
             isOpen={isTasbihOpen} 
             onClose={() => setIsTasbihOpen(false)} 
@@ -1977,16 +1990,7 @@ const App: React.FC = () => {
           versionInfo={apkUpdateInfo || undefined}
           onUpdate={() => {
             setIsApkUpdateBannerOpen(false);
-            const link = document.createElement('a');
-            link.href = '/app-release.apk';
-            link.download = 'أنيس القلوب - القرآن الذكي.apk';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            if (apkUpdateInfo?.version) {
-              localStorage.setItem('anis_apk_installed_version', apkUpdateInfo.version);
-            }
-            showToast('جاري تحميل التحديث الجديد لملف الـ APK...', 'success');
+            triggerApkDownload(showToast, apkUpdateInfo?.version || '1.1.0');
           }}
           onDismiss={() => {
             setIsApkUpdateBannerOpen(false);
@@ -2013,11 +2017,12 @@ const App: React.FC = () => {
           />
         )}
 
-        <DhikrFloatingBanner
-          onOpenSettings={() => setIsDhikrReminderOpen(true)}
-        />
-      </Suspense>
-  </div>
+          <DhikrFloatingBanner
+            onOpenSettings={() => setIsDhikrReminderOpen(true)}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </div>
   );
 };
 

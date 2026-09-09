@@ -136,9 +136,22 @@ export const QuranSettingsModal: React.FC = () => {
         localStorage.removeItem('quran_settings_preferred_tab');
       }
 
-      const qStats = JSON.parse(localStorage.getItem('quran_stats') || '{"memorizedAyahs": 0, "readAyahs": 0, "readMinutes": 0, "streakDays": 1, "khatmas": 0}');
-      const quizStats = JSON.parse(localStorage.getItem('quran_quiz_stats') || '{"score": 0}');
-      const streakStats = JSON.parse(localStorage.getItem('quran_user_streak') || '{"currentStreak": 1}');
+      let qStats: any = { memorizedAyahs: 0, readAyahs: 0, readMinutes: 0, streakDays: 1, khatmas: 0 };
+      let quizStats: any = { score: 0 };
+      let streakStats: any = { currentStreak: 1 };
+      try {
+        const parsedQ = JSON.parse(localStorage.getItem('quran_stats') || '{}');
+        if (parsedQ && typeof parsedQ === 'object') qStats = { ...qStats, ...parsedQ };
+      } catch {}
+      try {
+        const parsedQuiz = JSON.parse(localStorage.getItem('quran_quiz_stats') || '{}');
+        if (parsedQuiz && typeof parsedQuiz === 'object') quizStats = { ...quizStats, ...parsedQuiz };
+      } catch {}
+      try {
+        const parsedStreak = JSON.parse(localStorage.getItem('quran_user_streak') || '{}');
+        if (parsedStreak && typeof parsedStreak === 'object') streakStats = { ...streakStats, ...parsedStreak };
+      } catch {}
+
       setMemorizationStats({
         memorizedAyahs: qStats.memorizedAyahs || 0,
         stars: quizStats.score || 0,
@@ -152,7 +165,11 @@ export const QuranSettingsModal: React.FC = () => {
         khatmas: qStats.khatmas || 0
       });
 
-      const savedKhatmas = JSON.parse(localStorage.getItem('quran_khatmas_list') || '[]');
+      let savedKhatmas: any[] = [];
+      try {
+        const parsedKhatmas = JSON.parse(localStorage.getItem('quran_khatmas_list') || '[]');
+        if (Array.isArray(parsedKhatmas)) savedKhatmas = parsedKhatmas;
+      } catch {}
       if (savedKhatmas.length === 0) {
         const initialKhatma = [{
           id: 'khatma_' + Date.now(),
@@ -216,8 +233,13 @@ export const QuranSettingsModal: React.FC = () => {
     localStorage.setItem('quran_khatmas_list', JSON.stringify(updated));
     const completedCount = updated.filter(k => k.isCompleted).length;
     setOverallStats(prev => ({ ...prev, khatmas: completedCount }));
-    const existingStats = JSON.parse(localStorage.getItem('quran_stats') || '{}');
-    localStorage.setItem('quran_stats', JSON.stringify({ ...existingStats, khatmas: completedCount }));
+    let existingStats = {};
+    try {
+      existingStats = JSON.parse(localStorage.getItem('quran_stats') || '{}') || {};
+    } catch {}
+    try {
+      localStorage.setItem('quran_stats', JSON.stringify({ ...existingStats, khatmas: completedCount }));
+    } catch {}
   };
 
   const handleDeleteKhatma = (id: string) => {

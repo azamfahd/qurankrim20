@@ -109,6 +109,57 @@
         }
       </style>
     </div>
+    <script>
+      // Global Force Refresh & Self-Healing Helper for Netlify / PWA
+      window.__anisForceRefresh = async function() {
+        try {
+          sessionStorage.clear();
+          localStorage.removeItem('anis_active_view_state');
+          localStorage.removeItem('anis_active_chat');
+          localStorage.removeItem('anis_active_session_id');
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let reg of regs) {
+              await reg.unregister();
+            }
+          }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+              await caches.delete(key);
+            }
+          }
+        } catch (e) {
+          console.warn('Cache purge error:', e);
+        }
+        window.location.reload();
+      };
+
+      // Splash Screen Safety Watchdog
+      (function() {
+        var start = Date.now();
+        var timer = setInterval(function() {
+          var recoveryBox = document.getElementById('splash-recovery-box');
+          if (window.__ANIS_APP_MOUNTED__) {
+            clearInterval(timer);
+            return;
+          }
+          // After 4 seconds of loading, reveal the manual refresh button without disrupting startup
+          if (Date.now() - start > 4000) {
+            if (recoveryBox) recoveryBox.style.display = 'block';
+          }
+        }, 500);
+
+        // Catch asset script load or runtime syntax errors before mount
+        window.addEventListener('error', function(e) {
+          if (!window.__ANIS_APP_MOUNTED__) {
+            console.warn('Startup load notice:', e.message || (e.target && (e.target.src || e.target.href)));
+            var recoveryBox = document.getElementById('splash-recovery-box');
+            if (recoveryBox) recoveryBox.style.display = 'block';
+          }
+        }, true);
+      })();
+    </script>
     <script type="module" src="/src/index.tsx"></script>
 </body>
 </html>

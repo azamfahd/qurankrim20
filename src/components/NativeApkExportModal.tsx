@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Smartphone, CheckCircle2, ShieldCheck, Cpu, Volume2, Play, Sparkles, Terminal, Copy, Check, BellRing, Zap, Layers } from 'lucide-react';
+import { X, Smartphone, CheckCircle2, ShieldCheck, Cpu, Volume2, Play, Sparkles, Terminal, Copy, Check, BellRing, Zap, Layers, Link as LinkIcon, ExternalLink, Save } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
 import { NativeForegroundService } from '../services/nativeForegroundService';
 import { NativeNotificationService } from '../services/nativeNotificationService';
+import { getApkDownloadUrl, setCustomApkUrl } from '../utils/apkConfig';
 
 interface NativeApkExportModalProps {
   isOpen: boolean;
@@ -20,6 +21,20 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isTestingAdhan, setIsTestingAdhan] = useState(false);
   const [isTestingDhikr, setIsTestingDhikr] = useState(false);
+  const [customApkUrlInput, setCustomApkUrlInput] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setCustomApkUrlInput(getApkDownloadUrl());
+    }
+  }, [isOpen]);
+
+  const handleSaveCustomApkUrl = () => {
+    setCustomApkUrl(customApkUrlInput);
+    if (onShowToast) {
+      onShowToast('تم حفظ رابط التحميل الخارجي لملف الـ APK بنجاح 🔗', 'success');
+    }
+  };
 
   const env = PlatformEnvironmentService.getEnvironmentInfo();
 
@@ -232,6 +247,39 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
                   >
                     <Sparkles size={16} />
                     <span>اختبار قناة الأذكار</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Netlify / External APK Hosting URL Config */}
+              <div className="bg-amber-950/20 border border-amber-500/30 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                    <LinkIcon size={16} />
+                    رابط استضافة ملف الـ APK الخارجي (حل مشكلة Netlify)
+                  </span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded-md font-mono">
+                    Direct External CDN / GitHub Release
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-300 leading-relaxed">
+                  لتجنب كبر حجم المشروع على Netlify وتخفيف استهلاك الباندويث، قم برفع ملف الـ APK على GitHub Releases أو Google Drive أو Firebase Storage، وضع الرابط المباشر هنا:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={customApkUrlInput}
+                    onChange={(e) => setCustomApkUrlInput(e.target.value)}
+                    placeholder="https://github.com/user/repo/releases/download/v1.1.0/anis-quran.apk"
+                    className="flex-1 bg-slate-900 border border-slate-700 text-xs text-white p-2.5 rounded-xl font-mono focus:outline-none focus:border-amber-400"
+                    dir="ltr"
+                  />
+                  <button
+                    onClick={handleSaveCustomApkUrl}
+                    className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 shrink-0 transition-all cursor-pointer shadow"
+                  >
+                    <Save size={14} />
+                    <span>حفظ</span>
                   </button>
                 </div>
               </div>

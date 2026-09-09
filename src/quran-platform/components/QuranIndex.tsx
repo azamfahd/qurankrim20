@@ -66,8 +66,12 @@ const QuranIndex = () => {
     fetchBackgroundData();
 
     // Load bookmarks
-    const savedBookmarks = JSON.parse(localStorage.getItem('quran_bookmarks') || '[]');
-    setBookmarks(savedBookmarks);
+    try {
+      const savedBookmarks = JSON.parse(localStorage.getItem('quran_bookmarks') || '[]');
+      setBookmarks(Array.isArray(savedBookmarks) ? savedBookmarks : []);
+    } catch {
+      setBookmarks([]);
+    }
 
     // Load last read position
     const lastSurah = localStorage.getItem('quran_last_surah');

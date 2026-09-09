@@ -75,15 +75,21 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           mkdir -p public
-          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+          FOUND_APK=$(find android/app/build/outputs/apk -name "*.apk" 2>/dev/null | grep -E 'release\.apk|unsigned\.apk|debug\.apk|\.apk' | head -n 1)
+          if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
+            cp "$FOUND_APK" public/app-release.apk
+            echo "✅ Successfully copied APK from $FOUND_APK to public/app-release.apk"
+          elif [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
             cp android/app/build/outputs/apk/release/app-release.apk public/app-release.apk
             echo "✅ Successfully copied Signed Release APK to public/app-release.apk"
           elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
             cp android/app/build/outputs/apk/release/app-release-unsigned.apk public/app-release.apk
             echo "⚠️ Copied Release Unsigned APK"
-          else
+          elif [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
             cp android/app/build/outputs/apk/debug/app-debug.apk public/app-release.apk
             echo "⚠️ Fallback to Debug APK"
+          else
+            echo "ℹ️ Retaining existing public/app-release.apk"
           fi
           
           # Update version metadata with dynamic versionCode
@@ -94,13 +100,28 @@ jobs:
         with:
           name: AnisAlQulub-Android-APK
           path: public/app-release.apk
+          if-no-files-found: warn
 
-      - name: Commit and Push Updated APK to Repository
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: latest
+          name: "أنيس القلوب - أحدث إصدار APK"
+          body: |
+            تحديث تلقائي لحزمة تطبيق أندرويد المستقل (APK) المعتمدة من بناء GitHub Actions.
+          draft: false
+          prerelease: false
+          files: public/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and Push Updated Metadata to Repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/app-release.apk public/version.json
-          git diff --staged --quiet || git commit -m "chore(release): auto-update standalone android APK [skip ci]"
+          git add public/version.json
+          git diff --staged --quiet || git commit -m "chore(release): update version metadata [skip ci]"
           git push origin HEAD:${{ github.ref }} || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

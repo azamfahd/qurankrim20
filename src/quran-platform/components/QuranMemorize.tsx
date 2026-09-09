@@ -253,7 +253,10 @@ const QuranMemorize: React.FC = () => {
     fetchSurah();
 
     // Check active plan
-    const savedPlans = JSON.parse(localStorage.getItem('quran_memorize_plans') || '{}');
+    let savedPlans: any = {};
+    try {
+      savedPlans = JSON.parse(localStorage.getItem('quran_memorize_plans') || '{}') || {};
+    } catch {}
     if (savedPlans[currentSurah]) {
       setActivePlan(savedPlans[currentSurah]);
     } else {
@@ -645,10 +648,18 @@ const QuranMemorize: React.FC = () => {
 
   // --- ORDERING QUIZ HELPERS ---
   useEffect(() => {
-    const savedStats = JSON.parse(localStorage.getItem('quran_quiz_stats') || '{"correct":0,"wrong":0,"totalTests":0,"score":0}');
+    let savedStats = { correct: 0, wrong: 0, totalTests: 0, score: 0 };
+    try {
+      const parsed = JSON.parse(localStorage.getItem('quran_quiz_stats') || '{}');
+      if (parsed && typeof parsed === 'object') savedStats = { ...savedStats, ...parsed };
+    } catch {}
     setTestStats(savedStats);
 
-    const savedMistakes = JSON.parse(localStorage.getItem('quran_mistakes_log') || '[]');
+    let savedMistakes: any[] = [];
+    try {
+      const parsedMistakes = JSON.parse(localStorage.getItem('quran_mistakes_log') || '[]');
+      if (Array.isArray(parsedMistakes)) savedMistakes = parsedMistakes;
+    } catch {}
     setMistakesLog(savedMistakes);
   }, []);
 

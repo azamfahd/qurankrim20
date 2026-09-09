@@ -19,6 +19,9 @@ function versionGeneratorPlugin() {
           file.endsWith('.map') || 
           file.endsWith('.apk') || 
           file.endsWith('.zip') ||
+          file.endsWith('.mp3') ||
+          file.endsWith('.wav') ||
+          file.endsWith('.ogg') ||
           file === '_redirects' || 
           file === '_headers' ||
           file === 'netlify.toml';
@@ -36,17 +39,18 @@ function versionGeneratorPlugin() {
     name: 'version-generator-plugin',
     generateBundle(options: any, bundle: any) {
       try {
+        const buildTimestamp = Date.now();
         const publicDir = path.resolve(__dirname, 'public');
         const versionFile = path.join(publicDir, 'version.json');
         let versionData: Record<string, unknown> = {
           version: "1.1.0",
           updateUrl: "https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app",
           releaseNotes: "تحديث جديد يتضمن تحسينات وميزات إضافية.",
-          timestamp: Date.now()
+          timestamp: buildTimestamp
         };
         try {
           if (fs.existsSync(versionFile)) {
-            versionData = { ...versionData, ...JSON.parse(fs.readFileSync(versionFile, 'utf-8')) };
+            versionData = { ...versionData, ...JSON.parse(fs.readFileSync(versionFile, 'utf-8')), timestamp: buildTimestamp };
           }
         } catch {}
         
@@ -55,6 +59,25 @@ function versionGeneratorPlugin() {
           fileName: 'version.json',
           source: JSON.stringify(versionData, null, 2)
         });
+        
+        // Dynamic version injection into Service Worker to force instant cache invalidation on new deploys
+        const swFile = path.join(publicDir, 'sw.js');
+        if (fs.existsSync(swFile)) {
+          let swContent = fs.readFileSync(swFile, 'utf-8');
+          swContent = swContent.replace(
+            /const CACHE_NAME = ['"][^'"]+['"];/,
+            `const CACHE_NAME = 'anis-al-qulub-app-v${buildTimestamp}';`
+          );
+          swContent = swContent.replace(
+            /const RUNTIME_CACHE = ['"][^'"]+['"];/,
+            `const RUNTIME_CACHE = 'anis-al-qulub-runtime-v${buildTimestamp}';`
+          );
+          this.emitFile({
+            type: 'asset',
+            fileName: 'sw.js',
+            source: swContent
+          });
+        }
         
         const emittedFiles = Object.keys(bundle).map((fileName) => '/' + fileName);
         

@@ -909,15 +909,18 @@ export class AdhanAudioEngine {
     }
   }
 
+  private static isInteractionUnlockRegistered = false;
+
   public static setupInteractionAudioUnlock(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this.isInteractionUnlockRegistered) return;
+    this.isInteractionUnlockRegistered = true;
 
     const unlockHandler = () => {
       this.unlockAudioContext();
     };
 
-    ['click', 'touchstart', 'touchend', 'pointerdown', 'keydown', 'scroll', 'focus', 'pageshow', 'visibilitychange'].forEach(evt => {
-      window.addEventListener(evt, unlockHandler, { passive: true });
+    ['click', 'touchstart', 'touchend', 'pointerdown', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, unlockHandler, { passive: true, once: true });
     });
   }
 

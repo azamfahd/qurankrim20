@@ -1,5 +1,5 @@
+/api/* https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/api/:splat 200!
 /.well-known/assetlinks.json /.well-known/assetlinks.json 200
 /manifest.webmanifest /manifest.json 200
 /service-worker.js /sw.js 200
-/assets/* /assets/:splat 404
 /* /index.html 200

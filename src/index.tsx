@@ -15,18 +15,23 @@ if (typeof window !== 'undefined') {
   } catch {}
 }
 
-// Global safety net: prevent aborted requests, audio play rejections, or minor DOM errors from freezing the app
+// Global safety net: prevent aborted requests, audio autoplay rejections, quota limits, or minor DOM warnings from freezing the app
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = typeof reason === 'string' ? reason : reason?.message || '';
     if (
       reason?.name === 'AbortError' ||
+      reason?.name === 'NotAllowedError' ||
       msg.includes('aborted') ||
       msg.includes('play() failed') ||
       msg.includes('The play() request was interrupted') ||
       msg.includes('user did not interact') ||
-      msg.includes('ResizeObserver loop')
+      msg.includes('ResizeObserver') ||
+      msg.includes('AudioContext') ||
+      msg.includes('quota') ||
+      msg.includes('RESOURCE_EXHAUSTED') ||
+      msg.includes('Failed to fetch')
     ) {
       event.preventDefault();
     }
@@ -34,7 +39,7 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('error', (event) => {
     if (
-      event.message?.includes('ResizeObserver loop') ||
+      event.message?.includes('ResizeObserver') ||
       event.message?.includes('Script error.')
     ) {
       event.preventDefault();
@@ -87,13 +92,24 @@ if ('serviceWorker' in navigator) {
             if (installingWorker) {
               installingWorker.addEventListener('statechange', () => {
                 if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('New app update available and installed in background');
+                  console.log('New app update available and installed in background, skipping waiting');
+                  installingWorker.postMessage({ type: 'SKIP_WAITING' });
                 }
               });
             }
           });
         })
         .catch((err) => console.warn('SW registration warning:', err));
+
+      let refreshing = false;
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Only reload if the client already had an existing active controller (i.e. this is an update, not first install)
+        if (hadController && !refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     };
 
     if (document.readyState === 'complete') {

@@ -1109,8 +1109,12 @@ export class DhikrReminderService {
     // إذا كان المستخدم قد فعّل خيار التنبيه المباشر عند فتح التطبيق
     if (this.settings.enabled && this.settings.triggerOnAppOpen) {
       setTimeout(() => {
-        // يتم إطلاق التذكير التلقائي الجميل مباشرة عند فتح البرنامج لترطيب اللسان بذكر الله
-        this.triggerReminder();
+        try {
+          // يتم إظهار البطاقة التذكيرية الجميلة فور فتح البرنامج بهدوء
+          this.showDirectBanner(undefined, false);
+        } catch (e) {
+          console.warn('Startup dhikr banner notice:', e);
+        }
       }, 1500);
     }
 

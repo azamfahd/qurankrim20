@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, X, Share, PlusSquare, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { triggerApkDownload } from '../utils/apkConfig';
 
 interface SmartAppButtonProps {
   variant?: 'sidebar' | 'header' | 'sidebar-grid';
@@ -274,19 +275,17 @@ export const SmartAppButton: React.FC<SmartAppButtonProps> = ({ variant = 'sideb
                           <p className="text-[11px] text-slate-300 mb-3 leading-relaxed">
                             تطبيق أندرويد حقيقي، بدون شريط متصفح، وشاشة كاملة مع دعم التحديثات التلقائية.
                           </p>
-                          <a
-                            href="/app-release.apk"
-                            download="أنيس القلوب - القرآن الذكي.apk"
+                          <button
+                            type="button"
                             onClick={() => {
-                              localStorage.setItem('anis_apk_installed_version', '1.1.0');
-                              localStorage.setItem('anis_pwa_installed', 'true');
+                              triggerApkDownload();
                               setShowModal(false);
                             }}
                             className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer border border-emerald-400/30"
                           >
                             <Download size={15} />
                             <span>تحميل ملف APK المباشر</span>
-                          </a>
+                          </button>
                         </div>
 
                         {/* Option 2: PWA (Secondary) */}

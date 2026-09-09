@@ -128,11 +128,19 @@ export const AppStatePreservation = {
    */
   getSavedState: (): PreservedState | null => {
     try {
+      // If we are recovering from a crash or recent reset, default cleanly to home screen
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('anis_crash_loop_prevent')) {
+        sessionStorage.removeItem('anis_crash_loop_prevent');
+        return null;
+      }
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
       const parsed: PreservedState = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || !parsed.activeView) {
+        return null;
+      }
       // Exclude stale states older than 7 days
-      if (Date.now() - parsed.timestamp > 7 * 24 * 60 * 60 * 1000) {
+      if (Date.now() - (parsed.timestamp || 0) > 7 * 24 * 60 * 60 * 1000) {
         return null;
       }
       return parsed;

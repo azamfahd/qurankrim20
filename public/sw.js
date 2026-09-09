@@ -37,8 +37,8 @@ self.addEventListener('install', (event) => {
           if (Array.isArray(dynamicAssets)) {
             const dynamicPromises = dynamicAssets.map(async (assetPath) => {
               try {
-                // Skip APK binaries, sourcemaps, and heavy downloads from SW precache
-                if (assetPath.endsWith('.apk') || assetPath.endsWith('.map') || assetPath.endsWith('.zip')) {
+                // Skip APK binaries, sourcemaps, audio files, and heavy downloads from SW precache
+                if (assetPath.endsWith('.apk') || assetPath.endsWith('.map') || assetPath.endsWith('.zip') || assetPath.endsWith('.mp3') || assetPath.endsWith('.wav') || assetPath.endsWith('.ogg')) {
                   return;
                 }
                 // Ensure we don't re-fetch what's already in BASE_PRECACHE
@@ -140,8 +140,15 @@ self.addEventListener('fetch', (event) => {
         try {
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
-            const cache = await caches.open(RUNTIME_CACHE);
             const contentType = (networkResponse.headers.get('content-type') || '').toLowerCase();
+            const isCodeAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+            
+            // Never cache HTML responses pretending to be scripts or styles (SPA fallback bug)
+            if (isCodeAsset && contentType.includes('text/html')) {
+              return new Response('Asset Not Found', { status: 404, statusText: 'Not Found' });
+            }
+
+            const cache = await caches.open(RUNTIME_CACHE);
             const isAudioReq = url.pathname.match(/\.(mp3|wav|ogg)$/) || url.hostname.includes('aladhan.com') || url.hostname.includes('everyayah.com');
 
             if (!isAudioReq || (!contentType.includes('text/html') && !contentType.includes('application/xhtml'))) {

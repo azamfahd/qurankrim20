@@ -75,19 +75,30 @@ const QuranStats: React.FC = () => {
   };
 
   const loadStatsAndKhatmas = () => {
-    // Load Stats
-    const savedStats = JSON.parse(
-      localStorage.getItem('quran_stats') || 
-      '{"readAyahs": 0, "readMinutes": 0, "streakDays": 0, "khatmas": 0, "memorizedAyahs": 0}'
-    );
+    let savedStats = { readAyahs: 0, readMinutes: 0, streakDays: 0, khatmas: 0, memorizedAyahs: 0 };
+    try {
+      const parsed = JSON.parse(localStorage.getItem('quran_stats') || '{}');
+      if (parsed && typeof parsed === 'object') {
+        savedStats = { ...savedStats, ...parsed };
+      }
+    } catch {}
     setStats(savedStats);
 
     // Load Certified Memorized Surahs
-    const savedMemorized: Array<any> = JSON.parse(localStorage.getItem('quran_memorized_surahs') || '[]');
+    let savedMemorized: Array<any> = [];
+    try {
+      const parsedMem = JSON.parse(localStorage.getItem('quran_memorized_surahs') || '[]');
+      if (Array.isArray(parsedMem)) savedMemorized = parsedMem;
+    } catch {}
     setMemorizedSurahsList(savedMemorized);
 
     // Load Khatmas
-    const savedKhatmas: KhatmaItem[] = JSON.parse(localStorage.getItem('quran_khatmas_list') || '[]');
+    let savedKhatmas: KhatmaItem[] = [];
+    try {
+      const parsedKhatmas = JSON.parse(localStorage.getItem('quran_khatmas_list') || '[]');
+      if (Array.isArray(parsedKhatmas)) savedKhatmas = parsedKhatmas;
+    } catch {}
+
     if (savedKhatmas.length === 0) {
       // Default initial Khatmah if none exists
       const initialKhatma: KhatmaItem = {
@@ -100,13 +111,19 @@ const QuranStats: React.FC = () => {
         isCompleted: false
       };
       setKhatmasList([initialKhatma]);
-      localStorage.setItem('quran_khatmas_list', JSON.stringify([initialKhatma]));
+      try {
+        localStorage.setItem('quran_khatmas_list', JSON.stringify([initialKhatma]));
+      } catch {}
     } else {
       setKhatmasList(savedKhatmas);
     }
 
     // Load Weekly Habit Tracker
-    const savedHabit = JSON.parse(localStorage.getItem('quran_weekly_habit') || '{}');
+    let savedHabit: Record<string, boolean> = {};
+    try {
+      const parsedHabit = JSON.parse(localStorage.getItem('quran_weekly_habit') || '{}');
+      if (parsedHabit && typeof parsedHabit === 'object') savedHabit = parsedHabit;
+    } catch {}
     setWeeklyHabit(savedHabit);
 
     setHistoryData(generateHistoryData(savedStats.memorizedAyahs || 0));

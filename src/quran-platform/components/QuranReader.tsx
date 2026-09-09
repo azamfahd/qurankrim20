@@ -103,14 +103,26 @@ const QuranReader = () => {
     };
     fetchSurah();
 
-    const savedBookmarks = JSON.parse(localStorage.getItem('quran_bookmarks') || '[]');
-    setBookmarks(savedBookmarks);
+    try {
+      const savedBookmarks = JSON.parse(localStorage.getItem('quran_bookmarks') || '[]');
+      setBookmarks(Array.isArray(savedBookmarks) ? savedBookmarks : []);
+    } catch {
+      setBookmarks([]);
+    }
     
-    const savedHighlights = JSON.parse(localStorage.getItem('quran_highlights') || '{}');
-    setHighlights(savedHighlights);
+    try {
+      const savedHighlights = JSON.parse(localStorage.getItem('quran_highlights') || '{}');
+      setHighlights(savedHighlights && typeof savedHighlights === 'object' ? savedHighlights : {});
+    } catch {
+      setHighlights({});
+    }
 
-    const savedMarked = JSON.parse(localStorage.getItem('quran_marked_verses') || '{}');
-    setMarkedVerses(savedMarked);
+    try {
+      const savedMarked = JSON.parse(localStorage.getItem('quran_marked_verses') || '{}');
+      setMarkedVerses(savedMarked && typeof savedMarked === 'object' ? savedMarked : {});
+    } catch {
+      setMarkedVerses({});
+    }
   }, [currentSurah, showTranslation, readingMode]);
 
   useEffect(() => {

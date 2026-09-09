@@ -210,8 +210,11 @@ export class NativeNotificationService {
     if (!Capacitor.isNativePlatform()) return false;
 
     try {
-      const perm = await LocalNotifications.requestPermissions();
-      if (perm.display !== 'granted') return false;
+      let perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== 'granted') {
+        // Do not force a modal permission dialog on initial app mount without user gesture
+        return false;
+      }
 
       const activeMuezzin = targetMuezzinId || this.getActiveMuezzinId();
       const activeReciter = targetReciterId || this.getActiveReciterId();

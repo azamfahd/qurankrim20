@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Share2, Smartphone, Globe, CheckCircle2, Sparkles, Apple, ArrowRight, ShieldCheck, Zap, Info, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { triggerApkDownload } from '../utils/apkConfig';
 
 interface InstallModalProps {
   isOpen: boolean;
@@ -70,15 +71,7 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, onS
   };
 
   const handleDownloadApk = () => {
-    localStorage.setItem('anis_apk_installed_version', '1.1.0');
-    localStorage.setItem('anis_pwa_installed', 'true');
-    const link = document.createElement('a');
-    link.href = '/app-release.apk';
-    link.download = 'أنيس القلوب - القرآن الذكي.apk';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    if (onShowToast) onShowToast('جاري بدء تحميل ملف APK لتطبيق أندرويد (الإصدار 1.1.0)...', 'success');
+    triggerApkDownload(onShowToast, '1.1.0');
   };
 
   const handleShareApp = () => {
