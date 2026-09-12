@@ -2,7 +2,7 @@
   "version": "1.1.0",
   "updateUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
   "releaseNotes": "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
-  "versionCode": 10117,
+  "versionCode": 10118,
   "releaseDate": "2026-09-08",
   "updateType": "smart",
   "title": "تحديث جديد لمنظومة أنيس القلوب",
@@ -13,6 +13,6 @@
     "دعم تحميل وتثبيت حزمة APK الكاملة برابط مباشر وسريع"
   ],
   "apkSize": "1.6 ميجابايت",
-  "timestamp": 1788995741143,
-  "apkUpdated": "2026-09-09T23:15:41.143Z"
+  "timestamp": 1789241379372,
+  "apkUpdated": "2026-09-12T19:29:39.372Z"
 }
