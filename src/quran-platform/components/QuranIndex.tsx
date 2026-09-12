@@ -73,16 +73,20 @@ const QuranIndex = () => {
       setBookmarks([]);
     }
 
-    // Load last read position
-    const lastSurah = localStorage.getItem('quran_last_surah');
-    const lastAyah = localStorage.getItem('quran_last_ayah');
-    const lastPage = localStorage.getItem('quran_last_page');
-    if (lastSurah && lastPage) {
-      setLastRead({
-        surah: parseInt(lastSurah, 10),
-        ayah: parseInt(lastAyah || '1', 10),
-        page: parseInt(lastPage, 10)
-      });
+    // Load last read position for quick resume access
+    try {
+      const lastSurah = localStorage.getItem('quran_last_surah');
+      const lastAyah = localStorage.getItem('quran_last_ayah');
+      const lastPage = localStorage.getItem('quran_last_page');
+      if (lastSurah && lastPage) {
+        setLastRead({
+          surah: parseInt(lastSurah, 10),
+          ayah: parseInt(lastAyah || '1', 10),
+          page: parseInt(lastPage, 10)
+        });
+      }
+    } catch {
+      setLastRead(null);
     }
   }, []);
 
@@ -96,6 +100,7 @@ const QuranIndex = () => {
       setCurrentSurah(lastRead.surah);
       setCurrentAyah(lastRead.ayah);
       setCurrentPage(lastRead.page);
+      setPlayingAyahNumber(null);
       setCurrentView('reader');
     }
   };
@@ -184,95 +189,111 @@ const QuranIndex = () => {
 
   return (
     <div className="p-2 sm:p-3 lg:p-4 xl:p-5 max-w-7xl xl:max-w-[1440px] mx-auto w-full h-full flex flex-col text-right font-sans" dir="rtl">
-      {/* Ultra-Compact Spiritual Header Bar (Collapsible on Scroll) */}
+      {/* Grand Unified Islamic Portal Hero Card (Collapsible on Scroll) */}
       <AnimatePresence>
         {!isScrolled && (
-          <motion.div key="QuranIndex-anim-1" 
+          <motion.div key="QuranIndex-hero" 
             initial={{ height: 0, opacity: 0, y: -10 }}
             animate={{ height: 'auto', opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -15, overflow: 'hidden' }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="mb-2.5 shrink-0 space-y-2 origin-top"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="mb-3.5 shrink-0 origin-top"
           >
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white px-3.5 py-2.5 shadow-md border border-emerald-800/50 flex items-center justify-between gap-2">
-              {/* Subtle Glow Overlay */}
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:12px_12px] pointer-events-none"></div>
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-teal-950 to-emerald-900 text-white p-3.5 sm:p-5 shadow-xl border border-amber-500/30">
+              {/* Subtle Ornamental Geometric Islamic Pattern */}
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:14px_14px] pointer-events-none"></div>
 
-              <div className="relative z-10 flex items-center gap-2.5 min-w-0">
-                <span className="text-amber-400 text-lg sm:text-xl font-bold shrink-0">۞</span>
-                <div className="flex items-center gap-2 min-w-0">
-                  <h1 className="text-sm sm:text-base font-extrabold text-amber-50 whitespace-nowrap">
-                    فهرس المصحف الشريف
-                  </h1>
-                  <span className="text-[10px] sm:text-xs text-emerald-200/90 font-bold bg-emerald-900/80 border border-emerald-700/60 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    ١١٤ سورة • ٣٠ جزءاً
-                  </span>
-                  <span className="text-[11px] text-amber-300/80 font-serif hidden md:inline truncate">
-                    ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾
-                  </span>
-                </div>
-              </div>
+              {/* Ambient Warm Golden Glow */}
+              <div className="absolute -top-12 -right-12 w-52 h-52 bg-amber-500/15 rounded-full blur-2xl pointer-events-none"></div>
 
-              <button
-                onClick={handleOpenSyncSettings}
-                className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shadow-xs border ${
-                  cacheStatus.isCached 
-                    ? 'bg-emerald-900/60 hover:bg-emerald-800/80 border-emerald-500/40 text-emerald-200' 
-                    : 'bg-amber-950/60 hover:bg-amber-900/80 border-amber-500/40 text-amber-200'
-                }`}
-                title="تحميل المصحف للقراءة بدون إنترنت والمزامنة السحابية"
-              >
-                {cacheStatus.isCached ? (
-                  <Check size={13} className="text-emerald-400" />
-                ) : (
-                  <Cloud size={13} className="text-amber-400 animate-pulse" />
-                )}
-                <span className="hidden sm:inline">تحميل المصحف</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${cacheStatus.isCached ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
-              </button>
-            </div>
-     
-            {/* Compact Search Engine */}
-            <div className="relative">
-              <QuranSearchWidget />
-            </div>
+              <div className="relative z-10 space-y-3.5 sm:space-y-4">
+                {/* Header Row: Title & Emblem on Right | Offline Sync on Left */}
+                <div className="flex items-center justify-between gap-3">
+                  {/* Right: Emblem + Grand Title */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Islamic Star Medallion */}
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-400/25 to-amber-600/15 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-xs">
+                      <span className="text-amber-300 text-2xl sm:text-3xl font-bold select-none leading-none drop-shadow-sm">۞</span>
+                    </div>
 
-            {/* Resume Reading Card */}
-            {lastRead && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={handleResumeReading}
-                className="group relative overflow-hidden rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 py-2 px-3 flex flex-row items-center gap-3 shadow-3xs cursor-pointer active:scale-99 transition-all hover:bg-amber-500/10"
-              >
-                {/* Right: Book Icon in golden rounded box */}
-                <div className="p-2.5 bg-amber-500/10 text-amber-800 dark:text-amber-300 rounded-xl shrink-0 group-hover:scale-105 transition-transform duration-300">
-                  <Book size={16} className="animate-pulse" />
-                </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <h1 className="font-['Reem_Kufi',serif] font-black text-lg sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-md">
+                          فهرس المصحف الشريف
+                        </h1>
+                        <span className="font-serif text-xs sm:text-sm text-amber-200/90 hidden sm:inline">
+                          ﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾
+                        </span>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-emerald-200/80 font-medium mt-0.5 truncate">
+                        تصفح السور والأجزاء، استماع للتلاوات بأعذب الأصوات، وبحث فوري ذكي
+                      </p>
+                    </div>
+                  </div>
 
-                {/* Left: Text Details */}
-                <div className="min-w-0 flex-1 text-right leading-tight">
-                  <h4 className="text-[10px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                    <span>آخر قراءة لك</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
-                  </h4>
-                  <p className="text-[11px] sm:text-xs text-gray-900 dark:text-amber-50 mt-1 flex flex-wrap items-center gap-1.5 select-none font-bold">
-                    <span className="font-quran text-sm text-emerald-800 dark:text-emerald-400">
-                      {getSurahName(lastRead.surah)}
+                  {/* Left: Offline Cache Download Button with Clear Name */}
+                  <button
+                    onClick={handleOpenSyncSettings}
+                    className={`shrink-0 flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all shadow-sm border cursor-pointer active:scale-95 ${
+                      cacheStatus.isCached 
+                        ? 'bg-emerald-800/90 hover:bg-emerald-700/90 border-emerald-400/60 text-emerald-100 ring-1 ring-emerald-400/30' 
+                        : 'bg-gradient-to-r from-amber-600/90 to-amber-700/90 hover:from-amber-500 hover:to-amber-600 border-amber-300/60 text-white shadow-md ring-1 ring-amber-400/40'
+                    }`}
+                    title="تحميل سور وآيات المصحف الشريف للقراءة والاستماع بدون إنترنت"
+                  >
+                    {cacheStatus.isCached ? (
+                      <Check size={16} className="text-emerald-300" />
+                    ) : (
+                      <Cloud size={16} className="text-amber-200 animate-pulse" />
+                    )}
+                    <span>
+                      {cacheStatus.isCached ? 'المصحف محمل كاملاً (أوفلاين)' : 'تحميل المصحف كاملاً'}
                     </span>
-                    <span className="opacity-40 font-normal">|</span>
-                    <span className="text-gray-600 dark:text-gray-300">الآية {lastRead.ayah}</span>
-                    <span className="opacity-40 font-normal">|</span>
-                    <span className="text-gray-600 dark:text-gray-300">الصفحة {lastRead.page}</span>
-                  </p>
+                    <span className={`w-2 h-2 rounded-full ${cacheStatus.isCached ? 'bg-emerald-300' : 'bg-amber-300 animate-ping'}`}></span>
+                  </button>
                 </div>
-                
-                {/* Subtle Chevron indicator on left */}
-                <div className="text-amber-600/60 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all">
-                  <ChevronLeft size={14} className="rtl:rotate-180" />
+
+                {/* Seamlessly Embedded Smart Search Engine */}
+                <div className="pt-0.5">
+                  <QuranSearchWidget />
                 </div>
-              </motion.div>
-            )}
+
+                {/* Seamless Resume Reading Banner (الوصول السريع لآخر قراءة) */}
+                {lastRead && (
+                  <div
+                    onClick={handleResumeReading}
+                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/25 via-emerald-900/60 to-amber-500/25 border border-amber-400/40 p-2.5 sm:p-3.5 flex items-center justify-between gap-3 shadow-md cursor-pointer hover:bg-amber-500/30 active:scale-99 transition-all"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 sm:p-2.5 bg-amber-400 text-emerald-950 rounded-xl shrink-0 font-black shadow-xs group-hover:scale-105 transition-transform">
+                        <Book size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                            <span>آخر قراءة لك (الوصول السريع)</span>
+                          </span>
+                          <span className="text-[11px] text-amber-200/70 hidden sm:inline font-normal">• اضغط للمتابعة الفورية</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-white font-bold mt-0.5 flex flex-wrap items-center gap-2">
+                          <span className="font-quran text-amber-200 text-base sm:text-lg">سورة {getSurahName(lastRead.surah)}</span>
+                          <span className="text-amber-400/60 font-normal">|</span>
+                          <span>الآية {lastRead.ayah}</span>
+                          <span className="text-amber-400/60 font-normal">|</span>
+                          <span>الصفحة {lastRead.page}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <button className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-black transition-all shadow-xs cursor-pointer active:scale-95">
+                      <span>متابعة القراءة</span>
+                      <ChevronLeft size={15} className="rtl:rotate-180" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -303,7 +324,7 @@ const QuranIndex = () => {
               }`}
             >
               <Layers size={14} className={activeTab === 'juzs' ? 'text-amber-300' : 'text-gray-400'} />
-              <span>الأجزاء (٣٠)</span>
+              <span>الأجزاء</span>
             </button>
 
             <button
@@ -338,36 +359,36 @@ const QuranIndex = () => {
               >
                 <button
                   onClick={() => setTypeFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-bold ${
                     typeFilter === 'all'
                       ? 'bg-amber-500 text-emerald-950 font-black border-amber-600 shadow-xs scale-105'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-amber-500/10'
                   }`}
                 >
                   <span>الكل</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${typeFilter === 'all' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>١١٤</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${typeFilter === 'all' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>١١٤</span>
                 </button>
                 <button
                   onClick={() => setTypeFilter('meccan')}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-bold ${
                     typeFilter === 'meccan'
                       ? 'bg-amber-500 text-emerald-950 font-black border-amber-600 shadow-xs scale-105'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-amber-500/10'
                   }`}
                 >
                   <span>🕋 مكية</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${typeFilter === 'meccan' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>{meccanCount}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${typeFilter === 'meccan' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>{meccanCount}</span>
                 </button>
                 <button
                   onClick={() => setTypeFilter('medinan')}
-                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-bold ${
                     typeFilter === 'medinan'
                       ? 'bg-amber-500 text-emerald-950 font-black border-amber-600 shadow-xs scale-105'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-amber-500/10'
                   }`}
                 >
                   <span>🕌 مدنية</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${typeFilter === 'medinan' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>{medinanCount}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${typeFilter === 'medinan' ? 'bg-emerald-950/20 text-emerald-950' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>{medinanCount}</span>
                 </button>
               </motion.div>
             )}
@@ -408,12 +429,12 @@ const QuranIndex = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <h3 className="font-quran font-bold text-lg text-gray-900 dark:text-amber-50 transition-colors truncate leading-none">
+                      <h3 className="font-quran font-bold text-lg sm:text-xl text-gray-900 dark:text-amber-50 transition-colors truncate leading-none">
                         سورة {getCleanSurahName(surah.name)}
                       </h3>
-                      <div className="flex items-center gap-1.5 mt-2 text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 font-semibold">
                         <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
-                          {surah.revelationType === 'Meccan' ? 'مكة' : 'مدنية'}
+                          {surah.revelationType === 'Meccan' ? 'مكة المكرمة' : 'المدينة المنورة'}
                         </span>
                         <span className="opacity-50">•</span>
                         <span>{surah.numberOfAyahs} آية</span>
@@ -465,11 +486,11 @@ const QuranIndex = () => {
                       {juz}
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-base text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+                      <h3 className="font-extrabold text-base sm:text-lg text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
                         الجزء {juz}
                       </h3>
-                      {juzInfo && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{juzInfo}</p>}
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold mt-1">
+                      {juzInfo && <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">{juzInfo}</p>}
+                      <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 font-bold mt-1">
                         صفحة رقم {JUZ_START_PAGES[juz - 1]}
                       </p>
                     </div>

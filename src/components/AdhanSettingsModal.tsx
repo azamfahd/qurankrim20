@@ -396,7 +396,11 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md overflow-hidden"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md overflow-hidden"
+          style={{
+            paddingTop: 'max(0.75rem, var(--safe-area-top, 0px))',
+            paddingBottom: 'max(0.75rem, var(--safe-area-bottom, 0px))'
+          }}
         >
           {/* Modal Card */}
           <motion.div 
@@ -405,7 +409,7 @@ export const AdhanSettingsModal: React.FC<AdhanSettingsModalProps> = ({ isOpen, 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: "spring", damping: 26, stiffness: 300 }}
-            className="relative w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg bg-[#fdfbf7] dark:bg-slate-900 rounded-none sm:rounded-3xl shadow-2xl border-0 sm:border-2 border-[var(--color-gold)]/50 overflow-hidden flex flex-col z-10 text-right"
+            className="relative w-full max-h-[90vh] sm:max-h-[92vh] max-w-lg bg-[#fdfbf7] dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--color-gold)]/40 sm:border-2 sm:border-[var(--color-gold)]/50 overflow-hidden flex flex-col z-10 text-right"
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
           >

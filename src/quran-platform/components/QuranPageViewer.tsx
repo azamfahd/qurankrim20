@@ -656,7 +656,7 @@ export const QuranPageViewer: React.FC = () => {
                   <div className="w-7 h-7 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[var(--color-primary)] dark:text-emerald-400 font-bold flex items-center justify-center text-xs">
                     {activeAyahNum}
                   </div>
-                  <span className="font-bold text-xs sm:text-sm font-serif text-[var(--color-primary-dark)] dark:text-emerald-300">
+                  <span className="font-bold text-sm sm:text-base font-serif text-[var(--color-primary-dark)] dark:text-emerald-300">
                     سُورَةُ {activeSurahName} • الآية {activeAyahNum}
                   </span>
                 </div>
@@ -695,7 +695,7 @@ export const QuranPageViewer: React.FC = () => {
                   }`}
                 >
                   {isPlayingThis ? <Pause size={18} /> : <Play size={18} />}
-                  <span className="text-[10px] sm:text-[11px] font-bold">
+                  <span className="text-xs font-bold">
                     {isPlayingThis ? 'إيقاف' : 'استماع'}
                   </span>
                 </button>
@@ -711,7 +711,7 @@ export const QuranPageViewer: React.FC = () => {
                   className="flex flex-col items-center justify-center gap-1 p-2 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100/80 active:scale-95 rounded-2xl transition-all cursor-pointer"
                 >
                   <BookOpen size={18} className="text-amber-600 dark:text-amber-400" />
-                  <span className="text-[10px] sm:text-[11px] font-bold">التفسير</span>
+                  <span className="text-xs font-bold">التفسير</span>
                 </button>
 
                 <button
@@ -727,7 +727,7 @@ export const QuranPageViewer: React.FC = () => {
                   }`}
                 >
                   <Sparkles size={18} className={isMarked ? 'fill-current' : 'text-amber-500'} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">
+                  <span className="text-xs font-bold">
                     {isMarked ? 'مميزة' : 'تمييز'}
                   </span>
                 </button>
@@ -745,7 +745,7 @@ export const QuranPageViewer: React.FC = () => {
                   }`}
                 >
                   <Bookmark size={18} className={isBookmarked ? 'fill-current' : ''} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">
+                  <span className="text-xs font-bold">
                     {isBookmarked ? 'محفوظة' : 'حفظ'}
                   </span>
                 </button>
@@ -767,7 +767,7 @@ export const QuranPageViewer: React.FC = () => {
                   ) : (
                     <Copy size={18} />
                   )}
-                  <span className="text-[10px] sm:text-[11px] font-bold">
+                  <span className="text-xs font-bold">
                     {copiedAyahId === activeAyahMenu ? 'تم النسخ' : 'نسخ'}
                   </span>
                 </button>

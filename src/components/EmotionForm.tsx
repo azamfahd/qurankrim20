@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, HelpCircle, X, Sparkles, WifiOff, Wifi, Lock, AlertCircle } from 'lucide-react';
+import { Send, HelpCircle, X, Sparkles, WifiOff, Lock } from 'lucide-react';
 
 interface EmotionFormProps {
   onSubmit: (text: string) => void;
@@ -110,15 +110,11 @@ export const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmit, isLoading, i
             onChange={(e) => setText(e.target.value)}
             onFocus={() => isOnline && setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={
-              isOnline 
-                ? "ما هو سؤالك أو ما تشعر به؟ اكتب وسيجيبك أنيس القلوب..." 
-                : "مربع البحث والاستفسار مغلق (يتطلب الاتصال بالإنترنت)"
-            }
+            placeholder="ما هو سؤالك أو ما تشعر به؟ اكتب وسيجيبك أنيس القلوب..."
             disabled={!isOnline || isLoading}
             className={`flex-1 min-w-0 bg-transparent py-2.5 sm:py-4 px-2 sm:px-4 text-xs sm:text-base md:text-lg font-bold focus:outline-none border-none tracking-wide ${
               !isOnline
-                ? 'text-amber-900/50 placeholder:text-amber-900/50 cursor-not-allowed select-none'
+                ? 'text-amber-900/50 placeholder:text-amber-900/40 cursor-not-allowed select-none'
                 : 'text-emerald-950 placeholder:text-amber-900/45'
             }`}
             dir="rtl"
@@ -149,7 +145,7 @@ export const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmit, isLoading, i
             }`}
             title={
               !isOnline
-                ? "البحث والاستفسار مغلق حالياً - يتطلب إتصال بالإنترنت"
+                ? "المساعد الذكي يتطلب الاتصال بالإنترنت"
                 : "إرسال السؤال للمساعد الذكي"
             }
           >
@@ -166,44 +162,6 @@ export const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmit, isLoading, i
           </button>
         </div>
       </form>
-
-      {/* Offline Alert Notification when disconnected */}
-      {!isOnline && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs p-3 sm:p-3.5 mt-2.5 bg-gradient-to-r from-amber-950/95 via-amber-900/95 to-amber-950/95 border-2 border-amber-500/70 rounded-2xl text-amber-100 font-medium backdrop-blur-md shadow-xl animate-fade-in max-w-full overflow-hidden">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center shrink-0 text-amber-300 shadow-inner mt-0.5 sm:mt-0">
-              <WifiOff size={18} className="animate-pulse text-amber-300" />
-            </div>
-            <div className="flex flex-col text-right">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs sm:text-sm font-black text-amber-200">
-                  تنبيه: مربع البحث والاستفسار مغلق لعدم توفر الإنترنت
-                </span>
-                <span className="text-[10px] bg-red-500/20 text-red-200 font-black px-2 py-0.5 rounded-md border border-red-400/30 whitespace-nowrap">
-                  غير متصل
-                </span>
-              </div>
-              <span className="text-[11px] sm:text-xs text-amber-200/90 mt-1 font-semibold leading-relaxed">
-                يرجى فتح أو الاتصال بالإنترنت لتتكن من كتابة أسئلتك والبحث في المساعد القرآني الذكي.
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined' && navigator.onLine) {
-                window.dispatchEvent(new Event('online'));
-              } else {
-                alert('لا يزال جهازك غير متصل بالإنترنت. يرجى تفعيل شبكة الواي فاي (Wi-Fi) أو بيانات الهاتف المحمول.');
-              }
-            }}
-            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs transition-all duration-300 flex items-center justify-center gap-1.5 shrink-0 shadow-md active:scale-95 cursor-pointer whitespace-nowrap"
-          >
-            <Wifi size={14} />
-            <span>فتح / فحص اتصال الإنترنت</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 };

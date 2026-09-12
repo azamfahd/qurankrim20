@@ -7,6 +7,11 @@
     "androidScheme": "https"
   },
   "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK",
+      "backgroundColor": "#022c22"
+    },
     "SplashScreen": {
       "launchShowDuration": 0,
       "launchAutoHide": true,

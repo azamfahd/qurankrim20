@@ -72,7 +72,10 @@ const Header = React.memo<HeaderProps>(({
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg header-safe-area"
+      className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-lg header-safe-area"
+      style={{
+        paddingTop: 'max(0.5rem, var(--safe-area-top, 0px))'
+      }}
     >
       <div className="flex items-center gap-4">
         <button 

@@ -105,7 +105,8 @@ export const FloatingImmersiveBar: React.FC = () => {
 
   return (
     <div 
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[150] transition-opacity duration-500 ${isIdle ? 'opacity-30 hover:opacity-100' : 'opacity-100'}`}
+      className={`fixed left-1/2 -translate-x-1/2 z-[150] transition-opacity duration-500 ${isIdle ? 'opacity-30 hover:opacity-100' : 'opacity-100'}`}
+      style={{ bottom: 'max(1rem, calc(0.75rem + var(--safe-area-bottom, 0px)))' }}
       dir="rtl"
     >
       <AnimatePresence mode="wait">

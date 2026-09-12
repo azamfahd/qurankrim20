@@ -215,11 +215,11 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
-            className="bg-[var(--color-background)] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col h-[92vh] border border-[var(--color-border)] rounded-3xl" 
+            className="bg-[var(--color-background)] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[92vh] h-full border border-[var(--color-border)] rounded-2xl sm:rounded-3xl" 
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white p-5 sm:p-6 shrink-0 overflow-hidden shadow-md">
+            <div className="relative bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white p-4 sm:p-6 shrink-0 overflow-hidden shadow-md">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
               
               <div className="flex justify-between items-start relative z-10">

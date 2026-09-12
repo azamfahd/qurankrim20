@@ -94,8 +94,8 @@ export const Sidebar = React.memo<SidebarProps>(({
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="relative h-full w-[285px] sm:w-[330px] max-w-[88vw] bg-gradient-to-b from-[#fdfbf7] via-[#fefdf9] to-[#faf6ea] shadow-3xl flex flex-col overflow-hidden rounded-l-[2rem] sm:rounded-l-[2.5rem] border-l-2 border-[var(--color-gold)]/35"
             style={{
-              paddingTop: 'var(--safe-area-top)',
-              paddingBottom: 'var(--safe-area-bottom)'
+              paddingTop: 'max(0.5rem, var(--safe-area-top, 0px))',
+              paddingBottom: 'max(0.5rem, var(--safe-area-bottom, 0px))'
             }}
           >
             

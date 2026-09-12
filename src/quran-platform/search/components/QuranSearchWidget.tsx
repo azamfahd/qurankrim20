@@ -207,16 +207,25 @@ export const QuranSearchWidget: React.FC<{
 
   const providerType = searchService.getProviderType();
 
+  const QUICK_SHORTCUTS = [
+    { label: 'سورة الفاتحة', action: () => handleJumpToSurah(1) },
+    { label: 'سورة الكهف', action: () => handleJumpToSurah(18) },
+    { label: 'سورة يس', action: () => handleJumpToSurah(36) },
+    { label: 'سورة الملك', action: () => handleJumpToSurah(67) },
+    { label: 'آية الكرسي', action: () => handleJumpToAyah(2, 255, 42) },
+    { label: 'الجزء ٣٠', action: () => handleJumpToPage(582) },
+  ];
+
   return (
     <div className="w-full space-y-2 text-right" dir="rtl">
       {/* Search Bar Header */}
       <div className="relative">
-        <div className="relative flex items-center">
-          <div className="absolute right-3.5 flex items-center pointer-events-none text-gray-400">
+        <div className="relative flex items-center group">
+          <div className="absolute right-3.5 sm:right-4 flex items-center pointer-events-none text-amber-600 dark:text-amber-400">
             {isSearching ? (
-              <div className="w-4 h-4 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Search className="w-4 h-4" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </div>
 
@@ -226,15 +235,16 @@ export const QuranSearchWidget: React.FC<{
             onChange={handleInputChange}
             onFocus={() => setShowSuggestions(true)}
             placeholder="ابحث بالنص، اسم السورة، رقم الصفحة، الجزء، أو الكلمة..."
-            className="w-full pr-10 pl-9 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm shadow-2xs transition-all"
+            className="w-full pr-11 sm:pr-12 pl-10 sm:pl-11 py-2.5 sm:py-3 border border-amber-400/35 dark:border-amber-500/30 rounded-2xl bg-white/95 dark:bg-gray-900/95 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-500 text-xs sm:text-sm shadow-md transition-all font-medium"
           />
 
           {query && (
             <button
               onClick={handleClear}
-              className="absolute left-2.5 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+              className="absolute left-2.5 sm:left-3 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer"
+              title="مسح البحث"
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -242,7 +252,7 @@ export const QuranSearchWidget: React.FC<{
         {/* Execution Stats (Shown only when results exist) */}
         {result && query && (
           <div className="flex items-center justify-between gap-2 mt-1 px-1 text-[11px]">
-            <div className="flex items-center gap-1.5 text-gray-500">
+            <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
               <Zap size={11} className="text-amber-500" />
               <span>{result.executionTimeMs} ميلي ثانية</span>
             </div>

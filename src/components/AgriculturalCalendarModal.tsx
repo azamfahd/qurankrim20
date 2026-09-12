@@ -1415,7 +1415,12 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
             dir="rtl"
           >
             {/* Header Redesigned & Reorganized Professionally Without Crowding */}
-            <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-200/80 dark:border-gray-800/80 bg-white dark:bg-gray-900/90 backdrop-blur-md flex flex-col gap-2.5 relative z-30 rounded-none shadow-xs">
+            <div 
+              className="px-4 py-2.5 sm:px-6 sm:py-3.5 border-b border-stone-200/80 dark:border-gray-800/80 bg-white dark:bg-gray-900/90 backdrop-blur-md flex flex-col gap-2.5 relative z-30 rounded-none shadow-xs modal-header-safe-area"
+              style={{
+                paddingTop: 'max(0.5rem, var(--safe-area-top, 0px))'
+              }}
+            >
               {/* Row 1: Title & Close Button */}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">

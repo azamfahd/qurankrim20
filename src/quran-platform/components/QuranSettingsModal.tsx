@@ -339,7 +339,13 @@ export const QuranSettingsModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+      <div 
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
+        style={{
+          paddingTop: 'max(0.75rem, var(--safe-area-top, 0px))',
+          paddingBottom: 'max(0.75rem, var(--safe-area-bottom, 0px))'
+        }}
+      >
         <motion.div key="QuranSettingsModal-anim-1"
           initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}

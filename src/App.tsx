@@ -1234,7 +1234,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-center gap-2.5 py-2 px-8">
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping"></span>
               <WifiOff size={15} className="text-amber-200" />
-              <span>أنت تعمل حالياً دون اتصال بالإنترنت • تم إغلاق مربع البحث والاستفسار الذكي. يرجى تفعيل أو الاتصال بالإنترنت لتمكين البحث والأسئلة.</span>
+              <span>أنت تعمل حالياً دون اتصال بالإنترنت • القرآن الكريم والتفاسير وكافة الأذكار متاحة بالكامل</span>
               <button 
                 onClick={() => setIsOfflineBannerDismissed(true)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/20 rounded-full transition-colors"
@@ -1305,11 +1305,9 @@ const App: React.FC = () => {
           <motion.div 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-lg"
+            className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl border-b border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-lg header-safe-area"
             style={{
-              paddingTop: 'max(0.75rem, var(--safe-area-top))',
-              paddingLeft: 'max(0.75rem, calc(0.75rem + var(--safe-area-left)))',
-              paddingRight: 'max(0.75rem, calc(0.75rem + var(--safe-area-right)))'
+              paddingTop: 'max(0.5rem, var(--safe-area-top, 0px))'
             }}
           >
              <div className="flex items-center gap-2.5 sm:gap-4">
@@ -1385,15 +1383,15 @@ const App: React.FC = () => {
         
         <main className={isChatStarted ? "w-full max-w-4xl lg:max-w-5xl mx-auto px-2 sm:px-4 flex flex-col" : "container flex flex-col"} style={{ 
             flexGrow: 1, 
-            paddingBottom: isChatStarted ? '140px' : '2rem', 
-            paddingTop: isChatStarted ? '0' : '1rem' 
+            paddingBottom: isChatStarted ? '140px' : '1.5rem', 
+            paddingTop: isChatStarted ? '0' : '0.5rem' 
         }}>
           
-          <div className="flex flex-col gap-6 flex-1">
+          <div className="flex flex-col gap-5 flex-1">
             {messages.map((msg, index) => (
               <div key={msg.id || `msg-${index}`} id={`msg-${msg.id || index}`} className={`message-row ${msg.type} ${index === messages.length - 1 && msg.type === 'ai' ? 'flex-1 flex-col' : ''}`}>
                 {msg.type === 'user' ? (
-                  <div className="flex justify-end w-full animate-fade-in px-4 sm:px-0 mt-4">
+                  <div className="flex justify-end w-full animate-fade-in px-4 sm:px-0 mt-3">
                     <div className="chat-bubble">
                       {msg.content}
                     </div>
@@ -1417,8 +1415,8 @@ const App: React.FC = () => {
             ))}
             
             {state === AppState.LOADING && (
-              <div className="flex justify-center py-8">
-                <div className="bg-white/90 backdrop-blur-md px-6 py-4 rounded-2xl shadow-sm flex items-center gap-4 border border-[var(--color-primary)]/10">
+              <div className="flex justify-center py-6">
+                <div className="bg-white/90 backdrop-blur-md px-6 py-3.5 rounded-2xl shadow-sm flex items-center gap-4 border border-[var(--color-primary)]/10">
                   <div className="relative flex items-center justify-center w-6 h-6">
                     <div className="absolute inset-0 border-2 border-[var(--color-primary)]/20 rounded-full"></div>
                     <div className="absolute inset-0 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
@@ -1429,8 +1427,8 @@ const App: React.FC = () => {
             )}
             
             {state === AppState.ERROR && (
-              <div className="flex justify-center mt-4 mb-4">
-                <div className="bg-red-50/80 backdrop-blur-sm text-red-700 px-5 py-4 rounded-2xl flex items-start gap-3 border border-red-200/50 shadow-sm max-w-2xl w-full mx-4">
+              <div className="flex justify-center mt-3 mb-3">
+                <div className="bg-red-50/80 backdrop-blur-sm text-red-700 px-5 py-3.5 rounded-2xl flex items-start gap-3 border border-red-200/50 shadow-sm max-w-2xl w-full mx-4">
                   <AlertCircle size={22} className="shrink-0 mt-0.5 text-red-500" />
                   <div className="flex flex-col gap-1">
                     <h4 className="font-bold text-sm">عذراً، حدث خطأ</h4>
@@ -1441,7 +1439,7 @@ const App: React.FC = () => {
             )}
             
             {state === AppState.SUCCESS && (
-               <div className="flex justify-center mt-4 mb-4">
+               <div className="flex justify-center mt-3 mb-3">
                  <button onClick={startNewChat} className="btn-primary rounded-full px-6">
                    <Plus size={18} />
                    <span>موضوع جديد</span>
@@ -1453,27 +1451,27 @@ const App: React.FC = () => {
           </div>
 
           {!isChatStarted && state !== AppState.LOADING && (
-             <div className="mt-4 w-full animate-slide-up">
+             <div className="mt-2 sm:mt-3 w-full animate-slide-up">
                {/* Responsive Dual Dashboard: Split layout on Desktop (PC), Natural vertical stack on Mobile */}
-               <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-8 items-start">
+               <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-6 items-start gap-4">
                  
                  {/* Right Column (RTL Core Interaction: Quran Gateway + Emotion Form + Prompt Suggestions) */}
                  <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-7 flex flex-col">
-                   <div className="mb-5 text-center relative">
+                   <div className="mb-3 sm:mb-4 text-center relative">
                      {/* 3D Decorative Element */}
-                     <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-40 h-40 opacity-30 pointer-events-none z-0 animate-float-3d perspective-1000">
+                     <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-36 h-36 opacity-30 pointer-events-none z-0 animate-float-3d perspective-1000">
                         <div className="w-full h-full rounded-full bg-gradient-to-tr from-[var(--color-primary)] to-[var(--color-primary-light)] blur-2xl" style={{ transform: 'rotateX(12deg) rotateY(12deg)' }}></div>
                      </div>
                      
                      <div className="relative z-10 flex flex-col items-center">
                         {/* Noble Quran Direct Access 3D Jewel Button */}
-                        <div className="flex justify-center mb-5 w-full max-w-sm lg:max-w-md px-2">
+                        <div className="flex justify-center mb-3.5 w-full max-w-sm lg:max-w-md px-1">
                           <button
                             onClick={() => openQuran(undefined, undefined, "index")}
-                            className="group relative overflow-hidden inline-flex items-center justify-between gap-2 sm:gap-3.5 px-3.5 sm:px-6 py-3 sm:py-3.5 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
+                            className="group relative overflow-hidden inline-flex items-center justify-between gap-2 sm:gap-3.5 px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-white font-bold transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0.5 cursor-pointer select-none w-full"
                             style={{
                               background: "linear-gradient(135deg, #022c22 0%, #065f46 45%, #023829 80%, #996515 100%)",
-                              boxShadow: "0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
+                              boxShadow: "0 10px 24px -6px rgba(0, 0, 0, 0.55), 0 0 25px rgba(212, 175, 55, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.45)",
                               border: "1px solid rgba(212, 175, 55, 0.65)"
                             }}
                             title="فتح فهرس المصحف الشريف لاختيار وتلاوة القرآن الكريم"
@@ -1483,45 +1481,45 @@ const App: React.FC = () => {
 
                             <div className="flex items-center gap-3.5 relative z-10">
                               <div 
-                                className="w-11 h-11 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+                                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
                                 style={{
                                   background: "linear-gradient(135deg, #f1e5ac 0%, #d4af37 50%, #996515 100%)",
                                   boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1.5px 2px rgba(255,255,255,0.8), inset 0 -2px 0 rgba(0,0,0,0.3)",
                                   border: "1px solid rgba(255, 245, 200, 0.8)"
                                 }}
                               >
-                                <BookOpen size={22} className="text-[#022c22] drop-shadow-sm" />
+                                <BookOpen size={20} className="text-[#022c22] drop-shadow-sm" />
                               </div>
 
                               <div className="text-right">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                  <span className="text-base sm:text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-yellow-200 to-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                                     المصحف الشريف
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-amber-400/50 text-amber-200">قراءة</span>
-                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-emerald-400/50 text-emerald-200">تلاوة</span>
-                                  <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/90 border border-teal-400/50 text-teal-200">تفسير</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/90 border border-amber-400/50 text-amber-200">قراءة</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/90 border border-emerald-400/50 text-emerald-200">تلاوة</span>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/90 border border-teal-400/50 text-teal-200">تفسير</span>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="relative z-10 mr-1 w-8 h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner shrink-0">
-                              <ArrowLeft size={18} />
+                            <div className="relative z-10 mr-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:-translate-x-1 transition-all duration-300 shadow-inner shrink-0">
+                              <ArrowLeft size={16} />
                             </div>
                           </button>
                         </div>
 
-                        <h2 className="text-base sm:text-lg lg:text-xl font-bold text-white tracking-normal leading-relaxed drop-shadow-md">كيف يمكنني أن أؤنس قلبك اليوم بآيات الله؟</h2>
+                        <h2 className="text-sm sm:text-base lg:text-lg font-bold text-white tracking-normal leading-relaxed drop-shadow-md">كيف يمكنني أن أؤنس قلبك اليوم بآيات الله؟</h2>
                      </div>
                    </div>
 
                    {/* Primary Core Entry Control - Form & Prompt suggestions */}
-                   <div className="mb-6 max-w-3xl mx-auto w-full">
+                   <div className="mb-3 max-w-3xl mx-auto w-full">
                      <EmotionForm onSubmit={handleEmotionSubmit} isLoading={false} isOnline={isOnline} variant="centered" />
                      
-                     <div className="mt-3 flex flex-wrap gap-2 max-w-2xl mx-auto px-2 sm:px-4 w-full justify-center select-none">
+                     <div className="mt-2.5 flex flex-wrap gap-1.5 sm:gap-2 max-w-2xl mx-auto px-1 sm:px-3 w-full justify-center select-none">
                        {[
                           "أشعر بضيق في صدري",
                           "أريد آيات عن الصبر",
@@ -1534,7 +1532,7 @@ const App: React.FC = () => {
                             disabled={!isOnline}
                             onClick={() => isOnline && handleEmotionSubmit(prompt)}
                             title={isOnline ? prompt : "يتطلب الاتصال بالإنترنت"}
-                            className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border transition-all duration-300 shadow-sm shrink-0 select-none max-w-full ${
+                            className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full border transition-all duration-300 shadow-xs shrink-0 select-none max-w-full ${
                               isOnline
                                 ? 'bg-white/5 border-white/10 text-white/90 hover:border-[var(--color-gold)]/60 hover:text-[var(--color-gold)] hover:shadow-[0_0_10px_rgba(197,160,89,0.25)] hover:bg-white/10 active:scale-95 cursor-pointer'
                                 : 'bg-white/5 border-white/5 text-white/30 cursor-not-allowed opacity-50'
@@ -1548,7 +1546,7 @@ const App: React.FC = () => {
                  </div>
 
                  {/* Left Column (RTL Companion Side: Prayer Times Widget & Daily Verse on Desktop) */}
-                 <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-5 flex flex-col gap-5 mb-5 lg:mb-0">
+                 <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-5 flex flex-col gap-3.5 mb-2 lg:mb-0">
                    {/* Prayer Times Widget */}
                    <div className="w-full">
                      <PrayerTimesWidget 
@@ -1568,14 +1566,14 @@ const App: React.FC = () => {
                </div>
 
                {/* Professional Daily Verse Panel for mobile screens */}
-               <div className="lg:hidden max-w-xl mx-auto my-5">
+               <div className="lg:hidden max-w-xl mx-auto my-3.5">
                  <DailyVerse onOpenQuran={openQuran} />
                </div>
 
-               <div className="mt-16 mb-10">
-                 <div className="flex items-center gap-3 mb-6 px-2">
+               <div className="mt-5 mb-5 sm:mt-7 sm:mb-6">
+                 <div className="flex items-center gap-3 mb-3.5 px-1">
                     <div className="h-px flex-1 bg-gradient-to-l from-[var(--color-border)] to-transparent"></div>
-                    <h3 className="text-sm font-bold text-[var(--color-gold)] uppercase drop-shadow-sm">الوصول السريع</h3>
+                    <h3 className="text-xs sm:text-sm font-bold text-[var(--color-gold)] uppercase drop-shadow-xs">الوصول السريع</h3>
                     <div className="h-px flex-1 bg-gradient-to-r from-[var(--color-border)] to-transparent"></div>
                  </div>
                  
@@ -1587,31 +1585,31 @@ const App: React.FC = () => {
                        gridColumn: "1 / -1", 
                        background: "linear-gradient(135deg, #022c22 0%, #065f46 50%, #996515 100%)", 
                        color: "white",
-                       boxShadow: "0 10px 24px -4px rgba(0,0,0,0.45), inset 0 1px 1.5px rgba(255,255,255,0.35)",
+                       boxShadow: "0 8px 20px -4px rgba(0,0,0,0.45), inset 0 1px 1.5px rgba(255,255,255,0.35)",
                        border: "1px solid rgba(212, 175, 55, 0.55)",
                        borderRadius: "1rem",
-                       padding: "1rem 1.25rem"
+                       padding: "0.85rem 1.15rem"
                      }}
                    >
                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent pointer-events-none"></div>
                      <div className="flex items-center justify-between w-full relative z-10">
                        <div className="flex items-center gap-3">
                          <div 
-                           className="w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-md shrink-0 transition-transform group-hover:scale-110" 
+                           className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold shadow-md shrink-0 transition-transform group-hover:scale-110" 
                            style={{ background: "linear-gradient(135deg, #f1e5ac, #d4af37)", color: "#022c22", border: "1px solid rgba(255,255,255,0.6)" }}
                          >
-                           <BookOpen size={22} />
+                           <BookOpen size={20} />
                          </div>
                          <div className="flex flex-col text-right">
-                           <span className="action-card-title text-amber-100 font-extrabold text-base">المصحف الشريف الذكي</span>
+                           <span className="text-sm sm:text-base md:text-lg font-black text-amber-100 tracking-wide leading-tight drop-shadow-xs">المصحف الشريف الذكي</span>
                            <div className="flex items-center gap-1.5 mt-0.5">
-                             <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-950/80 text-amber-200 border border-amber-400/40 font-bold">قراءة</span>
-                             <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-950/80 text-emerald-200 border border-emerald-400/40 font-bold">تلاوة</span>
-                             <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-950/80 text-teal-200 border border-teal-400/40 font-bold">تفسير</span>
+                             <span className="text-[11px] sm:text-xs px-2 py-0.2 rounded-full bg-emerald-950/85 text-amber-200 border border-amber-400/50 font-bold">قراءة</span>
+                             <span className="text-[11px] sm:text-xs px-2 py-0.2 rounded-full bg-emerald-950/85 text-emerald-200 border border-emerald-400/50 font-bold">تلاوة</span>
+                             <span className="text-[11px] sm:text-xs px-2 py-0.2 rounded-full bg-emerald-950/85 text-teal-200 border border-teal-400/50 font-bold">تفسير</span>
                            </div>
                          </div>
                        </div>
-                       <ArrowLeft size={18} className="text-amber-300 group-hover:-translate-x-1 transition-transform" />
+                       <ArrowLeft size={16} className="text-amber-300 group-hover:-translate-x-1 transition-transform" />
                      </div>
                    </div>
                                                            <div className="action-card dhikr-alert group" onClick={() => setIsDhikrReminderOpen(true)}>

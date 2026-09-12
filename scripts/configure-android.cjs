@@ -116,6 +116,14 @@ function configureAndroid() {
           let sContent = fs.readFileSync(sPath, 'utf8');
           sContent = sContent.replace(/<item name="android:background">@drawable\/splash<\/item>/g, '<item name="android:windowBackground">#022c22</item>');
           sContent = sContent.replace(/<item name="android:windowBackground">@drawable\/splash<\/item>/g, '<item name="android:windowBackground">#022c22</item>');
+
+          // Ensure status bar color and system window fitting are applied
+          if (!sContent.includes('android:statusBarColor')) {
+            sContent = sContent.replace(
+              '</style>',
+              '        <item name="android:statusBarColor">#022c22</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:fitsSystemWindows">true</item>\n    </style>'
+            );
+          }
           fs.writeFileSync(sPath, sContent, 'utf8');
           console.log(`✅ Updated styles at: ${sPath}`);
         }
