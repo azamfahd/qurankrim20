@@ -1,7 +1,11 @@
 {
-  "version": "1.1.1",
+  "version": "1.1.0",
   "title": "تحديث جديد متوفر للتطبيق",
-  "releaseNotes": "تم تحديث التطبيق لدعم الخوادم السحابية الأمنة وتحسين الأداء.",
+  "releaseNotes": "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
   "sizeFormatted": "20 MB • تحميل وتثبيت مباشر",
-  "downloadUrl": ""
+  "downloadUrl": "",
+  "versionCode": 10120,
+  "updateUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
+  "timestamp": 1789847531016,
+  "apkUpdated": "2026-09-19T19:52:11.016Z"
 }
