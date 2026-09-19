@@ -29,6 +29,9 @@ export interface UpdateCheckResult {
 }
 
 export class AppUpdateService {
+  private static readonly GITHUB_REPO = 'azamfahd/qurankrim20';
+  private static readonly GITHUB_RELEASES_API = `https://api.github.com/repos/azamfahd/qurankrim20/releases/latest`;
+
   private static readonly VERSION_ENDPOINTS = [
     '/version.json',
     'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json'
@@ -74,6 +77,44 @@ export class AppUpdateService {
    * Fetch the latest version info from available endpoints
    */
   public static async fetchLatestVersionInfo(): Promise<AppVersionInfo | null> {
+    // 1. First priority: Direct GitHub Releases API lookup
+    try {
+      const ghRes = await fetch(this.GITHUB_RELEASES_API, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' },
+        cache: 'no-cache'
+      });
+      if (ghRes.ok) {
+        const release = await ghRes.json();
+        if (release && release.tag_name) {
+          const rawTag = String(release.tag_name).trim();
+          const cleanVer = rawTag.replace(/^v/i, '');
+          
+          const apkAsset = Array.isArray(release.assets) 
+            ? release.assets.find((a: { name?: string; browser_download_url?: string }) => 
+                typeof a.name === 'string' && a.name.toLowerCase().endsWith('.apk')
+              )
+            : null;
+
+          const downloadUrl = apkAsset?.browser_download_url || release.html_url || `https://github.com/${this.GITHUB_REPO}/releases/latest`;
+          const sizeMb = apkAsset?.size ? `${(apkAsset.size / (1024 * 1024)).toFixed(1)} ميجابايت` : undefined;
+
+          return {
+            version: cleanVer,
+            releaseDate: release.published_at ? new Date(release.published_at).toLocaleDateString('ar-SA') : undefined,
+            updateType: apkAsset ? 'apk' : 'both',
+            title: release.name || `تحديث جديد (${rawTag})`,
+            releaseNotes: release.body || 'يتوفر إصدار جديد تم نشره على مستودع GitHub!',
+            updateUrl: downloadUrl,
+            apkSize: sizeMb,
+            timestamp: release.published_at ? new Date(release.published_at).getTime() : Date.now()
+          };
+        }
+      }
+    } catch (ghErr) {
+      console.warn('GitHub Releases API check note:', ghErr);
+    }
+
+    // 2. Secondary fallback: version.json endpoints
     const cacheBuster = `t=${Date.now()}`;
     for (const endpoint of this.VERSION_ENDPOINTS) {
       try {
