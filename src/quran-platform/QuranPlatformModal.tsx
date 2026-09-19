@@ -10,8 +10,8 @@ const QuranTafsir = lazyWithRetry(() => import('./components/QuranTafsir'));
 const QuranInfo = lazyWithRetry(() => import('./components/QuranInfo'));
 const QuranMemorize = lazyWithRetry(() => import('./components/QuranMemorize'));
 const QuranStats = lazyWithRetry(() => import('./components/QuranStats'));
-const QuranSettingsModal = lazyWithRetry(() => import('./components/QuranSettingsModal').then(m => ({ default: m.QuranSettingsModal })));
-const SurahSettingsModal = lazyWithRetry(() => import('./components/SurahSettingsModal').then(m => ({ default: m.SurahSettingsModal })));
+const QuranSettingsModal = lazyWithRetry(() => import('./components/QuranSettingsModal'), 'QuranSettingsModal');
+const SurahSettingsModal = lazyWithRetry(() => import('./components/SurahSettingsModal'), 'SurahSettingsModal');
 import { FloatingImmersiveBar } from './components/FloatingImmersiveBar';
 import { QuranProvider, useQuranContext } from './store/QuranContext';
 

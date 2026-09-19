@@ -1,4 +1,5 @@
 // Centralized configuration and helpers for external APK downloading
+export const APP_VERSION = "1.1.0";
 const DEFAULT_FALLBACK_APK_URL = '/app-release.apk';
 
 /**
@@ -42,19 +43,20 @@ export function setCustomApkUrl(url: string): void {
  */
 export function triggerApkDownload(
   onShowToast?: (message: string, type?: 'success' | 'info' | 'error') => void,
-  version: string = '1.1.0'
+  version: string = '1.1.0',
+  overrideUrl?: string
 ): void {
-  const apkUrl = getApkDownloadUrl();
+  const apkUrl = (overrideUrl && overrideUrl.trim().length > 0) ? overrideUrl.trim() : getApkDownloadUrl();
   
   if (typeof window !== 'undefined') {
     localStorage.setItem('anis_apk_installed_version', version);
     localStorage.setItem('anis_pwa_installed', 'true');
 
     if (apkUrl.startsWith('http://') || apkUrl.startsWith('https://')) {
-      // External link (GitHub Releases, Firebase Storage, Google Drive, Direct CDN)
+      // External link (GitHub Releases, Firebase Storage, Netlify Host, Direct CDN)
       window.open(apkUrl, '_blank', 'noopener,noreferrer');
       if (onShowToast) {
-        onShowToast(`جاري فتح رابط التحميل الخارجي لملف الـ APK (الإصدار ${version})...`, 'success');
+        onShowToast(`جاري فتح رابط التحميل للتحديث الجديد (الإصدار ${version})...`, 'success');
       }
     } else {
       // Local path download

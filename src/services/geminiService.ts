@@ -164,7 +164,7 @@ export class QuranChatSession {
         },
         tafakkur: {
           type: Type.STRING,
-          description: "التفكر: وقفة تأملية عميقة أو نصيحة عملية استراتيجية مصاغة وفق النمط المختار.",
+          description: "التفكر والعمل: صياغة عبقرية، ذكية، ومرنة غير مشروطة بقوالب جامدة أو نقاط آلية. تفهم كنه السؤال وحال السائل بعمق، وتقدم نمط الرد الأنسب له (فقرة استبصارية ملهمة، رؤية واقعية سلسة، أو توجيه عملي مباشر)، رابطةً جوهر الهداية بواقع الحياة اليومية بمثال حي ملموس وتطبيق واقعي ذكي دون إطالة مفرطة أو تشتيت.",
         },
         summary: {
           type: Type.STRING,
@@ -197,7 +197,7 @@ export class QuranChatSession {
       Format your ENTIRE response to be extremely concise, brief, and direct to the point.
       - introMessage: Maximum 2-3 sentences providing a sharp, genius summary gist.
       - tafsir & tadabbur: Keep under 2-3 lines per verse, using bullet points and bold keywords.
-      - tafakkur: A single actionable bullet point.
+      - tafakkur: لمحة استبصارية ذكية ومكثفة (غير مقيدة بنقاط آلية)، تفهم جوهر السؤال وتقدم المعنى والمثال الواقعي والخطوة العملية بصياغة عبقرية موجزة ونافذة.
       - summary: A single powerful 1-sentence golden takeaway.
       Zero filler words or long intro paragraphs!
       `;
@@ -210,7 +210,7 @@ export class QuranChatSession {
       - introMessage: In-depth scholarly analysis of the topic from a Quranic perspective.
       - tafsir: Detailed explanation citing classical mufassirin (Ibn Kathir, Al-Tabari, Al-Sa'di), linguistic roots (الأصول اللغوية والمعاني البلاغية), and contexts of revelation (أسباب النزول) if applicable.
       - tadabbur: Comprehensive analytical insights and scholarly reflections.
-      - tafakkur: Methodical study step or research reflection.
+      - tafakkur: رؤية واقعية استراتيجية وذكية تشخص جوهر السؤال وتصيغ الربط بالواقع والمثال التطبيقي بأسلوب علمي رصين ومحكم دون تشتت.
       - summary: Comprehensive academic conclusion.
       `;
     } else if (style === 'tadabbur') {
@@ -222,7 +222,7 @@ export class QuranChatSession {
       - introMessage: Deep spiritual opening drawing out hidden Quranic pearls of wisdom.
       - tafsir: Focus on the spiritual meanings and divine intentions behind the words.
       - tadabbur: Heartfelt contemplation on how these verses refine the soul, morals, and spiritual standing.
-      - tafakkur: Soul reflection and spiritual exercise.
+      - tafakkur: ومضة تدبرية بليغة وذكية تلامس الوجدان والواقع المعاش، تسوق العبرة بمثال حي وتوجيه عملي رشيق دون تكلف أو حصر بنقاط.
       - summary: Inspiring spiritual rule of life.
       `;
     } else if (style === 'practical_life') {
@@ -234,7 +234,7 @@ export class QuranChatSession {
       - introMessage: Direct practical framing connecting the user's situation to real-life Quranic guidance.
       - tafsir: Clear explanation of how the verse applies to daily human interactions and decisions.
       - tadabbur: Practical real-life action plan and realistic behavioral steps.
-      - tafakkur: Practical daily challenge or practical habit to implement today.
+      - tafakkur: تطبيق سلوكي ذكي وعملي ينطلق من عمق فهم السؤال، ويوصل الفكرة والحل الواقعي المعاش بعبقرية وسلاسة تامة.
       - summary: Practical actionable rule for daily living.
       `;
     } else if (style === 'spiritual') {
@@ -245,7 +245,7 @@ export class QuranChatSession {
       Adopt a gentle, compassionate, deeply comforting, and soul-healing tone.
       - introMessage: Warm, empathetic, and comforting opening reassuring the heart with Allah's mercy, closeness, and love.
       - tafsir & tadabbur: Emphasize hope, solace, divine protection, and inner peace in times of hardship or reflection.
-      - tafakkur: A soothing spiritual meditation or heartfelt dua/dhikr suggestion.
+      - tafakkur: بلسم إيماني ذكي يدرك مشاعر السائل ويقدم له السكينة في قالب واقعي جميل ومبسط، بمثال ملموس وتوجيه قلبي وعملي نافذ.
       - summary: Gentle comforting message of peace and divine reassurance.
       `;
     } else if (style === 'scientific') {
@@ -257,7 +257,7 @@ export class QuranChatSession {
       - introMessage: Analytical, logical opening framing the topic through sound reasoning and universal principles.
       - tafsir: Precise linguistic breakdown, logical structure, and cognitive insights.
       - tadabbur: Cognitive reframing and logical alignment with divine laws.
-      - tafakkur: Logical contemplation exercise.
+      - tafakkur: استنتاج معرفي عقلاني ذكي، يحلل المسألة بمنطق محكم ويربطها بنموذج واقعي وسلوك عملي مباشر دون تعقيد أو تشتيت.
       - summary: Rational principle based on divine wisdom and universal truth.
       `;
     } else if (style === 'balanced') {
@@ -269,7 +269,7 @@ export class QuranChatSession {
       - introMessage: Balanced, welcoming intro touching on both understanding and emotion.
       - tafsir: Clear, accessible explanation without over-complication.
       - tadabbur: Balanced reflection on faith and practical life.
-      - tafakkur: Balanced reflection step.
+      - tafakkur: بصيرة متوازنة وذكية تفهم حاجة السائل، تدمج بين المثال الواقعي والتطبيق العملي السهل بأسلوب انسيابي بديع.
       - summary: Balanced golden rule.
       `;
     }
@@ -281,6 +281,33 @@ export class QuranChatSession {
       - Active Analysis Mode: "${style}".
       ${stylePrompt}
 
+      🏛️ FOUNDATIONAL COGNITIVE PRINCIPLE ACROSS ALL MODES (مبدأ الفهم والتحليل الشامل الثابت):
+      1. UNIVERSAL DEEP INTENT UNDERSTANDING (الفهم الشامل والذكي لمراد السائل):
+         - In EVERY mode without exception, you MUST first conduct an ultra-deep cognitive analysis of the user's inquiry: dissect what they are truly asking, their psychological/spiritual state, the fiqh or real-life dilemmas involved, and their root intent.
+         - The selected mode ("${style}") dictates the TONE, LENS, AND PACKAGING of your supportive explanation — it NEVER dumbs down, restricts, or limits your deep comprehension of the question and user needs.
+      2. ADAPTIVE DEPTH FOR COMPLEX & MULTI-LAYERED QUESTIONS (المرونة والعمق عند الحاجة للشرح والتحليل التفصيلي):
+         - If the question inherently requires detailed analysis, nuanced clarification, scholarly breakdown, or multi-step guidance, you MUST provide full clarity, depth, and comprehensive insight.
+         - Never sacrifice vital understanding, precision, or thoroughness; smartly deliver the necessary analytical depth while honoring the aesthetic and spirit of the active mode.
+      3. RELEVANT & ACCURATE QURANIC GROUNDING:
+         - Every selected Ayah must directly address the core of the user's real situation discovered through your deep intent analysis.
+
+      🧠 MANDATE FOR "التفكر والعمل" (tafakkur) - الفهم الذكي والصياغة العبقرية المرنة (غير المشروطة بنقاط آلية):
+      The "tafakkur" field MUST BE ULTRA-INTELLIGENT, FLUID, AND GENIUS IN ITS ADAPTATION (أكثر ذكاءً، يفهم السؤال بعمق، ويعطي نمط الرد المناسب له بعبقرية تامة ودون التقيد بنقاط آلية):
+      1. التحرر التام من القوالب والنقاط الإلزامية (Not Bound by Bullet Points):
+         - ركن «التفكر والعمل» ليس قالباً ميكانيكياً جامداً، ولا يُشترط فيه حصر الكلام في نقاط مرقمة أو قوائم آلية (- أو ١، ٢).
+         - الصياغة حرة وذكية ومنسابة: اختر الشكل البلاغي والتعبيري الأنسب لطبيعة السؤال وحال السائل (سواء كان فقرة بليغة مركزة، بصيرة استراتيجية نافذة، سردية واقعية ملهمة، أو وصية سلوكية مباشرة).
+      2. العبقرية في تشخيص السؤال واختيار نمط الرد الأنسب (Genius Question Adaptation):
+         - حلل بذكاء خارق ما يحتاجه السائل تحديداً:
+           * إن كان السؤال استشارة في ضيق أو حزن: صغ الرد كبلسم إيماني واقعي يُشعر السائل بالقرب ويزيل الوحشة.
+           * إن كان في قرار حائر أو تردد: صغ الرد كاستراتيجية ذهنية حاسمة تسقط الآية على معضلته الواقعية.
+           * إن كان استفساراً فكرياً أو عقائدياً: صغ الرد كبرهان عقلي واقعي جلي وذكي يجلو الإشكال.
+           * إن كان طلباً لبرنامج عمل أو عادة: قدم له التطبيق بسلاسة وواقعية تامة تناسب وتيرة الحياة الحديثة.
+      3. الإيجاز والربط الملموس بالواقع دون تشتيت (Crisp, Tangible & Zero Clutter):
+         - اربط المعنى دائماً بمثال أو مشهد واقعي حي من الحياة اليومية (العمل، البيت، العلاقات، النفس) يرسخ الفكرة بلمحة واحدة.
+         - أوصل الفكرة والخطوة التطبيقية بذكاء وبلاغة عالية دون إطالة ولا تشتيت، لتبقى راسخة ومحفزة على العمل فوراً.
+      4. إبراز الكلمات المحورية:
+         - وظّف الخط العريض (**نص بارز**) بذكاء على المفاهيم الجوهرية لتسهيل التقاط الفكرة فورياً.
+
       GOLDEN RULES:
       1. ONLY recommend verses from the 114 Surahs of the Holy Quran (Hafs 'an 'Asim).
       2. Ensure 100% accuracy of Surah names, numbers (1-114), and verse numbers.
@@ -291,7 +318,7 @@ export class QuranChatSession {
       - title: Eloquent title capturing the response essence.
       - introMessage: Advanced analytical intro strictly aligned with the selected mode.
       - verseMappings: Array of related Quranic verses with tafsir and tadabbur.
-      - tafakkur: Contemplation or practical exercise.
+      - tafakkur: Ultra-intelligent, flexible real-life reflection and actionable insight tailored specifically to the question.
       - summary: Core summary and golden rule.
     `;
 
@@ -450,9 +477,21 @@ export class QuranChatSession {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      // Detect environment accurately for Capacitor APK
+      const isCapacitor = typeof window !== 'undefined' && (!!(window as any).Capacitor || window.location.protocol === 'capacitor:' || window.location.protocol === 'file:');
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !isCapacitor;
       const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.includes('.run.app');
-      const baseUrl = (isLocalHost || isCloudRunHost) ? '' : 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app';
+      
+      let baseUrl = '';
+      const defaultBackendUrl = 'https://qurankrim20.netlify.app'; // Default to user's Netlify domain which handles proxies
+      
+      if (isCapacitor) {
+        baseUrl = (import.meta.env.VITE_BACKEND_API_URL as string) || defaultBackendUrl;
+      } else if (isLocalHost || isCloudRunHost) {
+        baseUrl = '';
+      } else {
+        baseUrl = (import.meta.env.VITE_BACKEND_API_URL as string) || defaultBackendUrl;
+      }
 
       const response = await fetch(`${baseUrl}/api/ai/chat`, {
         method: 'POST',
@@ -506,14 +545,14 @@ export class QuranChatSession {
           aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
         } catch (clientErr) {
           console.error("[GeminiService] Direct client-side generation also encountered an error:", clientErr);
-          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من صحة مفتاح API أو استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
+          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت أو المتابعة بحساب Google والمحاولة مجدداً.");
         }
       } else {
         // As a last cloud resort if on static host without client key, attempt direct Cloud Run server
         try {
           const fallbackHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
           if (prioritizedKey) fallbackHeaders['x-user-gemini-key'] = prioritizedKey;
-          const cloudRunRes = await fetch('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/api/ai/chat', {
+          const cloudRunRes = await fetch('https://qurankrim20.netlify.app/api/ai/chat', {
             method: 'POST',
             headers: fallbackHeaders,
             body: JSON.stringify({

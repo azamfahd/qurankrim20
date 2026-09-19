@@ -148,7 +148,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
             </div>
 
             {/* Smart Interactive Navigation Tabs */}
-            <div className="flex items-center gap-1.5 p-1.5 bg-amber-950/5 rounded-2xl my-4 overflow-x-auto custom-scrollbar shrink-0 border border-amber-900/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-amber-950/5 rounded-2xl my-4 shrink-0 border border-amber-900/10">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -156,14 +156,14 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, onOpenF
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 min-w-[100px] sm:min-w-[125px] py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-black transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    className={`w-full py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl text-xs font-black transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap text-center ${
                       isActive
-                        ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-md scale-[1.02]'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                        ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-md border border-amber-400/40 scale-[1.01]'
+                        : 'bg-white/80 hover:bg-white text-gray-700 hover:text-gray-900 border border-amber-900/10 shadow-2xs'
                     }`}
                   >
-                    <Icon size={14} className={isActive ? 'text-[var(--color-gold-light)]' : 'text-gray-500'} />
-                    <span>{tab.label}</span>
+                    <Icon size={15} className={`shrink-0 ${isActive ? 'text-[var(--color-gold-light)]' : 'text-amber-700'}`} />
+                    <span className="truncate">{tab.label}</span>
                   </button>
                 );
               })}

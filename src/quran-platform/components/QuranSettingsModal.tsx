@@ -290,7 +290,7 @@ export const QuranSettingsModal: React.FC = () => {
       title: 'تحميل المصحف الشريف والتفاسير',
       type: 'quran-text',
       payload: {},
-      totalItems: 1176, // 114 surah + 114 tafsir x 6 + 604 pages + 2 meta
+      totalItems: 1518, // 114 surah + 114 tafsir x 7 + 604 pages + 2 meta
       execute: async (task, signal) => {
         await QuranDataService.downloadAllQuranText((prog) => {
           DownloadManager.updateProgress(task.id, prog.completed, prog.total, prog.percentage);

@@ -461,15 +461,20 @@ export const ResultCard: React.FC<{
                 <div className="p-2 sm:p-2.5 bg-white rounded-xl shadow-sm border border-gray-100">
                   <Lightbulb size={20} className="text-[var(--color-gold-dark)] sm:w-[22px] sm:h-[22px]" />
                 </div>
-                <span>التفكر والعمل</span>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span>التفكر والعمل</span>
+                  <span className="text-[11px] sm:text-xs font-semibold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-300/40 shadow-xs">
+                    بصيرة واقعية وتطبيق ذكي
+                  </span>
+                </div>
               </div>
               <div className="flex gap-2 bg-white p-1 sm:p-1.5 rounded-xl border border-gray-100 shadow-sm">
                 <CopyButton text={data.tafakkur} label="نسخ التفكر" />
               </div>
             </div>
-            <p className="explanation-text text-gray-700 text-base sm:text-lg leading-relaxed text-justify font-medium relative z-10">
+            <div className="explanation-text text-gray-700 text-base sm:text-lg leading-relaxed font-medium relative z-10 whitespace-pre-line space-y-3">
               {renderHighlightedText(data.tafakkur)}
-            </p>
+            </div>
           </div>
         )}
 

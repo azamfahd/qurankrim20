@@ -42,6 +42,19 @@ export class QuranDataService {
     try {
       if (typeof window !== 'undefined' && 'caches' in window) {
         const textCache = await caches.open('quran-text-api-v1');
+        
+        // Check cached Surah first
+        const cachedSurah = await textCache.match(`https://api.alquran.cloud/v1/surah/${surahNumber}/quran-uthmani`);
+        if (cachedSurah) {
+          const surahJson = await cachedSurah.json();
+          const ayahObj = surahJson?.data?.ayahs?.find((a: any) => a.numberInSurah === ayahNumber) || surahJson?.data?.ayahs?.[ayahNumber - 1];
+          if (ayahObj?.text) {
+            this.cache.set(cacheKey, ayahObj.text);
+            return ayahObj.text;
+          }
+        }
+
+        // Check cached Ayah
         const cachedRes = await textCache.match(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`);
         if (cachedRes) {
           const cachedJson = await cachedRes.json();

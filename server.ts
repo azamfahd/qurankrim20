@@ -15,7 +15,7 @@ async function startServer() {
   app.use("/api", (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-user-gemini-key");
+    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-user-gemini-key, x-goog-api-key");
     if (req.method === "OPTIONS") {
       return res.status(200).end();
     }

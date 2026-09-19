@@ -37,8 +37,8 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, onS
 
     if (isIosDevice) {
       setActiveTab('ios');
-    } else if (isDesktopDevice) {
-      setActiveTab('pwa');
+    } else {
+      setActiveTab('apk');
     }
 
     // Capture beforeinstallprompt for PWA

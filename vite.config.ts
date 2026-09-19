@@ -40,7 +40,7 @@ function versionGeneratorPlugin() {
     generateBundle(options: any, bundle: any) {
       try {
         const buildTimestamp = Date.now();
-        const publicDir = path.resolve(__dirname, 'public');
+        const publicDir = path.resolve(process.cwd(), 'public');
         const versionFile = path.join(publicDir, 'version.json');
         let versionData: Record<string, unknown> = {
           version: "1.1.0",
@@ -131,7 +131,7 @@ export default defineConfig(({ mode }) => {
         versionGeneratorPlugin()
       ],
       define: {
-        '__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version || '1.1.0'),
+        '__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8')).version || '1.1.0'),
         'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
         'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || env.VITE_SUPABASE_DATABASE_URL || env.SUPABASE_URL || ''),
@@ -143,7 +143,7 @@ export default defineConfig(({ mode }) => {
       assetsInclude: ['**/*.woff2', '**/*.woff', '**/*.ttf', '**/*.mp3', '**/*.wav', '**/*.ogg', '**/*.svg', '**/*.json'],
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, './src'),
+          '@': path.resolve(process.cwd(), './src'),
         },
         dedupe: ['react', 'react-dom']
       },

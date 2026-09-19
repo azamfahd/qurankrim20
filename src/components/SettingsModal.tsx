@@ -31,6 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [localSettings, setLocalSettings] = useState<UserSettings>({ ...settings });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
+  const [showDeveloperKey, setShowDeveloperKey] = useState(false);
 
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
@@ -242,76 +243,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </section>
 
-            {/* Prayer Calculation Method Section */}
-            <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
-              <div className="absolute top-0 right-0 w-2 h-full bg-[var(--color-primary)] opacity-20 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-3">
-                  <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
-                    <Sliders size={18} />
-                  </div>
-                  طريقة حساب مواقيت الصلاة
-                </h3>
-                {onOpenAdhanSettings && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onOpenAdhanSettings();
-                    }}
-                    className="text-xs font-bold text-[var(--color-primary)] hover:underline flex items-center gap-1 cursor-pointer bg-[var(--color-primary-light)] px-3 py-1.5 rounded-xl transition-all hover:bg-[var(--color-primary-light)]/80"
-                  >
-                    <BellRing size={14} />
-                    <span>تخصيص الأذان والمؤذن</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="relative group/select">
-                  <select
-                    value={localSettings.adhanSettings?.calculationMethod || 'UmmAlQura'}
-                    onChange={(e) => {
-                      const newMethod = e.target.value;
-                      setLocalSettings({
-                        ...localSettings,
-                        adhanSettings: {
-                          ...(localSettings.adhanSettings || {
-                            enabled: true,
-                            muezzin: 'mishary',
-                            fajrEnabled: true,
-                            dhuhrEnabled: true,
-                            asrEnabled: true,
-                            maghribEnabled: true,
-                            ishaEnabled: true,
-                            volume: 0.8
-                          }),
-                          calculationMethod: newMethod
-                        }
-                      });
-                    }}
-                    className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer text-gray-800"
-                  >
-                    <option value="UmmAlQura">🕋 أم القرى (مكة المكرمة - السعودية، الخليج، اليمن)</option>
-                    <option value="Egyptian">🇪🇬 الهيئة المصرية العامة للمساحة (مصر، إفريقيا، الشام)</option>
-                    <option value="MuslimWorldLeague">🌐 رابطة العالم الإسلامي (أوروبا، الشرق الأقصى، أجزاء من أمريكا)</option>
-                    <option value="Dubai">🇦🇪 دائرة الشؤون الإسلامية بدبي (الإمارات)</option>
-                    <option value="Karachi">🇵🇰 جامعة العلوم الإسلامية بكراتشي (باكستان، الهند، بنغلاديش)</option>
-                    <option value="NorthAmerica">🇺🇸 الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/select:text-[var(--color-primary)] transition-colors">
-                    <Sliders size={18} />
-                  </div>
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
-                    <ChevronDown size={16} />
-                  </div>
-                </div>
-                <p className="text-[10px] text-gray-400 leading-relaxed">
-                  تُحدد زوايا الفجر والعشاء ودقة مواعيد الصلاة بحسب الهيئة الفقهية المعتمدة في إقليمك. تُطلب أذونات الموقع والإشعارات بذكاء عند الحاجة فقط من داخل الميزات أو من إعدادات جهازك.
-                </p>
-              </div>
-            </section>
-
             {/* AI Configuration Section */}
             <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
               <div className="absolute top-0 right-0 w-2 h-full bg-[var(--color-primary)] opacity-20 group-hover:opacity-100 transition-opacity"></div>
@@ -451,71 +382,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </section>
 
-            {/* Security Section */}
+            {/* Cloud AI & Security Section */}
             <section className="bg-white rounded-3xl p-6 border border-[var(--color-border)] shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
               <div className="absolute top-0 right-0 w-2 h-full bg-[var(--color-primary)] opacity-20 group-hover:opacity-100 transition-opacity"></div>
-              <h3 className="text-sm font-bold text-gray-800 mb-5 flex items-center gap-3">
-                <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
-                  <Shield size={18} />
+              <h3 className="text-sm font-bold text-gray-800 mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[var(--color-primary-light)] text-[var(--color-primary)] rounded-xl shadow-sm">
+                    <Sparkles size={18} />
+                  </div>
+                  الذكاء الاصطناعي والحصة السحابية
                 </div>
-                الأمان والخصوصية
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200/80 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {localSettings.isLoggedIn ? "حصة حساب Google نشطة" : "الحصة المدمجة نشطة"}
+                </span>
               </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-gray-600">مفتاح API الخاص (اختياري)</label>
-                    <a 
-                      href="https://aistudio.google.com/app/apikey" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] underline flex items-center gap-1"
-                    >
-                      الحصول على مفتاح
-                      <ExternalLink size={10} />
-                    </a>
-                  </div>
-                  <div className="relative group/input">
-                    <input 
-                      type="password" 
-                      value={localSettings.apiKey || ''}
-                      onChange={(e) => setLocalSettings({ ...localSettings, apiKey: e.target.value })}
-                      className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-4 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner"
-                      placeholder="أدخل مفتاح Gemini الخاص بك (اختياري)..."
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/input:text-[var(--color-primary)] transition-colors">
-                      <Key size={18} />
-                    </div>
-                  </div>
 
-                  {/* API Key Active Status Indicator Badge */}
-                  {localSettings.apiKey && localSettings.apiKey.trim().length > 0 ? (
-                    <div className="mt-3 flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                      </span>
-                      <div>
-                        <p className="font-bold">🔑 مفتاحك الخاص مفعّل حالياً (نشط)</p>
-                        <p className="text-[11px] text-emerald-700 mt-0.5">
-                          يستخدم النظام مفتاحك الشخصي مباشرة لتنفيذ الاستفسارات بأقصى سرعة وبدون مشاركة حدود النظام.
+              <div className="space-y-4">
+                {localSettings.isLoggedIn ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-emerald-600 border border-emerald-100 shrink-0">
+                        <CheckCircle2 size={22} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-emerald-900 truncate">
+                          حسابك متصل بالحصة السحابية المتقدمة تلقائياً
+                        </p>
+                        <p className="text-[11px] text-emerald-700 mt-0.5 truncate">
+                          {localSettings.email || "حساب Google موثق"} • أولوية معالجة فورية
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-3 flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-800 text-xs">
-                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <p className="text-[11px] text-emerald-800/90 leading-relaxed bg-white/80 p-3 rounded-xl border border-emerald-100">
+                      ⚡ تعمل جميع استفسارات التفسير والتدبر والبحث القرآني تلقائياً عبر حصة حسابك السحابية دون الحاجة لإدخال أي مفاتيح يدوية أو خطوات معقدة كأحدث التطبيقات العالمية.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-gray-50 border border-[var(--color-border)] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[var(--color-primary)] border border-gray-100 shrink-0">
+                        <ShieldCheck size={22} />
+                      </div>
                       <div>
-                        <p className="font-bold">⚡ يتم استخدام مفتاح النظام الافتراضي</p>
-                        <p className="text-[11px] text-amber-700 mt-0.5">
-                          التطبيق يعمل مجاناً بالمفتاح الافتراضي. يمكنك إضافة مفتاحك الخاص بأي وقت للحصول على حصتك المخصصة الكاملة.
+                        <p className="text-xs font-bold text-gray-800">
+                          نظام سحابي تلقائي بالكامل (مفعّل مجاناً)
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          يعمل التطبيق مباشرة بدون أي إعدادات يدوية أو مفاتيح
                         </p>
                       </div>
+                    </div>
+                    <p className="text-[11px] text-gray-600 leading-relaxed bg-white p-3 rounded-xl border border-gray-100">
+                      بمجرد المتابعة وتسجيل الدخول بحساب Google، يتم ربط وتخصيص الحصة السحابية لحسابك تلقائياً لحفظ محادثاتك وتلاواتك واستخدامها من أي جهاز.
+                    </p>
+                  </div>
+                )}
+
+                {/* Optional Developer Advanced Toggle */}
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeveloperKey(!showDeveloperKey)}
+                    className="text-[11px] text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <Key size={12} />
+                    <span>{showDeveloperKey ? "إخفاء إعدادات المطورين" : "إعدادات متقدمة (خاصة بالمطورين فقط)"}</span>
+                  </button>
+
+                  {showDeveloperKey && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-2xl border border-gray-200 space-y-2 text-right animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[10px] font-bold text-gray-600">
+                          مفتاح مخصص إضافي (اختياري للمطورين فقط)
+                        </label>
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs transition-colors"
+                        >
+                          <span>جلب المفتاح من الموقع</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                      <input 
+                        type="password" 
+                        value={localSettings.apiKey || ''}
+                        onChange={(e) => setLocalSettings({ ...localSettings, apiKey: e.target.value })}
+                        className="w-full bg-white border border-gray-200 rounded-xl py-2 px-3 text-xs focus:ring-1 focus:ring-[var(--color-primary)] focus:outline-none"
+                        placeholder="اختياري: اتركه فارغاً للاستخدام التلقائي الموصى به..."
+                        dir="ltr"
+                      />
+                      <p className="text-[10px] text-gray-400">
+                        افتراضياً يُترك هذا الحقل فارغاً حيث يعتمد التطبيق على الحصة السحابية التلقائية لحسابك.
+                      </p>
                     </div>
                   )}
-
-                  <p className="text-[11px] text-gray-500 mt-2 leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-[var(--color-border)]">
-                    يتم حفظ المفتاح بأمان ومُشفراً في متصفحك وحسابك فقط، ولا يتم الاطلاع عليه أو مشاركته مع أي طرف.
-                  </p>
                 </div>
               </div>
             </section>

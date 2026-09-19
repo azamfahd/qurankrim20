@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">أنيس القلوب</string>
+    <string name="channel_adhan_name">أذان الصلوات المفروضة</string>
+    <string name="channel_adhan_desc">تنبيهات الأذان بصوت المؤذن في الوقت الدقيق</string>
+    <string name="channel_dhikr_name">أذكار وتسابيح دورية</string>
+    <string name="channel_dhikr_desc">تذكيرات بالأذكار والاستغفار والصلاة على النبي</string>
+    <string name="channel_audio_name">مشغل تلاوات القرآن الكريم</string>
+    <string name="channel_audio_desc">إشعار التحكم في تشغيل تلاوة القرآن في الخلفية</string>
+</resources>
