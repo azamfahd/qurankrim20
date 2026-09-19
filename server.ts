@@ -8,10 +8,69 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true }));
+  // Rate Limiting Store for DDoS & Abuse Protection
+  interface RateLimitEntry {
+    count: number;
+    resetTime: number;
+  }
+  const rateLimitStore = new Map<string, RateLimitEntry>();
 
-  // Enable CORS for API routes so Capacitor APK can reach them
+  // Cleanup expired rate limit entries every 5 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitStore.entries()) {
+      if (now > entry.resetTime) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }, 5 * 60 * 1000);
+
+  const createRateLimiter = (windowMs: number, maxRequests: number, customMsg?: string) => {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+      const key = `${req.path}:${clientIp}`;
+      const now = Date.now();
+
+      const entry = rateLimitStore.get(key) || { count: 0, resetTime: now + windowMs };
+
+      if (now > entry.resetTime) {
+        entry.count = 1;
+        entry.resetTime = now + windowMs;
+      } else {
+        entry.count++;
+      }
+
+      rateLimitStore.set(key, entry);
+
+      res.setHeader("X-RateLimit-Limit", maxRequests.toString());
+      res.setHeader("X-RateLimit-Remaining", Math.max(0, maxRequests - entry.count).toString());
+      res.setHeader("X-RateLimit-Reset", Math.ceil(entry.resetTime / 1000).toString());
+
+      if (entry.count > maxRequests) {
+        return res.status(429).json({
+          success: false,
+          error: customMsg || "تم تجاوز الحد الأقصى المسموح به للطلبات. يرجى الانتظار قليلاً والمحاولة لاحقاً."
+        });
+      }
+
+      next();
+    };
+  };
+
+  // Security Hardening Headers Middleware
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "geolocation=(self), microphone=(), camera=()");
+    next();
+  });
+
+  app.use(express.json({ limit: "2mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+  // Enable CORS for API routes so Capacitor APK & Web App can reach them
   app.use("/api", (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
@@ -135,8 +194,8 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Secure Server-Side Gemini AI Chat Endpoint
-  app.post("/api/ai/chat", async (req, res) => {
+  // Rate-limited Secure Server-Side Gemini AI Chat Endpoint (30 requests per minute per IP)
+  app.post("/api/ai/chat", createRateLimiter(60 * 1000, 30, "تجاوزت الحد الأقصى لاستخدام المساعد الذكي. يرجى الانتظار دقيقة واحدة قبل المحاولة مجدداً."), async (req, res) => {
     try {
       const customKey = (req.headers["x-user-gemini-key"] as string) || undefined;
       const result = await ServerAIService.generateResponse(req.body, customKey);

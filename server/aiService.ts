@@ -69,8 +69,33 @@ export class ServerAIService {
     payload: ChatRequestPayload,
     customApiKey?: string
   ): Promise<{ success: boolean; data?: QuranResponse; error?: string; status?: number }> {
+    if (!payload || typeof payload !== 'object') {
+      return {
+        success: false,
+        error: "INVALID_PAYLOAD: Missing or malformed payload body.",
+        status: 400
+      };
+    }
+
     const { userMessage, history = [], settings = {}, style = "smart_adaptive", username } = payload;
     
+    // Security Input Validation & Sanitization
+    if (!userMessage || typeof userMessage !== 'string' || userMessage.trim().length === 0) {
+      return {
+        success: false,
+        error: "INVALID_INPUT: النص المطلوب لا يمكن أن يكون فارغاً.",
+        status: 400
+      };
+    }
+
+    if (userMessage.length > 3000) {
+      return {
+        success: false,
+        error: "INVALID_INPUT: النص يتجاوز الحد الأقصى المسموح به (3000 حرف).",
+        status: 400
+      };
+    }
+
     const ai = this.getGenAI(customApiKey);
     if (!ai) {
       return {
@@ -291,24 +316,25 @@ export class ServerAIService {
 
     const normalizeModel = (m?: string) => {
       if (!m) return 'gemini-3.8-flash';
-      if (m.includes('3.8')) return 'gemini-3.8-flash';
+      if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('3.7')) return 'gemini-3.7-flash';
       if (m.includes('3.6')) return 'gemini-3.6-flash';
       if (m.includes('3.5')) return 'gemini-3.5-flash';
-      if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
       return 'gemini-3.8-flash';
     };
 
     const requestedModel = normalizeModel(settings.model);
-    // Build resilient, deduplicated candidate models list starting with the user's requested model
+    // Build resilient, deduplicated candidate models list with valid SDK models
     const candidateModels = Array.from(new Set([
       requestedModel,
       'gemini-3.8-flash',
       'gemini-3.7-flash',
       'gemini-3.6-flash',
-      'gemini-3.1-pro-preview',
-      'gemini-3.1-flash-lite'
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.1-pro-preview'
     ]));
 
     let lastError: any = null;

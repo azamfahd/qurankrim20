@@ -58,6 +58,30 @@ export const Sidebar = React.memo<SidebarProps>(({
   onShowToast
 }) => {
   const [isStandalone, setIsStandalone] = React.useState<boolean>(false);
+  const [currentVersion, setCurrentVersion] = React.useState<string>(AppUpdateService.getCurrentVersion());
+  const [availableUpdate, setAvailableUpdate] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleUpdateCompleted = (e: any) => {
+      const newVer = e?.detail?.version || AppUpdateService.getCurrentVersion();
+      setCurrentVersion(newVer);
+      setAvailableUpdate(null);
+    };
+
+    const handleUpdateAvailable = (e: any) => {
+      if (e?.detail?.version) {
+        setAvailableUpdate(e.detail.version);
+      }
+    };
+
+    window.addEventListener('app-update-completed', handleUpdateCompleted);
+    window.addEventListener('app-update-available', handleUpdateAvailable);
+
+    return () => {
+      window.removeEventListener('app-update-completed', handleUpdateCompleted);
+      window.removeEventListener('app-update-available', handleUpdateAvailable);
+    };
+  }, []);
 
   React.useEffect(() => {
     const checkStandalone = () => {
@@ -300,9 +324,9 @@ export const Sidebar = React.memo<SidebarProps>(({
 
                 {/* In-App Smart Update Button */}
                 <SidebarItem 
-                  icon={<Sparkles size={20} className="text-amber-500" />} 
+                  icon={<Sparkles size={20} className={availableUpdate ? "text-amber-400 animate-bounce" : "text-amber-500"} />} 
                   label="التحقق من التحديثات" 
-                  badge={`v${AppUpdateService.getCurrentVersion()}`}
+                  badge={availableUpdate ? `تحديث متوفر v${availableUpdate} 🔥` : `v${currentVersion}`}
                   onClick={() => {
                     onClose();
                     window.dispatchEvent(new CustomEvent('check-for-app-updates'));

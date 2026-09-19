@@ -91,6 +91,8 @@ class PromptCache {
   }
 }
 
+
+
 export class QuranChatSession {
   private model: string;
   private settings: UserSettings;
@@ -347,11 +349,10 @@ export class QuranChatSession {
 
     const normalizeModel = (m?: string) => {
       if (!m) return 'gemini-3.8-flash';
-      if (m.includes('3.8')) return 'gemini-3.8-flash';
+      if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('3.7')) return 'gemini-3.7-flash';
       if (m.includes('3.6')) return 'gemini-3.6-flash';
       if (m.includes('3.5')) return 'gemini-3.5-flash';
-      if (m.includes('pro')) return 'gemini-3.1-pro-preview';
       if (m.includes('lite')) return 'gemini-3.1-flash-lite';
       return 'gemini-3.8-flash';
     };
@@ -362,8 +363,10 @@ export class QuranChatSession {
       'gemini-3.8-flash',
       'gemini-3.7-flash',
       'gemini-3.6-flash',
-      'gemini-3.1-pro-preview',
-      'gemini-3.1-flash-lite'
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.1-pro-preview'
     ]));
 
     let lastError: any = null;
@@ -433,17 +436,25 @@ export class QuranChatSession {
     history?: ChatMessage[],
     onProgress?: (stage: 'thinking' | 'mapping' | 'verifying' | 'formatting') => void
   ): Promise<QuranResponse> {
-    // 0. Online Requirement: The smart AI assistant requires an active internet connection to provide deep cloud analysis
+    const sanitizedMessage = (userMessage || '').trim();
+    if (!sanitizedMessage) {
+      throw new Error("لا يمكن إرسال طلب فارغ. يرجى كتابة أطروحتك أو سؤالك القرآني.");
+    }
+    if (sanitizedMessage.length > 3000) {
+      throw new Error("تجاوزت الرسالة الحد الأقصى المسموح به (3000 حرف). يرجى اختصار النص.");
+    }
+
+    // 0. Online Requirement: The smart AI assistant requires an active internet connection
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     if (!isOnline) {
-      throw new Error("يتطلب المساعد القرآني الذكي اتصالاً نشطاً بالإنترنت لتقديم الإجابة السحابية الدقيقة والمفصلة. يرجى الاتصال بالإنترنت والمحاولة مجدداً.");
+      throw new Error("يتطلب المساعد القرآني الذكي اتصالاً نشطاً بالإنترنت لتقديم الإجابة السحابية المباشرة. يرجى الاتصال بالإنترنت والمحاولة مجدداً.");
     }
 
     if (onProgress) onProgress('thinking');
 
     const style = this.settings.analysisStyle || 'smart_adaptive';
 
-    // 1. Check intelligent local cache first (keyed by prompt + style + model)
+    // 1. Check intelligent prompt cache first
     const cachedResponse = PromptCache.get(userMessage, style, this.model);
     if (cachedResponse) {
       if (onProgress) {
@@ -460,101 +471,46 @@ export class QuranChatSession {
     }
 
     let aiResult: any = null;
-    let triedClientFallback = false;
     const prioritizedKey = getPrioritizedGeminiKey(this.settings.apiKey);
 
-    // 2. Call backend server proxy endpoint securely, but fallback to direct client-side calling or Cloud Run proxy if server is unreachable (such as on Netlify)
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-
-      // If user entered their own custom key in settings or we have a prioritized key, pass it securely via headers
-      if (prioritizedKey) {
-        headers['x-user-gemini-key'] = prioritizedKey;
+    // Strategy 1: Direct Client Call to Google Gemini API using @google/genai SDK
+    if (prioritizedKey) {
+      try {
+        console.info("[GeminiService] Connecting directly to Google Gemini API...");
+        aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
+      } catch (clientErr: any) {
+        console.warn("[GeminiService] Direct Gemini API call attempt encountered issue, trying server proxy endpoint...", clientErr);
       }
+    }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
-
-      // Detect environment accurately for Capacitor APK
-      const isCapacitor = typeof window !== 'undefined' && (!!(window as any).Capacitor || window.location.protocol === 'capacitor:' || window.location.protocol === 'file:');
-      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !isCapacitor;
-      const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.includes('.run.app');
-      
-      let baseUrl = '';
-      const defaultBackendUrl = 'https://qurankrim20.netlify.app'; // Default to user's Netlify domain which handles proxies
-      
-      if (isCapacitor) {
-        baseUrl = (import.meta.env.VITE_BACKEND_API_URL as string) || defaultBackendUrl;
-      } else if (isLocalHost || isCloudRunHost) {
-        baseUrl = '';
-      } else {
-        baseUrl = (import.meta.env.VITE_BACKEND_API_URL as string) || defaultBackendUrl;
+    // Strategy 2: Server-side proxy endpoint (/api/ai/chat)
+    if (!aiResult) {
+      const candidateEndpoints: string[] = [];
+      if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('about:blank')) {
+        candidateEndpoints.push('');
+        candidateEndpoints.push(window.location.origin);
       }
-
-      const response = await fetch(`${baseUrl}/api/ai/chat`, {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          userMessage,
-          history: (history || []).map(h => ({
-            role: h.type === 'user' ? 'user' : 'model',
-            content: h.content,
-            data: h.data
-          })),
-          settings: {
-            model: this.model,
-            creativityLevel: this.settings.creativityLevel,
-            analysisStyle: style
-          },
-          style,
-          username
-        })
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.warn(`[GeminiService] Backend returned status ${response.status}. Attempting direct client-side Gemini fallback.`);
-        if (prioritizedKey) {
-          triedClientFallback = true;
-          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
-        } else {
-          throw new Error("SERVER_UNAVAILABLE_AND_NO_CLIENT_KEY");
-        }
-      } else {
-        const jsonResult = await response.json();
-        if (!jsonResult.success || !jsonResult.data) {
-          console.warn("[GeminiService] AI generation unsuccessful on backend. Attempting direct client-side Gemini fallback.");
-          if (prioritizedKey) {
-            triedClientFallback = true;
-            aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
-          } else {
-            throw new Error("BACKEND_FAILED_AND_NO_CLIENT_KEY");
-          }
-        } else {
-          aiResult = jsonResult.data;
-        }
+      if (import.meta.env.VITE_BACKEND_API_URL) {
+        candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
       }
-    } catch (error: any) {
-      console.warn("[GeminiService] Primary backend proxy call failed. Attempting resilient direct client-side calling fallback.", error);
-      if (!triedClientFallback && prioritizedKey) {
+      candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+      candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+
+      const uniqueEndpoints = Array.from(new Set(candidateEndpoints.filter(Boolean)));
+
+      for (const baseUrl of uniqueEndpoints) {
         try {
-          aiResult = await this.generateDirectClientResponse(userMessage, username, history, style, prioritizedKey);
-        } catch (clientErr) {
-          console.error("[GeminiService] Direct client-side generation also encountered an error:", clientErr);
-          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت أو المتابعة بحساب Google والمحاولة مجدداً.");
-        }
-      } else {
-        // As a last cloud resort if on static host without client key, attempt direct Cloud Run server
-        try {
-          const fallbackHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (prioritizedKey) fallbackHeaders['x-user-gemini-key'] = prioritizedKey;
-          const cloudRunRes = await fetch('https://qurankrim20.netlify.app/api/ai/chat', {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (prioritizedKey) headers['x-user-gemini-key'] = prioritizedKey;
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+          const endpointUrl = `${baseUrl.replace(/\/$/, '')}/api/ai/chat`;
+          const response = await fetch(endpointUrl, {
             method: 'POST',
-            headers: fallbackHeaders,
+            headers,
+            signal: controller.signal,
             body: JSON.stringify({
               userMessage,
               history: (history || []).map(h => ({
@@ -571,16 +527,26 @@ export class QuranChatSession {
               username
             })
           });
-          const cloudRunJson = await cloudRunRes.json();
-          if (cloudRunJson.success && cloudRunJson.data) {
-            aiResult = cloudRunJson.data;
-          } else {
-            throw new Error(cloudRunJson.error || "Cloud run proxy failed");
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const jsonResult = await response.json();
+            if (jsonResult && jsonResult.success && jsonResult.data) {
+              aiResult = jsonResult.data;
+              console.log(`[GeminiService] Successfully retrieved AI response from server endpoint: ${baseUrl || 'relative'}`);
+              break;
+            }
           }
-        } catch (cloudRunErr) {
-          throw new Error("تعذر الاتصال بمحرك الذكاء الاصطناعي السحابي. يرجى التأكد من استقرار الاتصال بالإنترنت والمحاولة مجدداً.");
+        } catch (endpointErr) {
+          console.warn(`[GeminiService] Server endpoint attempt ${baseUrl || 'relative'} failed:`, endpointErr);
         }
       }
+    }
+
+    // If both direct client call and backend server proxy failed, throw a clean error
+    if (!aiResult) {
+      throw new Error("تعذر الاتصال بمركز الذكاء الاصطناعي (Gemini). يرجى التأكد من توفر الاتصال بالإنترنت والمحاولة مجدداً.");
     }
 
     try {

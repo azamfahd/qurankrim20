@@ -533,24 +533,24 @@ const App: React.FC = () => {
 
         if (hasUpdateToNotify) {
           setApkUpdateInfo({
-            version: remoteVer,
-            title: remoteData.title,
+            version: remoteVer || "1.1.1",
+            title: remoteData.title || "تحديث جديد متوفر للتطبيق",
             releaseNotes:
               remoteData.releaseNotes ||
-              (isMajor
-                ? "يتوفر إصدار رئيسي جديد بميزات وتصميمات جديدة ومواقيت دقيقة."
-                : "يتوفر تحديث بسيط يتضمن تحسينات سريعة للجودة وإصلاحات في الأداء."),
-            sizeFormatted: remoteData.sizeFormatted || remoteData.apkSize,
-            updateUrl:
-              remoteData.updateUrl ||
-              remoteData.downloadUrl ||
-              "https://qurankrim20.netlify.app/app-release.apk",
+              "تم تحديث التطبيق لدعم الخوادم السحابية الأمنة وتحسين الأداء.",
+            sizeFormatted: remoteData.sizeFormatted || remoteData.apkSize || "20 MB • تحميل وتثبيت مباشر",
+            updateUrl: remoteData.updateUrl || remoteData.downloadUrl || "",
             updateType: isMajor ? "major" : "simple",
             isMajor,
           });
 
-          // Automatically trigger popup banner without requiring manual user search
+          // Automatically trigger popup banner & notify sidebar simultaneously
           setIsApkUpdateBannerOpen(true);
+          window.dispatchEvent(
+            new CustomEvent("app-update-available", {
+              detail: { version: remoteVer || "1.1.1" },
+            })
+          );
         }
       } catch (err) {
         // Ignore network errors gracefully
@@ -563,6 +563,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handleManualCheckEvent = () => {
+      if (apkUpdateInfo) {
+        setIsApkUpdateBannerOpen(true);
+      }
+    };
+    window.addEventListener("check-for-app-updates", handleManualCheckEvent);
+
     // Service worker message handler (e.g. Stop Adhan, APK Update Notification)
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (!event.data) return;
@@ -736,6 +743,7 @@ const App: React.FC = () => {
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener("check-for-app-updates", handleManualCheckEvent);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handleFocus);

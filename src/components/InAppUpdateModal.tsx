@@ -40,8 +40,12 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
     });
 
     if (success) {
+      const newVer = updateInfo.version || '1.1.1';
+      localStorage.setItem('anis_hot_updated_version', newVer);
+      localStorage.setItem('anis_apk_installed_version', newVer);
+      window.dispatchEvent(new CustomEvent('app-update-completed', { detail: { version: newVer } }));
       setIsHotUpdateCompleted(true);
-      onShowToast?.('تم تثبيت التحديث والميزات الجديدة بنجاح! اضغط إعادة تشغيل لتطبيقها.', 'success');
+      onShowToast?.('تم تثبيت التحديث والميزات الجديدة بنجاح!', 'success');
     } else {
       setIsUpdatingHot(false);
       onShowToast?.('تعذر إكمال التحديث الفوري، يمكنك تحميل ملف الـ APK بدلاً من ذلك.', 'error');

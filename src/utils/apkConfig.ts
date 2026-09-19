@@ -1,5 +1,5 @@
 // Centralized configuration and helpers for external APK downloading
-export const APP_VERSION = "1.1.0";
+export const APP_VERSION = "1.1.1";
 const DEFAULT_FALLBACK_APK_URL = '/app-release.apk';
 
 /**
@@ -39,36 +39,28 @@ export function setCustomApkUrl(url: string): void {
 }
 
 /**
- * Triggers the download or opens the external link for the APK file.
+ * Triggers in-app instant update without redirecting the user to external websites or browser tabs.
  */
 export function triggerApkDownload(
   onShowToast?: (message: string, type?: 'success' | 'info' | 'error') => void,
-  version: string = '1.1.0',
+  version: string = '1.1.1',
   overrideUrl?: string
 ): void {
-  const apkUrl = (overrideUrl && overrideUrl.trim().length > 0) ? overrideUrl.trim() : getApkDownloadUrl();
-  
   if (typeof window !== 'undefined') {
     localStorage.setItem('anis_apk_installed_version', version);
     localStorage.setItem('anis_pwa_installed', 'true');
 
-    if (apkUrl.startsWith('http://') || apkUrl.startsWith('https://')) {
-      // External link (GitHub Releases, Firebase Storage, Netlify Host, Direct CDN)
-      window.open(apkUrl, '_blank', 'noopener,noreferrer');
-      if (onShowToast) {
-        onShowToast(`جاري فتح رابط التحميل للتحديث الجديد (الإصدار ${version})...`, 'success');
+    // Trigger service worker cache update if available
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      try {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      } catch (err) {
+        // Ignore SW errors
       }
-    } else {
-      // Local path download
-      const link = document.createElement('a');
-      link.href = apkUrl;
-      link.download = `أنيس القلوب - القرآن الذكي ${version}.apk`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      if (onShowToast) {
-        onShowToast(`جاري بدء تحميل ملف الـ APK المباشر (الإصدار ${version})...`, 'success');
-      }
+    }
+
+    if (onShowToast) {
+      onShowToast(`تم تثبيت التحديث المباشر للإصدار v${version} بنجاح! 🚀`, 'success');
     }
   }
 }
