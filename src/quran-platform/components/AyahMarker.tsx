@@ -441,7 +441,7 @@ export const AyahMarker: React.FC<AyahMarkerProps> = ({
           <g transform="translate(50,50)" stroke={mainRose} strokeWidth="3" fill={innerBg}>
             {Array.from({ length: 8 }).map((_, idx) => (
               <path
-                key={idx}
+                key={`tajweed-petal-${idx}`}
                 d="M 0,0 C -12,-28 12,-28 0,0"
                 transform={`rotate(${idx * 45})`}
                 strokeLinejoin="round"
@@ -462,7 +462,7 @@ export const AyahMarker: React.FC<AyahMarkerProps> = ({
             const by = 50 + 38 * Math.sin(angle);
             return (
               <circle
-                key={idx}
+                key={`tajweed-bead-${idx}`}
                 cx={bx}
                 cy={by}
                 r="2"

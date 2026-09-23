@@ -145,7 +145,7 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
         </p>
         <div className="flex justify-center gap-2 mb-8 relative z-10">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className={`w-10 h-10 ${i < stars ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} />
+            <Star key={`kg-win-star-${i}`} className={`w-10 h-10 ${i < stars ? 'text-yellow-400 fill-yellow-400' : 'text-slate-300'}`} />
           ))}
         </div>
         
@@ -175,7 +175,7 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
         
         <div className="flex items-center gap-1">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className={`w-6 h-6 transition-all ${i < stars ? 'text-amber-400 fill-amber-400 scale-110 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'text-slate-800'}`} />
+            <Star key={`kg-play-star-${i}`} className={`w-6 h-6 transition-all ${i < stars ? 'text-amber-400 fill-amber-400 scale-110 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'text-slate-800'}`} />
           ))}
         </div>
         
@@ -207,7 +207,7 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
               const isTarget = word === question.missingWord;
               if (isTarget) {
                 return (
-                  <span key={idx} className={`inline-block mx-1.5 px-4 py-1 rounded-xl font-quran font-bold transition-all align-middle ${
+                  <span key={`kg-missing-${idx}`} className={`inline-block mx-1.5 px-4 py-1 rounded-xl font-quran font-bold transition-all align-middle ${
                     feedback === 'correct' ? 'bg-emerald-900/90 text-emerald-200 border-2 border-emerald-400' :
                     feedback === 'wrong' ? 'bg-rose-900/90 text-rose-200 border-2 border-rose-400' :
                     'bg-amber-950/50 text-amber-300 border-2 border-dashed border-amber-500/60 min-w-[80px]'
@@ -216,7 +216,7 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
                   </span>
                 );
               }
-              return word + ' ';
+              return <span key={`kg-word-${idx}`}>{word} </span>;
             })}
           </p>
         </div>
@@ -236,7 +236,7 @@ const QuranKidsGame: React.FC<QuranKidsGameProps> = ({ surahData, currentSurah }
               <motion.button
                 whileHover={feedback === null ? { scale: 1.03 } : {}}
                 whileTap={feedback === null ? { scale: 0.95 } : {}}
-                key={idx}
+                key={`kg-opt-${question.ayahNum}-${opt}-${idx}`}
                 onClick={() => handleAnswer(opt)}
                 disabled={feedback !== null}
                 className={`py-4 sm:py-5 rounded-2xl font-quran text-xl sm:text-2xl transition-all ${btnStyle}`}

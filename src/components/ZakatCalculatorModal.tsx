@@ -1022,7 +1022,7 @@ export const ZakatCalculatorModal: React.FC<ZakatCalculatorModalProps> = ({ isOp
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {ZAKAT_BENEFICIARIES.map((item, idx) => (
                       <div 
-                        key={idx}
+                        key={`zakat-ben-${item.title}-${idx}`}
                         id={`zakat-beneficiary-${idx}`}
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:border-emerald-100 dark:hover:border-emerald-950"
                       >

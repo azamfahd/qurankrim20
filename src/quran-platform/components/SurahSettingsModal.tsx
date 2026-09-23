@@ -696,7 +696,7 @@ export const SurahSettingsModal: React.FC = () => {
                       { name: 'تفسير الجلالين', author: 'المحلي والسيوطي', desc: 'إيجاز وبلاغة في إيضاح المعاني' },
                     ].map((book, idx) => (
                       <div 
-                        key={idx}
+                        key={`tafsir-book-${book.name}-${idx}`}
                         onClick={handleOpenTafsir}
                         className="p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200/70 dark:border-gray-700/70 hover:border-rose-300 dark:hover:border-rose-700 transition-all cursor-pointer group"
                       >

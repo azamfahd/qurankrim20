@@ -3,7 +3,9 @@ import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, Ch
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
+import { FirebaseService } from '../services/firebaseService';
 import { BatteryOptimizationGuideModal } from './BatteryOptimizationGuideModal';
+import { UnauthorizedDomainModal } from './UnauthorizedDomainModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
   const [showDeveloperKey, setShowDeveloperKey] = useState(false);
+  const [showUnauthorizedModal, setShowUnauthorizedModal] = useState(false);
 
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
@@ -141,6 +144,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         if (window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج؟')) {
                           try {
                             await SupabaseService.signOut();
+                            await FirebaseService.signOutUser();
                             onShowToast('تم تسجيل الخروج بنجاح', 'success');
                           } catch (err: any) {
                             console.error(err);
@@ -166,15 +170,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       if (isLoggingIn) return;
                       setIsLoggingIn(true);
                       try {
+                        await FirebaseService.signInWithGoogle();
                         await SupabaseService.signInWithGoogle();
                       } catch (err: any) {
                         console.error(err);
-                        onShowToast(err.message || 'فشل تسجيل الدخول', 'error');
+                        const errMsg = err?.message || String(err);
+                        if (errMsg.includes('auth/unauthorized-domain') || err?.code === 'auth/unauthorized-domain') {
+                          setShowUnauthorizedModal(true);
+                          onShowToast('يتطلب هذا النطاق إذن النطاقات المصرح بها في Firebase', 'info');
+                        } else {
+                          onShowToast(err.message || 'فشل تسجيل الدخول', 'error');
+                        }
                         setIsLoggingIn(false);
                       }
                     }}
                     disabled={isLoggingIn}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-white border border-[var(--color-border)] text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-white border border-[var(--color-border)] text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isLoggingIn ? (
                       <RefreshCw size={18} className="animate-spin text-[var(--color-primary)]" />
@@ -518,6 +529,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         isOpen={showBatteryGuide}
         onClose={() => setShowBatteryGuide(false)}
         onShowToast={onShowToast}
+      />
+
+      <UnauthorizedDomainModal
+        isOpen={showUnauthorizedModal}
+        onClose={() => setShowUnauthorizedModal(false)}
+        unauthorizedDomain={typeof window !== 'undefined' ? window.location.hostname : ''}
+        onContinueFallback={() => {
+          setShowUnauthorizedModal(false);
+          onShowToast('يمكنك استخدام جميع مميزات التطبيق كزائر أو عبر مزامنة Supabase', 'info');
+        }}
       />
     </AnimatePresence>
   );

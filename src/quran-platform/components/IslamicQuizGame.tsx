@@ -716,7 +716,7 @@ export const IslamicQuizGame: React.FC<IslamicQuizGameProps> = ({ onBackToHub })
             <div className="flex items-center gap-1.5">
               {[1, 2, 3].map((hIdx) => (
                 <Heart
-                  key={hIdx}
+                  key={`quiz-heart-${hIdx}`}
                   size={22}
                   className={`transition-all duration-300 ${
                     hIdx <= hearts ? 'text-rose-500 fill-rose-500 scale-110' : 'text-slate-600'

@@ -137,7 +137,7 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
               </h4>
               <ul className="space-y-2">
                 {updateInfo.features.map((feat, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-xs text-emerald-100/90 leading-relaxed">
+                  <li key={`update-feat-${idx}-${feat.substring(0, 15)}`} className="flex items-start gap-2 text-xs text-emerald-100/90 leading-relaxed">
                     <CheckCircle2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
                     <span>{feat}</span>
                   </li>

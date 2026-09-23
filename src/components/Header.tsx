@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, User, Calendar, Moon, RefreshCw, BookOpen, Heart, Clock, Scroll, Monitor, Download } from 'lucide-react';
+import { Menu, User, Calendar, Moon, RefreshCw, BookOpen, Heart, Clock, Scroll, Monitor, Download, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentHijriDate } from '../utils/hijri';
+import { OWNER_EMAIL } from '../services/adminService';
 
 interface HeaderProps {
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
   username: string;
+  currentUserEmail?: string | null;
   isSyncing?: boolean;
   lastSynced?: number | null;
   onOpenQuran?: () => void;
@@ -14,6 +16,7 @@ interface HeaderProps {
   onOpenPrayerTimes?: () => void;
   onOpenProphets?: () => void;
   onOpenInstallModal?: () => void;
+  onOpenOwnerAdmin?: () => void;
 }
 
 const toArabicNumbers = (str: string): string => {
@@ -28,18 +31,22 @@ const Header = React.memo<HeaderProps>(({
   onOpenSidebar, 
   onOpenSettings, 
   username, 
+  currentUserEmail,
   isSyncing, 
   lastSynced,
   onOpenQuran,
   onOpenAdhkar,
   onOpenPrayerTimes,
   onOpenProphets,
-  onOpenInstallModal
+  onOpenInstallModal,
+  onOpenOwnerAdmin
 }) => {
   const [hijriDate, setHijriDate] = useState<string>('');
   const [gregorianDate, setGregorianDate] = useState<string>('');
   const [agriMonth, setAgriMonth] = useState<string>('');
   const [isStandalone, setIsStandalone] = useState<boolean>(true);
+
+  const isOwner = currentUserEmail?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase();
 
   useEffect(() => {
     try {
@@ -156,6 +163,19 @@ const Header = React.memo<HeaderProps>(({
       </div>
 
       <div className="flex items-center gap-2">
+        {isOwner && onOpenOwnerAdmin && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onOpenOwnerAdmin}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs rounded-full shadow-lg border border-amber-300/50 cursor-pointer animate-pulse"
+            title="لوحة تحكم مالك التطبيق"
+          >
+            <Crown size={15} className="text-slate-950" />
+            <span className="hidden sm:inline">لوحة المالك</span>
+          </motion.button>
+        )}
+
         <AnimatePresence>
           {isSyncing && (
             <motion.div

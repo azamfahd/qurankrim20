@@ -256,7 +256,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
           </div>
           <div className="flex items-center gap-1">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Heart key={i} className={`w-5 h-5 ${i < health ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'text-slate-700'}`} />
+              <Heart key={`tg-health-map-${i}`} className={`w-5 h-5 ${i < health ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'text-slate-700'}`} />
             ))}
           </div>
         </div>
@@ -355,7 +355,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
               {activeQuestion.words.map((w: string, i: number) => {
                 if (i === activeQuestion.hiddenIndex) {
                   return (
-                    <span key={i} className={`inline-block min-w-[90px] h-10 sm:h-14 border-b-4 mx-1.5 transition-all px-2 font-bold rounded-t-lg align-middle
+                    <span key={`tg-hidden-${i}`} className={`inline-block min-w-[90px] h-10 sm:h-14 border-b-4 mx-1.5 transition-all px-2 font-bold rounded-t-lg align-middle
                       ${selectedAnswer 
                         ? (selectedAnswer === activeQuestion.hiddenWord ? 'text-emerald-700 border-emerald-600 bg-emerald-100' : 'text-rose-700 border-rose-600 bg-rose-100')
                         : 'border-amber-600 text-amber-800 bg-amber-200/80 animate-pulse'}`}>
@@ -363,7 +363,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
                     </span>
                   );
                 }
-                return w + ' ';
+                return <span key={`tg-word-${i}`}>{w} </span>;
               })}
             </div>
 
@@ -585,7 +585,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
         <div className="flex justify-between items-center bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-amber-500/30 shadow-lg mb-6 relative z-20">
           <div className="flex gap-1">
              {Array.from({ length: 3 }).map((_, i) => (
-              <Heart key={i} className={`w-6 h-6 ${i < health ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]' : 'text-slate-800'}`} />
+              <Heart key={`tg-health-play-${i}`} className={`w-6 h-6 ${i < health ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]' : 'text-slate-800'}`} />
             ))}
           </div>
           <div className="font-black text-amber-300 text-sm sm:text-base">مرحلة {currentLevel + 1} من {LEVELS.length}</div>
@@ -691,7 +691,7 @@ const QuranTreasureGame: React.FC<QuranTreasureGameProps> = ({ surahData }) => {
                   <div className="flex justify-between items-center pt-3">
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 3 }).map((_, i) => (
-                        <Heart key={i} size={16} className={i < health ? "fill-rose-500 text-rose-500" : "text-slate-600"} />
+                        <Heart key={`tg-health-summary-${i}`} size={16} className={i < health ? "fill-rose-500 text-rose-500" : "text-slate-600"} />
                       ))}
                     </div>
                     <span className="text-amber-400/90">المحاولات المتبقية:</span>

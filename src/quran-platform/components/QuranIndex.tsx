@@ -519,7 +519,7 @@ const QuranIndex = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  key={`${b.surah}-${b.ayah}`}
+                  key={`bm-${b.surah}-${b.ayah}-${i}`}
                   onClick={() => handleBookmarkClick(b.surah, b.ayah)}
                   className="bg-white dark:bg-gray-900 border border-emerald-900/10 dark:border-gray-800 rounded-2xl p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-all group"
                 >

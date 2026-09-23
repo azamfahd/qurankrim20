@@ -520,7 +520,7 @@ const AyahCatcherGame: React.FC<AyahCatcherGameProps> = ({ surahData }) => {
 
         <div className="flex items-center gap-1 bg-red-50 p-2 rounded-xl border-2 border-red-100">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Heart key={i} className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${i < health ? 'text-red-500 fill-red-500 scale-110 drop-shadow-md' : 'text-slate-300'}`} />
+            <Heart key={`catcher-health-${i}`} className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${i < health ? 'text-red-500 fill-red-500 scale-110 drop-shadow-md' : 'text-slate-300'}`} />
           ))}
         </div>
         

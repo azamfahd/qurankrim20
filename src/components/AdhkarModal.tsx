@@ -532,7 +532,7 @@ export const AdhkarModal: React.FC<AdhkarModalProps> = ({ isOpen, onClose }) => 
 
                     return (
                       <motion.div
-                        key={dhikr.id}
+                        key={`dhikr-${activeTab}-${dhikr.id || index}-${index}`}
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.04 }}

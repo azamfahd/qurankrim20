@@ -1,4 +1,5 @@
 import { SupabaseService, getSupabase } from './supabaseService';
+import { FirebaseService } from './firebaseService';
 import { ChatSession, UserSettings, Bookmark } from '../types';
 import { LocalDatabaseService } from '../db/localDb';
 
@@ -104,6 +105,8 @@ export class SyncService {
 
     try {
       await SupabaseService.saveSessions(userId, [session]);
+      // Dual-sync to Firebase Firestore
+      FirebaseService.saveUserData(userId, { sessions: [session] }).catch(() => {});
     } catch (e) {
       console.warn('Background cloud sync failed, queuing for offline retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
@@ -164,6 +167,7 @@ export class SyncService {
 
     try {
       await SupabaseService.saveUserSettings(userId, settings);
+      FirebaseService.saveUserData(userId, { settings }).catch(() => {});
     } catch (e) {
       console.warn('Cloud saveSettings failed, queuing for offline retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
@@ -265,6 +269,7 @@ export class SyncService {
 
     try {
       await SupabaseService.saveBookmark(userId, bookmark);
+      FirebaseService.saveUserData(userId, { bookmarks: [bookmark] }).catch(() => {});
     } catch (e) {
       console.warn('Cloud saveBookmark failed, queuing for retry:', e);
       await LocalDatabaseService.enqueueSyncItem({

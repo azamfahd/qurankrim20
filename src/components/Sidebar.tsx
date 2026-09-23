@@ -1,10 +1,11 @@
 import React from 'react';
-import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin, Smartphone, Bell } from 'lucide-react';
+import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin, Smartphone, Bell, Crown } from 'lucide-react';
 import { UserSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SmartAppButton } from './SmartAppButton';
 import { DhikrReminderService } from '../services/dhikrReminderService';
 import { AppUpdateService } from '../services/appUpdateService';
+import { OWNER_EMAIL } from '../services/adminService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ interface SidebarProps {
   onOpenAbout: () => void;
   onOpenFeedback: () => void;
   onOpenInstall?: () => void;
+  onOpenOwnerAdmin?: () => void;
+  currentUserEmail?: string | null;
   userInfo: UserSettings;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -54,12 +57,16 @@ export const Sidebar = React.memo<SidebarProps>(({
   onOpenAbout,
   onOpenFeedback,
   onOpenInstall,
+  onOpenOwnerAdmin,
+  currentUserEmail,
   userInfo,
   onShowToast
 }) => {
   const [isStandalone, setIsStandalone] = React.useState<boolean>(false);
   const [currentVersion, setCurrentVersion] = React.useState<string>(AppUpdateService.getCurrentVersion());
   const [availableUpdate, setAvailableUpdate] = React.useState<string | null>(null);
+
+  const isOwner = currentUserEmail?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase();
 
   React.useEffect(() => {
     const handleUpdateCompleted = (e: any) => {
@@ -162,6 +169,17 @@ export const Sidebar = React.memo<SidebarProps>(({
             </div>
 
             <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-3 custom-scrollbar">
+              {isOwner && onOpenOwnerAdmin && (
+                <div className="mb-1 p-1 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-600/15 border border-amber-500/30 rounded-2xl">
+                  <SidebarItem 
+                    icon={<Crown size={20} className="text-amber-500 animate-bounce" />} 
+                    label="لوحة مالك البرنامج 👑" 
+                    onClick={() => { onOpenOwnerAdmin(); onClose(); }} 
+                    primary 
+                  />
+                </div>
+              )}
+
               <SidebarItem 
                 icon={<PlusCircle size={20} />} 
                 label="محادثة جديدة" 

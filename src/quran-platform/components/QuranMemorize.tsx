@@ -1998,7 +1998,7 @@ const QuranMemorize: React.FC = () => {
                   return (
                     <span key={ayah.numberInSurah} className={`inline ${isCurrent ? 'bg-amber-100/90 px-2 py-1 rounded-xl border border-amber-300 shadow-2xs' : ''}`}>
                       {words.map((word: string, wIdx: number) => (
-                        <span key={wIdx} className="inline-block mx-0.5 sm:mx-1">
+                        <span key={`rep-word-${ayah.numberInSurah}-${wIdx}`} className="inline-block mx-0.5 sm:mx-1">
                           {word}
                         </span>
                       ))}
@@ -2382,7 +2382,7 @@ const QuranMemorize: React.FC = () => {
                           </h5>
                           <div className="space-y-1 max-h-24 overflow-y-auto">
                             {voiceSessionErrors.map((err, idx) => (
-                              <div key={idx} className="text-[10px] text-red-800 bg-white p-1.5 rounded border border-red-100 flex items-center justify-between">
+                              <div key={`voice-err-${err.ayahNum}-${err.expectedWord}-${idx}`} className="text-[10px] text-red-800 bg-white p-1.5 rounded border border-red-100 flex items-center justify-between">
                                 <span>آية {err.ayahNum}: "{err.expectedWord}"</span>
                                 <span className="text-gray-400 text-[9px]">{err.time}</span>
                               </div>
@@ -2574,7 +2574,7 @@ const QuranMemorize: React.FC = () => {
                             
                             <div className="space-y-1.5 max-h-40 overflow-y-auto">
                               {examResultData.detailedErrors.map((err, idx) => (
-                                <div key={idx} className="text-xs text-red-800 bg-red-50 p-2 rounded-lg border border-red-100 font-medium">
+                                <div key={`exam-err-${err.ayahNum}-${idx}`} className="text-xs text-red-800 bg-red-50 p-2 rounded-lg border border-red-100 font-medium">
                                   ⚠️ آية {err.ayahNum}: {err.description}
                                 </div>
                               ))}
@@ -2703,7 +2703,7 @@ const QuranMemorize: React.FC = () => {
 
                             return (
                               <span
-                                key={wIdx}
+                                key={`voice-word-${ayah.numberInSurah}-${wIdx}`}
                                 className={`inline-block mx-0.5 sm:mx-1 px-1 sm:px-2 py-0.5 rounded-lg transition-all font-bold cursor-pointer relative ${
                                   isErroneous
                                     ? 'bg-red-200 text-red-950 border-b-2 border-red-400'
@@ -3082,7 +3082,7 @@ const QuranMemorize: React.FC = () => {
 
                             return (
                               <span
-                                key={wIdx}
+                                key={`test-word-${ayah.numberInSurah}-${wIdx}`}
                                 onClick={() => toggleWordReveal(wordKey)}
                                 className={`cursor-pointer transition-all duration-200 px-1.5 py-0.5 rounded-lg select-none inline-block mx-0.5 sm:mx-1 ${
                                   isHidden

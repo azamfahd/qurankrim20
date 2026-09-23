@@ -161,7 +161,7 @@ export const PrayerTimesWidget = React.memo<PrayerTimesWidgetProps>(({
             const isNext = p.isNext;
             return (
               <div 
-                key={p.key || p.name || `prayer-${idx}`} 
+                key={`prayer-${p.key || p.name || idx}-${idx}`} 
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl transition-all border group/item relative ${
                   isNext 
                     ? 'bg-[var(--color-gold)]/25 border-[var(--color-gold)] shadow-xs ring-1 ring-[var(--color-gold)]/40' 

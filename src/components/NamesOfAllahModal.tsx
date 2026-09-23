@@ -96,7 +96,7 @@ export const NamesOfAllahModal: React.FC<NamesOfAllahModalProps> = ({ isOpen, on
               <AnimatePresence mode="popLayout">
                 {filteredNames.map((item, index) => (
                   <motion.div 
-                    key={item.id} 
+                    key={`allah-name-${item.id}`} 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}

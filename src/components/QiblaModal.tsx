@@ -618,7 +618,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
                       {/* علامات الدرجات الثابتة */}
                       <div className="absolute inset-3 pointer-events-none opacity-40">
                         {[...Array(72)].map((_, i) => (
-                          <div key={i} className="absolute w-full h-full flex justify-center" style={{ rotate: `${i * 5}deg` }}>
+                          <div key={`compass-tick-${i}`} className="absolute w-full h-full flex justify-center" style={{ rotate: `${i * 5}deg` }}>
                             <div className={`w-[1px] ${i % 9 === 0 ? 'h-3.5 bg-amber-400' : i % 3 === 0 ? 'h-2.5 bg-amber-400/60' : 'h-1.5 bg-amber-300/30'}`}></div>
                           </div>
                         ))}
@@ -795,7 +795,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
                       <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
                         {POPULAR_CITIES.map((city, idx) => (
                           <button
-                            key={idx}
+                            key={`qibla-city-${city.name}-${idx}`}
                             onClick={() => {
                               updateLocationData(city.lat, city.lon, city.name, false);
                               setShowCitySelector(false);

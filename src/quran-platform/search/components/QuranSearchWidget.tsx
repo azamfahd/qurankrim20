@@ -192,13 +192,13 @@ export const QuranSearchWidget: React.FC<{
         {parts.map((part, i) =>
           part.replace(/[أإآٱ]/g, 'ا').toLowerCase() === cleanQ.toLowerCase() ? (
             <mark
-              key={i}
+              key={`search-hl-${i}-${part.slice(0, 10)}`}
               className="bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 px-1 rounded-xs font-semibold"
             >
               {part}
             </mark>
           ) : (
-            <span key={i}>{part}</span>
+            <span key={`search-txt-${i}-${part.slice(0, 10)}`}>{part}</span>
           )
         )}
       </span>

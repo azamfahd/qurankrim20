@@ -19,10 +19,13 @@ import { LocationPromptBanner } from "./components/LocationPromptBanner";
 import { getCurrentHijriDate, getHijriReminders } from "./utils/hijri";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { ApkUpdateBanner } from "./components/ApkUpdateBanner";
+import { BroadcastBanner } from "./components/BroadcastBanner";
+import { OwnerAdminModal } from "./components/OwnerAdminModal";
 import { UpdateNotifier } from "./components/UpdateNotifier";
 import { QuranChatSession } from "./services/geminiService";
 import { SupabaseService } from "./services/supabaseService";
 import { SyncService } from "./services/syncService";
+import { testFirestoreConnection, FirebaseService } from "./services/firebaseService";
 import { LocalDatabaseService } from "./db/localDb";
 import {
   ChatMessage,
@@ -320,6 +323,10 @@ const App: React.FC = () => {
   );
   const [isPermissionsGuideOpen, setIsPermissionsGuideOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isOwnerAdminOpen, setIsOwnerAdminOpen] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(() => {
+    return localStorage.getItem("anis_auth_email") || null;
+  });
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(
     () => initialPreservedState?.activeView === "feedback"
   );
@@ -397,6 +404,20 @@ const App: React.FC = () => {
     AdhanAudioEngine.setupInteractionAudioUnlock();
     AdhanOfflineManager.seedLocalAssets(settings.adhanSettings);
     DhikrReminderService.init(settings.dhikrReminderSettings);
+    testFirestoreConnection().catch(() => {});
+
+    // Sync Firebase Auth User Email to identify Owner (azamfahd25@gmail.com)
+    const unsubAuth = FirebaseService.onAuthChange((user) => {
+      if (user && user.email) {
+        setCurrentUserEmail(user.email);
+        localStorage.setItem("anis_auth_email", user.email);
+      } else if (settings.isLoggedIn && settings.email) {
+        setCurrentUserEmail(settings.email);
+      } else {
+        setCurrentUserEmail(null);
+        localStorage.removeItem("anis_auth_email");
+      }
+    });
 
     // Idle-time prefetching of all feature modals for instantaneous (0ms) opening
     const preloadModals = () => {
@@ -1880,6 +1901,17 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              {currentUserEmail?.trim().toLowerCase() === "azamfahd25@gmail.com" && (
+                <button
+                  onClick={() => setIsOwnerAdminOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black text-xs rounded-full shadow-md border border-amber-300/40 animate-pulse cursor-pointer"
+                  title="لوحة تحكم مالك التطبيق"
+                >
+                  <span>👑</span>
+                  <span className="hidden sm:inline">المالك</span>
+                </button>
+              )}
+
               <AnimatePresence>
                 {isSyncing && (
                   <motion.div
@@ -1927,6 +1959,7 @@ const App: React.FC = () => {
             onOpenSidebar={() => setIsSidebarOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
             username={settings.username}
+            currentUserEmail={currentUserEmail}
             isSyncing={isSyncing}
             lastSynced={lastSynced}
             onOpenQuran={() => openQuran(undefined, undefined, "index")}
@@ -1934,6 +1967,7 @@ const App: React.FC = () => {
             onOpenPrayerTimes={() => setIsAdhanSettingsOpen(true)}
             onOpenProphets={() => setIsProphetsOpen(true)}
             onOpenInstallModal={() => setIsInstallModalOpen(true)}
+            onOpenOwnerAdmin={() => setIsOwnerAdminOpen(true)}
           />
         )}
 
@@ -1952,7 +1986,7 @@ const App: React.FC = () => {
           <div className="flex flex-col gap-5 flex-1">
             {messages.map((msg, index) => (
               <div
-                key={msg.id || `msg-${index}`}
+                key={msg.id ? `msg-${msg.id}-${index}` : `msg-${index}`}
                 id={`msg-${msg.id || index}`}
                 className={`message-row ${msg.type} ${
                   index === messages.length - 1 && msg.type === "ai"
@@ -2130,7 +2164,7 @@ const App: React.FC = () => {
                         "آيات تجلب السكينة",
                       ].map((prompt, idx) => (
                         <button
-                          key={idx}
+                          key={`prompt-suggestion-${idx}`}
                           disabled={!isOnline}
                           onClick={() =>
                             isOnline && handleEmotionSubmit(prompt)
@@ -2386,6 +2420,8 @@ const App: React.FC = () => {
         )}
       </div>
 
+      <BroadcastBanner />
+
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -2408,6 +2444,8 @@ const App: React.FC = () => {
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenInstall={() => setIsInstallModalOpen(true)}
+        onOpenOwnerAdmin={() => setIsOwnerAdminOpen(true)}
+        currentUserEmail={currentUserEmail}
         userInfo={settings}
         onShowToast={showToast}
       />
@@ -2713,6 +2751,13 @@ const App: React.FC = () => {
 
           <GlobalDownloadOverlay />
           <StartupPermissionOnboarding />
+
+          <OwnerAdminModal
+            isOpen={isOwnerAdminOpen}
+            onClose={() => setIsOwnerAdminOpen(false)}
+            currentUserEmail={currentUserEmail}
+            onShowToast={showToast}
+          />
 
           {isDhikrReminderOpen && (
             <DhikrSettingsModal

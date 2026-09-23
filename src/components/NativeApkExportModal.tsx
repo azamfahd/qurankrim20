@@ -293,7 +293,7 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
 
                 <div className="space-y-2">
                   {buildCommands.map((item, idx) => (
-                    <div key={idx} className="bg-slate-950 text-slate-200 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
+                    <div key={`build-cmd-${idx}-${item.title}`} className="bg-slate-950 text-slate-200 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
                       <div className="text-[11px] text-emerald-400 font-sans font-bold">{item.title}</div>
                       <div className="flex items-center justify-between gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
                         <code className="text-amber-300 select-all">{item.cmd}</code>

@@ -485,16 +485,37 @@ export class QuranChatSession {
 
     // Strategy 2: Server-side proxy endpoint (/api/ai/chat)
     if (!aiResult) {
+      // Smart detection for Capacitor APK / WebView / local file environment
+      const isNativeApp = 
+        Capacitor.isNativePlatform() || 
+        (typeof window !== 'undefined' && (
+          window.location.protocol === 'file:' || 
+          window.location.hostname === 'localhost' || 
+          window.location.hostname === '127.0.0.1' ||
+          window.location.origin.includes('capacitor')
+        ));
+
       const candidateEndpoints: string[] = [];
-      if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('about:blank')) {
-        candidateEndpoints.push('');
-        candidateEndpoints.push(window.location.origin);
+      
+      if (isNativeApp) {
+        // In APK / Native app, prioritize Cloud Run production servers directly!
+        candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+        candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+        if (import.meta.env.VITE_BACKEND_API_URL) {
+          candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
+        }
+      } else {
+        // In standard web browser, check relative / origin first, then Cloud Run
+        if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('about:blank')) {
+          candidateEndpoints.push('');
+          candidateEndpoints.push(window.location.origin);
+        }
+        if (import.meta.env.VITE_BACKEND_API_URL) {
+          candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
+        }
+        candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+        candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
       }
-      if (import.meta.env.VITE_BACKEND_API_URL) {
-        candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
-      }
-      candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
-      candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
 
       const uniqueEndpoints = Array.from(new Set(candidateEndpoints.filter(Boolean)));
 
@@ -504,7 +525,7 @@ export class QuranChatSession {
           if (prioritizedKey) headers['x-user-gemini-key'] = prioritizedKey;
 
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for fast failover
 
           const endpointUrl = `${baseUrl.replace(/\/$/, '')}/api/ai/chat`;
           const response = await fetch(endpointUrl, {

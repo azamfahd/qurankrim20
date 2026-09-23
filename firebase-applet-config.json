@@ -1,12 +1,14 @@
 {
-  "projectId": "wide-honor-1v7sv",
-  "appId": "1:744795722163:web:b079d3125368f0d4713bc6",
-  "apiKey": "AIzaSyDEsTiGIChlkO9LVGq95s1isWlogFCPDpU",
-  "authDomain": "wide-honor-1v7sv.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-6a2f14db-5e96-44db-85fc-8413a4d56af2",
-  "storageBucket": "wide-honor-1v7sv.firebasestorage.app",
-  "messagingSenderId": "744795722163",
+  "projectId": "accounting-828e5",
+  "appId": "1:1026973565471:web:1bbae86f003f6352d0cb2a",
+  "apiKey": "AIzaSyArrm3AkW24fFHo0jGcZ_5c_RJuEgrlXuY",
+  "authDomain": "accounting-828e5.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "accounting-828e5.firebasestorage.app",
+  "messagingSenderId": "1026973565471",
   "measurementId": "",
-  "oAuthClientId": "744795722163-82g88qo2upksf4dbgeh7fjk9lcufqd53.apps.googleusercontent.com",
+  "oAuthClientId": "1026973565471-d2vt0c5imhjj7v9uem26ck71nqpofc59.apps.googleusercontent.com",
+  "androidPackageName": "com.anisalqulub.app",
+  "androidAppId": "1:1026973565471:android:0ac9d1fb06f8d3e9d0cb2a",
   "recaptchaSiteKey": ""
 }

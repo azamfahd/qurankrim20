@@ -150,7 +150,7 @@ export const HijriCalendarModal: React.FC<HijriCalendarModalProps> = ({
                   <div className="space-y-2">
                     {reminders.map((rem, i) => (
                       <div 
-                        key={i} 
+                        key={`hijri-rem-${rem.title}-${i}`} 
                         className={`p-3 rounded-2xl border text-xs leading-relaxed flex items-start gap-3 transition-colors ${
                           rem.type === 'success' ? 'bg-green-50/75 border-green-200/50 text-green-800' :
                           rem.type === 'warning' ? 'bg-amber-50/75 border-amber-200/50 text-amber-800' :
