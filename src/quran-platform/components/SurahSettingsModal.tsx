@@ -196,7 +196,11 @@ export const SurahSettingsModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div 
+      <motion.div 
+        key="surah-settings-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm text-right" 
         style={{
           paddingTop: 'max(0.75rem, var(--safe-area-top, 0px))',
@@ -942,7 +946,7 @@ export const SurahSettingsModal: React.FC = () => {
             </button>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </AnimatePresence>
   );
 };

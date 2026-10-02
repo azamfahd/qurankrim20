@@ -230,9 +230,20 @@ const QuranPlatformContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           paddingRight: 'max(0px, var(--safe-area-right, 0px))'
         }}
       >
-        <Suspense fallback={<ViewSuspenseFallback />}>
-          {renderContent()}
-        </Suspense>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentView}
+            initial={{ opacity: 0, y: 10, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.995 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1 w-full h-full flex flex-col min-h-full"
+          >
+            <Suspense fallback={<ViewSuspenseFallback />}>
+              {renderContent()}
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Unified Settings Modals */}

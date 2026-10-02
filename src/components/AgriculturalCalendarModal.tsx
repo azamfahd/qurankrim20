@@ -2701,7 +2701,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                   </span>
                                   <div className="flex flex-wrap gap-1">
                                     {crop.regionsAr.map((rName, rIdx) => (
-                                      <span key={rIdx} className="text-[10px] bg-stone-100 dark:bg-gray-900 text-stone-700 dark:text-stone-300 px-2 py-0.5 rounded-md border border-stone-200/70 dark:border-gray-800 font-bold">
+                                      <span key={`crop-reg-${crop.id || 'c'}-${rIdx}-${rName}`} className="text-[10px] bg-stone-100 dark:bg-gray-900 text-stone-700 dark:text-stone-300 px-2 py-0.5 rounded-md border border-stone-200/70 dark:border-gray-800 font-bold">
                                         {rName}
                                       </span>
                                     ))}
@@ -2740,7 +2740,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                                           {crop.easySteps.map((step, sIdx) => {
                                             const stepEmojis = ['🌱 الخطوة 1 (التربة والتجهيز):', '🌾 الخطوة 2 (البذر والغرس):', '💧 الخطوة 3 (الري والعناية):', '🧺 الخطوة 4 (الجني والحصاد):'];
                                             return (
-                                              <div key={sIdx} className="bg-stone-50/80 dark:bg-gray-900/80 p-2 rounded-xl border border-stone-200/60 dark:border-gray-800 text-[11px] space-y-0.5">
+                                              <div key={`crop-step-${crop.id || 'c'}-${sIdx}`} className="bg-stone-50/80 dark:bg-gray-900/80 p-2 rounded-xl border border-stone-200/60 dark:border-gray-800 text-[11px] space-y-0.5">
                                                 <strong className="text-[10px] text-emerald-800 dark:text-emerald-300 block font-black">
                                                   {stepEmojis[sIdx] || `الخطوة ${sIdx + 1}:`}
                                                 </strong>
@@ -3534,7 +3534,7 @@ export default function AgriculturalCalendarModal({ isOpen, onClose, location }:
                             <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 block">إرشادات العمليات الحقلية والزراعية:</span>
                             <ul className="space-y-1 pr-2">
                               {selectedDetailModal.data.recommendations.map((rec: string, rIdx: number) => (
-                                <li key={rIdx} className="flex items-start gap-1.5 text-[11px] font-bold">
+                                <li key={`detail-rec-${rIdx}`} className="flex items-start gap-1.5 text-[11px] font-bold">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                                   <span>{rec}</span>
                                 </li>

@@ -89,8 +89,6 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const isOwner = AdminService.isOwnerEmail(currentUserEmail);
 
   const handlePublishAnnouncement = async () => {
@@ -212,13 +210,25 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md">
+      {isOpen && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-2xl max-h-[90vh] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100"
+          key="owner-admin-modal-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
         >
+          <motion.div
+            key="owner-admin-modal-card"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative w-full max-w-2xl max-h-[90vh] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header Banner */}
           <div className="relative p-5 bg-gradient-to-r from-amber-950/80 via-yellow-950/50 to-slate-900 border-b border-amber-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -700,8 +710,9 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
               </div>
             </>
           )}
+          </motion.div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

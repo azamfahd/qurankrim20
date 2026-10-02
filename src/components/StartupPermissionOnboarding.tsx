@@ -90,22 +90,23 @@ export const StartupPermissionOnboarding: React.FC = () => {
     handleNextStep();
   };
 
-  if (!isVisible) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-        dir="rtl"
-      >
+      {isVisible && (
         <motion.div
-          initial={{ scale: 0.9, y: 20 }}
-          animate={{ scale: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-sm w-full relative overflow-hidden"
+          key="startup-permission-onboarding-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          dir="rtl"
         >
+          <motion.div
+            key="startup-permission-onboarding-card"
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-sm w-full relative overflow-hidden"
+          >
           {/* Top border decoration */}
           <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[var(--color-gold)] to-teal-500"></div>
 
@@ -179,8 +180,9 @@ export const StartupPermissionOnboarding: React.FC = () => {
               </div>
             </motion.div>
           )}
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

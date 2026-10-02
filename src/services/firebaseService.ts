@@ -3,6 +3,7 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInAnonymously,
   signOut as firebaseSignOut, 
   onAuthStateChanged, 
   User 
@@ -119,6 +120,26 @@ export class FirebaseService {
       await firebaseSignOut(auth);
     } catch (error) {
       console.error('Firebase Sign-Out Error:', error);
+    }
+  }
+
+  /**
+   * Get currently signed in Firebase user
+   */
+  static getCurrentUser(): User | null {
+    return auth.currentUser;
+  }
+
+  /**
+   * Ensure silent background authentication with Firebase
+   */
+  static async ensureSilentAuth(): Promise<User | null> {
+    try {
+      if (auth.currentUser) return auth.currentUser;
+      const cred = await signInAnonymously(auth);
+      return cred.user;
+    } catch {
+      return auth.currentUser;
     }
   }
 

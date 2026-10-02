@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import Header from "./components/Header";
 import { EmotionForm } from "./components/EmotionForm";
 import { ResultCard } from "./components/ResultCard";
@@ -67,7 +68,7 @@ import { ApkVersionInfo } from "./components/ApkUpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Suspense } from "react";
 import { lazyWithRetry } from "./utils/lazyWithRetry";
-import { DhikrReminderService } from "./services/dhikrReminderService";
+import { DhikrReminderService, DEFAULT_DHIKR_SETTINGS } from "./services/dhikrReminderService";
 import { DhikrFloatingBanner } from "./components/DhikrFloatingBanner";
 import { AppStatePreservation } from "./services/appStatePreservation";
 import { NativeNotificationService } from "./services/nativeNotificationService";
@@ -167,7 +168,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   username: "",
   email: "",
   isLoggedIn: false,
-  model: "gemini-3.5-flash", // الافتراضي للزائر: نموذج فائق السرعة والاستقرار
+  model: "gemini-3.8-flash", // الافتراضي للزائر والمستخدم: نموذج فائق السرعة والاستقرار والذكاء
   creativityLevel: 0.5,
   apiKey: "",
   bookmarks: [],
@@ -185,6 +186,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     calculationMethod: "MuslimWorldLeague",
     autoPlayLiveAdhan: true,
   },
+  dhikrReminderSettings: DEFAULT_DHIKR_SETTINGS,
 };
 
 // Helper to generate standard v4 UUID for database compatibility
@@ -1109,12 +1111,8 @@ const App: React.FC = () => {
           apiKey: effectiveApiKey,
           location: effectiveLocation,
         };
-        // If logged in via Google/Account, default to 'gemini-3.6-flash' if no model was set
-        if (isLogged && !finalSettings.model) {
-          finalSettings.model = "gemini-3.6-flash";
-        } else if (!isLogged && !finalSettings.model) {
-          // Default for guest visitors is 'gemini-3.5-flash' (speed & high stability)
-          finalSettings.model = "gemini-3.5-flash";
+        if (!finalSettings.model) {
+          finalSettings.model = "gemini-3.8-flash";
         }
         setSettings(finalSettings);
         lastSavedSettingsRef.current = JSON.stringify({
@@ -1167,6 +1165,10 @@ const App: React.FC = () => {
       setSupabaseUser(user);
 
       if (user) {
+        if (user.email) {
+          setCurrentUserEmail(user.email);
+          localStorage.setItem("anis_auth_email", user.email);
+        }
         const prevUserId = userIdRef.current;
         const isGuest =
           prevUserId &&
@@ -1239,10 +1241,15 @@ const App: React.FC = () => {
           };
         });
 
-        // Show gentle non-intrusive banner ONLY on very first launch if user hasn't seen/dismissed it
+        // Show gentle non-intrusive banner ONLY if APK install prompt is already handled or in native app
         const hasDismissedLocationBanner =
           localStorage.getItem("anis_location_banner_dismissed") === "true";
-        if (details.isFirstLaunch && !hasDismissedLocationBanner) {
+        const hasHandledApkInstall =
+          Boolean(localStorage.getItem("anis_apk_installed_version")) ||
+          Boolean(localStorage.getItem("anis_install_dismissed")) ||
+          Capacitor.isNativePlatform();
+
+        if (details.isFirstLaunch && !hasDismissedLocationBanner && hasHandledApkInstall) {
           setLocationBannerData({
             location: detectedLocation,
             isHighAccuracy: details.source === "gps",
@@ -1823,6 +1830,7 @@ const App: React.FC = () => {
                 <button
                   onClick={async () => {
                     try {
+                      FirebaseService.ensureSilentAuth().catch(() => {});
                       await SupabaseService.signInWithGoogle();
                     } catch (err: any) {
                       console.error(err);
@@ -2271,8 +2279,11 @@ const App: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div
-                    className="action-card dhikr-alert group"
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card dhikr-alert group cursor-pointer"
                     onClick={() => setIsDhikrReminderOpen(true)}
                   >
                     <div className="action-card-icon bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950">
@@ -2281,106 +2292,139 @@ const App: React.FC = () => {
                     <span className="action-card-title font-black text-amber-300">
                       تنبيه الأذكار
                     </span>
-                  </div>
-                  <div
-                    className="action-card prophets group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card prophets group cursor-pointer"
                     onClick={() => setIsProphetsOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Scroll size={22} />
                     </div>
                     <span className="action-card-title">قصص الأنبياء</span>
-                  </div>
-                  <div
-                    className="action-card miracles group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card miracles group cursor-pointer"
                     onClick={() => setIsMiraclesOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Sparkles size={22} />
                     </div>
                     <span className="action-card-title">الإعجاز العلمي</span>
-                  </div>
-                  <div
-                    className="action-card adhkar group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card adhkar group cursor-pointer"
                     onClick={() => setIsAdhkarOpen(true)}
                   >
                     <div className="action-card-icon">
                       <BookOpen size={22} />
                     </div>
                     <span className="action-card-title">الأذكار</span>
-                  </div>
-                  <div
-                    className="action-card hijri group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card hijri group cursor-pointer"
                     onClick={() => setIsHijriOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Calendar size={22} />
                     </div>
                     <span className="action-card-title">التقويم الهجري</span>
-                  </div>
-                  <div
-                    className="action-card agri group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card agri group cursor-pointer"
                     onClick={() => setIsAgriCalendarOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Leaf size={22} />
                     </div>
                     <span className="action-card-title">التقويم الزراعي</span>
-                  </div>
-                  <div
-                    className="action-card tasbih group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card tasbih group cursor-pointer"
                     onClick={() => setIsTasbihOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Plus size={22} />
                     </div>
                     <span className="action-card-title">المسبحة</span>
-                  </div>
-                  <div
-                    className="action-card qibla group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card qibla group cursor-pointer"
                     onClick={() => setIsQiblaOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Compass size={22} />
                     </div>
                     <span className="action-card-title">القبلة</span>
-                  </div>
-                  <div
-                    className="action-card zakat group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card zakat group cursor-pointer"
                     onClick={() => setIsZakatOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Calculator size={22} />
                     </div>
                     <span className="action-card-title">الزكاة</span>
-                  </div>
-                  <div
-                    className="action-card names group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card names group cursor-pointer"
                     onClick={() => setIsNamesOfAllahOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Key size={22} />
                     </div>
                     <span className="action-card-title">أسماء الله</span>
-                  </div>
-                  <div
-                    className="action-card bookmarks group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card bookmarks group cursor-pointer"
                     onClick={() => setIsBookmarksOpen(true)}
                   >
                     <div className="action-card-icon">
                       <BookmarkIcon size={22} />
                     </div>
                     <span className="action-card-title">المحفوظات</span>
-                  </div>
-                  <div
-                    className="action-card about group"
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    className="action-card about group cursor-pointer"
                     onClick={() => setIsAboutOpen(true)}
                   >
                     <div className="action-card-icon">
                       <Sparkles size={22} />
                     </div>
                     <span className="action-card-title">لمحة عن البرنامج</span>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -2452,324 +2496,355 @@ const App: React.FC = () => {
 
       <ErrorBoundary fallback={null}>
         <Suspense fallback={<ModalSuspenseFallback />}>
-          {isTasbihOpen && (
-            <TasbihModal
-              isOpen={isTasbihOpen}
-              onClose={() => setIsTasbihOpen(false)}
-            />
-          )}
+          <AnimatePresence>
+            {isTasbihOpen && (
+              <TasbihModal
+                key="modal-tasbih"
+                isOpen={isTasbihOpen}
+                onClose={() => setIsTasbihOpen(false)}
+              />
+            )}
 
-          {isHijriOpen && (
-            <HijriCalendarModal
-              isOpen={isHijriOpen}
-              onClose={() => setIsHijriOpen(false)}
-              hijriOffset={hijriOffset}
-              setHijriOffset={setHijriOffset}
-            />
-          )}
+            {isHijriOpen && (
+              <HijriCalendarModal
+                key="modal-hijri"
+                isOpen={isHijriOpen}
+                onClose={() => setIsHijriOpen(false)}
+                hijriOffset={hijriOffset}
+                setHijriOffset={setHijriOffset}
+              />
+            )}
 
-          {isQiblaOpen && (
-            <QiblaModal
-              isOpen={isQiblaOpen}
-              onClose={() => setIsQiblaOpen(false)}
-              settings={settings}
-              onUpdateSettings={setSettings}
-            />
-          )}
+            {isQiblaOpen && (
+              <QiblaModal
+                key="modal-qibla"
+                isOpen={isQiblaOpen}
+                onClose={() => setIsQiblaOpen(false)}
+                settings={settings}
+                onUpdateSettings={setSettings}
+              />
+            )}
 
-          {isZakatOpen && (
-            <ZakatCalculatorModal
-              isOpen={isZakatOpen}
-              onClose={() => setIsZakatOpen(false)}
-            />
-          )}
+            {isZakatOpen && (
+              <ZakatCalculatorModal
+                key="modal-zakat"
+                isOpen={isZakatOpen}
+                onClose={() => setIsZakatOpen(false)}
+              />
+            )}
 
-          {isAgriCalendarOpen && (
-            <AgriculturalCalendarModal
-              isOpen={isAgriCalendarOpen}
-              onClose={() => setIsAgriCalendarOpen(false)}
-              location={settings.location}
-            />
-          )}
+            {isAgriCalendarOpen && (
+              <AgriculturalCalendarModal
+                key="modal-agri"
+                isOpen={isAgriCalendarOpen}
+                onClose={() => setIsAgriCalendarOpen(false)}
+                location={settings.location}
+              />
+            )}
 
-          {isMiraclesOpen && (
-            <MiraclesModal
-              isOpen={isMiraclesOpen}
-              onClose={() => setIsMiraclesOpen(false)}
-              isOnline={isOnline}
-              onShowToast={showToast}
-            />
-          )}
+            {isMiraclesOpen && (
+              <MiraclesModal
+                key="modal-miracles"
+                isOpen={isMiraclesOpen}
+                onClose={() => setIsMiraclesOpen(false)}
+                isOnline={isOnline}
+                onShowToast={showToast}
+              />
+            )}
 
-          {isProphetsOpen && (
-            <ProphetsModal
-              isOpen={isProphetsOpen}
-              onClose={() => setIsProphetsOpen(false)}
-              onShowToast={showToast}
-            />
-          )}
+            {isProphetsOpen && (
+              <ProphetsModal
+                key="modal-prophets"
+                isOpen={isProphetsOpen}
+                onClose={() => setIsProphetsOpen(false)}
+                onShowToast={showToast}
+              />
+            )}
 
-          {isAdhkarOpen && (
-            <AdhkarModal
-              isOpen={isAdhkarOpen}
-              onClose={() => setIsAdhkarOpen(false)}
-            />
-          )}
+            {isAdhkarOpen && (
+              <AdhkarModal
+                key="modal-adhkar"
+                isOpen={isAdhkarOpen}
+                onClose={() => setIsAdhkarOpen(false)}
+              />
+            )}
 
-          {isNamesOfAllahOpen && (
-            <NamesOfAllahModal
-              isOpen={isNamesOfAllahOpen}
-              onClose={() => setIsNamesOfAllahOpen(false)}
-            />
-          )}
+            {isNamesOfAllahOpen && (
+              <NamesOfAllahModal
+                key="modal-names"
+                isOpen={isNamesOfAllahOpen}
+                onClose={() => setIsNamesOfAllahOpen(false)}
+              />
+            )}
 
-          {isBookmarksOpen && (
-            <BookmarksModal
-              isOpen={isBookmarksOpen}
-              onClose={() => setIsBookmarksOpen(false)}
-              bookmarks={settings.bookmarks || []}
-              onRemoveBookmark={(id) => {
-                setSettings((prev) => {
-                  const newBookmarks = (prev.bookmarks || []).filter(
-                    (b) => b.id !== id
+            {isBookmarksOpen && (
+              <BookmarksModal
+                key="modal-bookmarks"
+                isOpen={isBookmarksOpen}
+                onClose={() => setIsBookmarksOpen(false)}
+                bookmarks={settings.bookmarks || []}
+                onRemoveBookmark={(id) => {
+                  setSettings((prev) => {
+                    const newBookmarks = (prev.bookmarks || []).filter(
+                      (b) => b.id !== id
+                    );
+                    const newSettings = { ...prev, bookmarks: newBookmarks };
+
+                    showToast("تمت إزالة الآية من المحفوظات", "info");
+
+                    // Explicitly sync deletion to backend
+                    if (userIdRef.current) {
+                      SyncService.deleteBookmark(
+                        userIdRef.current,
+                        id,
+                        newSettings
+                      ).catch(console.error);
+                    }
+
+                    return newSettings;
+                  });
+                }}
+                isOnline={isOnline}
+                reciter={settings.reciter}
+                onShowToast={showToast}
+                onOpenQuran={openQuran}
+              />
+            )}
+
+            {isSettingsOpen && (
+              <SettingsModal
+                key="modal-settings"
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                settings={settings}
+                onSave={setSettings}
+                onShowToast={showToast}
+                onOpenLocationModal={() => setIsLocationModalOpen(true)}
+                onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
+                isSyncing={isSyncing}
+                lastSynced={lastSynced}
+              />
+            )}
+
+            {isLocationModalOpen && (
+              <ManualLocationModal
+                key="modal-location"
+                isOpen={isLocationModalOpen}
+                onClose={() => setIsLocationModalOpen(false)}
+                currentLocation={settings.location}
+                onSelectLocation={(newLocation, calculationMethod) => {
+                  setSettings((prev) => ({
+                    ...prev,
+                    location: newLocation,
+                    adhanSettings: calculationMethod
+                      ? {
+                          ...(prev.adhanSettings || {
+                            enabled: true,
+                            muezzin: "mishary",
+                            fajrEnabled: true,
+                            dhuhrEnabled: true,
+                            asrEnabled: true,
+                            maghribEnabled: true,
+                            ishaEnabled: true,
+                            volume: 0.8,
+                          }),
+                          calculationMethod,
+                        }
+                      : prev.adhanSettings,
+                  }));
+                  showToast(
+                    `تم تعيين الموقع بنجاح: ${newLocation.name}`,
+                    "success"
                   );
-                  const newSettings = { ...prev, bookmarks: newBookmarks };
+                }}
+              />
+            )}
 
-                  showToast("تمت إزالة الآية من المحفوظات", "info");
+            <PermissionsBanner
+              key="permissions-banner"
+              onOpenSettings={() => setIsPermissionsGuideOpen(true)}
+            />
 
-                  // Explicitly sync deletion to backend
-                  if (userIdRef.current) {
-                    SyncService.deleteBookmark(
+            {isPermissionsGuideOpen && (
+              <BatteryOptimizationGuideModal
+                key="modal-permissions-guide"
+                isOpen={isPermissionsGuideOpen}
+                onClose={() => setIsPermissionsGuideOpen(false)}
+                onShowToast={showToast}
+              />
+            )}
+
+            <LocationPromptBanner
+              key="location-prompt-banner"
+              isVisible={showLocationBanner}
+              onClose={() => setShowLocationBanner(false)}
+              location={locationBannerData.location || settings.location}
+              isHighAccuracy={locationBannerData.isHighAccuracy}
+              onOpenLocationSettings={() => setIsLocationModalOpen(true)}
+            />
+
+            {isAdhanSettingsOpen && (
+              <AdhanSettingsModal
+                key="modal-adhan-settings"
+                isOpen={isAdhanSettingsOpen}
+                onClose={() => setIsAdhanSettingsOpen(false)}
+                settings={settings}
+                onSave={setSettings}
+              />
+            )}
+
+            {isLiveAdhanBannerOpen && (
+              <AdhanNotificationBanner
+                key="banner-live-adhan"
+                isOpen={isLiveAdhanBannerOpen}
+                prayerName={liveAdhanPrayer}
+                muezzinName={
+                  MUEZZINS_LIST.find(
+                    (m) => m.id === (settings.adhanSettings?.muezzin || "mishary")
+                  )?.name
+                }
+                muezzinId={settings.adhanSettings?.muezzin || "mishary"}
+                volume={settings.adhanSettings?.volume ?? 85}
+                onClose={() => setIsLiveAdhanBannerOpen(false)}
+              />
+            )}
+
+            {isHistoryOpen && (
+              <HistoryModal
+                key="modal-history"
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                sessions={sessions}
+                onSelectSession={loadSession}
+                onDeleteSession={(id, e) => {
+                  e.stopPropagation();
+                  setSessions((prev) => prev.filter((s) => s.id !== id));
+
+                  // Also delete from Backend
+                  if (isOnline && userIdRef.current) {
+                    SyncService.deleteSession(
                       userIdRef.current,
                       id,
-                      newSettings
-                    ).catch(console.error);
+                      settings
+                    ).catch((err) => {
+                      console.error("Error deleting session from Backend:", err);
+                    });
                   }
+                }}
+                onClearAll={() => {
+                  const sessionsToClear = [...sessions];
+                  setSessions([]);
+                  localStorage.removeItem("anis_history");
 
-                  return newSettings;
-                });
-              }}
-              isOnline={isOnline}
-              reciter={settings.reciter}
-              onShowToast={showToast}
-              onOpenQuran={openQuran}
-            />
-          )}
+                  // Also clear from Backend
+                  if (isOnline && userIdRef.current) {
+                    SyncService.clearAllSessions(
+                      userIdRef.current,
+                      sessionsToClear,
+                      settings
+                    ).catch((err) => {
+                      console.error("Error clearing sessions from Backend:", err);
+                    });
+                  }
+                }}
+              />
+            )}
 
-          {isSettingsOpen && (
-            <SettingsModal
-              isOpen={isSettingsOpen}
-              onClose={() => setIsSettingsOpen(false)}
-              settings={settings}
-              onSave={setSettings}
-              onShowToast={showToast}
-              onOpenLocationModal={() => setIsLocationModalOpen(true)}
-              onOpenAdhanSettings={() => setIsAdhanSettingsOpen(true)}
-              isSyncing={isSyncing}
-              lastSynced={lastSynced}
-            />
-          )}
+            {isQuranPlatformOpen && (
+              <QuranPlatformModal
+                key="modal-quran"
+                isOpen={isQuranPlatformOpen}
+                onClose={() => setIsQuranPlatformOpen(false)}
+                initialSurah={quranInitialState.surah}
+                initialAyah={quranInitialState.ayah}
+                initialView={quranInitialState.view}
+              />
+            )}
 
-          {isLocationModalOpen && (
-            <ManualLocationModal
-              isOpen={isLocationModalOpen}
-              onClose={() => setIsLocationModalOpen(false)}
-              currentLocation={settings.location}
-              onSelectLocation={(newLocation, calculationMethod) => {
-                setSettings((prev) => ({
-                  ...prev,
-                  location: newLocation,
-                  adhanSettings: calculationMethod
-                    ? {
-                        ...(prev.adhanSettings || {
-                          enabled: true,
-                          muezzin: "mishary",
-                          fajrEnabled: true,
-                          dhuhrEnabled: true,
-                          asrEnabled: true,
-                          maghribEnabled: true,
-                          ishaEnabled: true,
-                          volume: 0.8,
-                        }),
-                        calculationMethod,
-                      }
-                    : prev.adhanSettings,
-                }));
-                showToast(
-                  `تم تعيين الموقع بنجاح: ${newLocation.name}`,
-                  "success"
+            {isAboutOpen && (
+              <AboutModal
+                key="modal-about"
+                isOpen={isAboutOpen}
+                onClose={() => setIsAboutOpen(false)}
+                onOpenFeedback={() => setIsFeedbackOpen(true)}
+              />
+            )}
+
+            {isFeedbackOpen && (
+              <FeedbackModal
+                key="modal-feedback"
+                isOpen={isFeedbackOpen}
+                onClose={() => setIsFeedbackOpen(false)}
+                onShowToast={showToast}
+                userInfo={settings}
+              />
+            )}
+
+            <InstallPrompt key="install-prompt" />
+
+            {isInstallModalOpen && (
+              <InstallModal
+                key="modal-install"
+                isOpen={isInstallModalOpen}
+                onClose={() => setIsInstallModalOpen(false)}
+                onShowToast={showToast}
+              />
+            )}
+
+            <ApkUpdateBanner
+              key="apk-update-banner"
+              isOpen={isApkUpdateBannerOpen}
+              versionInfo={apkUpdateInfo || undefined}
+              onUpdate={() => {
+                setIsApkUpdateBannerOpen(false);
+                triggerApkDownload(
+                  showToast,
+                  apkUpdateInfo?.version || "1.1.0",
+                  apkUpdateInfo?.updateUrl
                 );
               }}
-            />
-          )}
-
-          <PermissionsBanner
-            onOpenSettings={() => setIsPermissionsGuideOpen(true)}
-          />
-
-          {isPermissionsGuideOpen && (
-            <BatteryOptimizationGuideModal
-              isOpen={isPermissionsGuideOpen}
-              onClose={() => setIsPermissionsGuideOpen(false)}
-              onShowToast={showToast}
-            />
-          )}
-
-          <LocationPromptBanner
-            isVisible={showLocationBanner}
-            onClose={() => setShowLocationBanner(false)}
-            location={locationBannerData.location || settings.location}
-            isHighAccuracy={locationBannerData.isHighAccuracy}
-            onOpenLocationSettings={() => setIsLocationModalOpen(true)}
-          />
-
-          {isAdhanSettingsOpen && (
-            <AdhanSettingsModal
-              isOpen={isAdhanSettingsOpen}
-              onClose={() => setIsAdhanSettingsOpen(false)}
-              settings={settings}
-              onSave={setSettings}
-            />
-          )}
-
-          {isLiveAdhanBannerOpen && (
-            <AdhanNotificationBanner
-              isOpen={isLiveAdhanBannerOpen}
-              prayerName={liveAdhanPrayer}
-              muezzinName={
-                MUEZZINS_LIST.find(
-                  (m) => m.id === (settings.adhanSettings?.muezzin || "mishary")
-                )?.name
-              }
-              muezzinId={settings.adhanSettings?.muezzin || "mishary"}
-              volume={settings.adhanSettings?.volume ?? 85}
-              onClose={() => setIsLiveAdhanBannerOpen(false)}
-            />
-          )}
-
-          {isHistoryOpen && (
-            <HistoryModal
-              isOpen={isHistoryOpen}
-              onClose={() => setIsHistoryOpen(false)}
-              sessions={sessions}
-              onSelectSession={loadSession}
-              onDeleteSession={(id, e) => {
-                e.stopPropagation();
-                setSessions((prev) => prev.filter((s) => s.id !== id));
-
-                // Also delete from Backend
-                if (isOnline && userIdRef.current) {
-                  SyncService.deleteSession(
-                    userIdRef.current,
-                    id,
-                    settings
-                  ).catch((err) => {
-                    console.error("Error deleting session from Backend:", err);
-                  });
-                }
-              }}
-              onClearAll={() => {
-                const sessionsToClear = [...sessions];
-                setSessions([]);
-                localStorage.removeItem("anis_history");
-
-                // Also clear from Backend
-                if (isOnline && userIdRef.current) {
-                  SyncService.clearAllSessions(
-                    userIdRef.current,
-                    sessionsToClear,
-                    settings
-                  ).catch((err) => {
-                    console.error("Error clearing sessions from Backend:", err);
-                  });
-                }
+              onDismiss={() => {
+                setIsApkUpdateBannerOpen(false);
               }}
             />
-          )}
 
-          {isQuranPlatformOpen && (
-            <QuranPlatformModal
-              isOpen={isQuranPlatformOpen}
-              onClose={() => setIsQuranPlatformOpen(false)}
-              initialSurah={quranInitialState.surah}
-              initialAyah={quranInitialState.ayah}
-              initialView={quranInitialState.view}
+            <UpdateNotifier key="update-notifier" onShowToast={showToast} />
+
+            <Toast
+              key="toast-notification"
+              message={toast.message}
+              type={toast.type}
+              isVisible={toast.isVisible}
+              onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
             />
-          )}
 
-          {isAboutOpen && (
-            <AboutModal
-              isOpen={isAboutOpen}
-              onClose={() => setIsAboutOpen(false)}
-              onOpenFeedback={() => setIsFeedbackOpen(true)}
+            <GlobalDownloadOverlay key="global-download-overlay" />
+            <StartupPermissionOnboarding key="startup-permission-onboarding" />
+
+            {isOwnerAdminOpen && (
+              <OwnerAdminModal
+                key="modal-owner-admin"
+                isOpen={isOwnerAdminOpen}
+                onClose={() => setIsOwnerAdminOpen(false)}
+                currentUserEmail={currentUserEmail}
+                onShowToast={showToast}
+              />
+            )}
+
+            {isDhikrReminderOpen && (
+              <DhikrSettingsModal
+                key="modal-dhikr-reminder"
+                isOpen={isDhikrReminderOpen}
+                onClose={() => setIsDhikrReminderOpen(false)}
+                onShowToast={showToast}
+              />
+            )}
+
+            <DhikrFloatingBanner
+              key="dhikr-floating-banner"
+              onOpenSettings={() => setIsDhikrReminderOpen(true)}
             />
-          )}
-
-          {isFeedbackOpen && (
-            <FeedbackModal
-              isOpen={isFeedbackOpen}
-              onClose={() => setIsFeedbackOpen(false)}
-              onShowToast={showToast}
-              userInfo={settings}
-            />
-          )}
-
-          <InstallPrompt />
-
-          {isInstallModalOpen && (
-            <InstallModal
-              isOpen={isInstallModalOpen}
-              onClose={() => setIsInstallModalOpen(false)}
-              onShowToast={showToast}
-            />
-          )}
-
-          <ApkUpdateBanner
-            isOpen={isApkUpdateBannerOpen}
-            versionInfo={apkUpdateInfo || undefined}
-            onUpdate={() => {
-              setIsApkUpdateBannerOpen(false);
-              triggerApkDownload(
-                showToast,
-                apkUpdateInfo?.version || "1.1.0",
-                apkUpdateInfo?.updateUrl
-              );
-            }}
-            onDismiss={() => {
-              setIsApkUpdateBannerOpen(false);
-            }}
-          />
-
-          <UpdateNotifier onShowToast={showToast} />
-
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            isVisible={toast.isVisible}
-            onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
-          />
-
-          <GlobalDownloadOverlay />
-          <StartupPermissionOnboarding />
-
-          <OwnerAdminModal
-            isOpen={isOwnerAdminOpen}
-            onClose={() => setIsOwnerAdminOpen(false)}
-            currentUserEmail={currentUserEmail}
-            onShowToast={showToast}
-          />
-
-          {isDhikrReminderOpen && (
-            <DhikrSettingsModal
-              isOpen={isDhikrReminderOpen}
-              onClose={() => setIsDhikrReminderOpen(false)}
-              onShowToast={showToast}
-            />
-          )}
-
-          <DhikrFloatingBanner
-            onOpenSettings={() => setIsDhikrReminderOpen(true)}
-          />
+          </AnimatePresence>
         </Suspense>
       </ErrorBoundary>
     </div>

@@ -64,11 +64,16 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div 
+      <motion.div 
+        key="in-app-update-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-sm overflow-y-auto"
         dir="rtl"
       >
         <motion.div
+          key="in-app-update-card"
           initial={{ opacity: 0, scale: 0.92, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 20 }}
@@ -228,7 +233,7 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
             ) : null}
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </AnimatePresence>
   );
 };

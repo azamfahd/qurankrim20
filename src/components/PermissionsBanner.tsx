@@ -43,16 +43,16 @@ export const PermissionsBanner: React.FC<PermissionsBannerProps> = ({ onOpenSett
     checkPermissions();
   }, [checkPermissions]);
 
-  if (!isVisible) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -50 }}
-        className="fixed top-4 left-4 right-4 z-50 bg-red-50 border-l-4 border-red-500 rounded-xl shadow-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-      >
+      {isVisible && (
+        <motion.div
+          key="permissions-banner"
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 left-4 right-4 z-50 bg-red-50 border-l-4 border-red-500 rounded-xl shadow-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        >
         <div className="flex items-start gap-3">
           <div className="p-2 bg-red-100 rounded-full shrink-0">
             <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -77,7 +77,8 @@ export const PermissionsBanner: React.FC<PermissionsBannerProps> = ({ onOpenSett
           <Settings size={14} />
           <span>إصلاح المشكلة</span>
         </button>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };

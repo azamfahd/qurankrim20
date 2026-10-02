@@ -187,15 +187,23 @@ export class SupabaseService {
       throw new Error("قاعدة بيانات Supabase غير متصلة. يرجى إدخال بيانات الربط في الإعدادات أو فتح الموقع للمزامنة.");
     }
 
-    const redirectTo = isNative 
-        ? 'com.anisalqulub.app://auth' 
-        : (window.location.origin && !window.location.origin.includes('about:blank') ? window.location.origin : PUBLISHED_WEB_URL);
+    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+    let redirectTo = PUBLISHED_WEB_URL;
+    if (isNative) {
+      redirectTo = 'com.anisalqulub.app://auth';
+    } else if (typeof window !== 'undefined' && window.location.origin) {
+      const origin = window.location.origin;
+      if (origin.includes('netlify.app') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        redirectTo = origin;
+      }
+    }
         
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
-        skipBrowserRedirect: isNative // In native app, we open in system browser to avoid Google WebView block
+        skipBrowserRedirect: isNative || isIframe // In native app or iframe, handle redirect cleanly without frame blocking
       }
     });
 
@@ -209,6 +217,9 @@ export class SupabaseService {
       } catch (e) {
         window.open(data.url, '_system');
       }
+    } else if (isIframe && data?.url) {
+      // Inside an iframe, Google OAuth consent is blocked by X-Frame-Options: DENY. Open in a new window for seamless login.
+      window.open(data.url, '_blank');
     }
 
     return data;

@@ -99,8 +99,7 @@ export class QuranChatSession {
 
   constructor(settings: UserSettings) {
     this.settings = settings;
-    const isLogged = !!settings.isLoggedIn;
-    const smartDefaultModel = isLogged ? 'gemini-3.6-flash' : 'gemini-3.5-flash';
+    const smartDefaultModel = 'gemini-3.8-flash';
     this.model = settings.model || settings.geminiModel || smartDefaultModel;
   }
 
@@ -498,18 +497,20 @@ export class QuranChatSession {
       const candidateEndpoints: string[] = [];
       
       if (isNativeApp) {
-        // In APK / Native app, prioritize Cloud Run production servers directly!
+        // In APK / Native app, prioritize Netlify proxy and Cloud Run production servers directly!
+        candidateEndpoints.push('https://qurankrim20.netlify.app');
         candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
         candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
         if (import.meta.env.VITE_BACKEND_API_URL) {
           candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
         }
       } else {
-        // In standard web browser, check relative / origin first, then Cloud Run
+        // In standard web browser, check relative / origin first, then Netlify & Cloud Run
         if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('about:blank')) {
           candidateEndpoints.push('');
           candidateEndpoints.push(window.location.origin);
         }
+        candidateEndpoints.push('https://qurankrim20.netlify.app');
         if (import.meta.env.VITE_BACKEND_API_URL) {
           candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
         }

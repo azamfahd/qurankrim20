@@ -134,7 +134,15 @@ export class SyncService {
       // First process any pending sync items
       await this.processSyncQueue(userId, settings);
 
-      const cloudSessions = await SupabaseService.loadSessions(userId);
+      let cloudSessions = await SupabaseService.loadSessions(userId).catch(() => null);
+      if (!cloudSessions || cloudSessions.length === 0) {
+        // Silent fallback to Firebase Firestore as secondary cloud backup
+        const fbData = await FirebaseService.getUserData(userId).catch(() => null);
+        if (fbData && fbData.sessions && fbData.sessions.length > 0) {
+          cloudSessions = fbData.sessions;
+        }
+      }
+
       if (cloudSessions && cloudSessions.length > 0) {
         // Merge & update local DB
         for (const session of cloudSessions) {
@@ -188,7 +196,14 @@ export class SyncService {
     }
 
     try {
-      let loadedSettings: Partial<UserSettings> | null = await SupabaseService.loadUserSettings(userId);
+      let loadedSettings: Partial<UserSettings> | null = await SupabaseService.loadUserSettings(userId).catch(() => null);
+      if (!loadedSettings) {
+        // Silent fallback to Firebase Firestore
+        const fbData = await FirebaseService.getUserData(userId).catch(() => null);
+        if (fbData && fbData.settings) {
+          loadedSettings = fbData.settings;
+        }
+      }
       
       try {
         const bookmarks = await SupabaseService.getBookmarks(userId);

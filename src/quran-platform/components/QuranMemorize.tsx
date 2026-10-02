@@ -2750,7 +2750,7 @@ const QuranMemorize: React.FC = () => {
                       <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2"><AlertTriangle size={18}/> أخطاء التسميع المسجلة:</h4>
                       <div className="flex flex-col gap-2">
                          {Array.from(new Set(voiceSessionErrors.map(e => e.ayahNum))).map(ayahNum => (
-                             <div key={ayahNum} className="flex flex-wrap items-center gap-2 text-sm">
+                             <div key={`voice-err-group-${ayahNum}`} className="flex flex-wrap items-center gap-2 text-sm">
                                  <span className="font-bold bg-red-100 px-2 py-1 rounded-md text-red-700">آية {ayahNum}</span>
                                  <span className="text-gray-700">
                                      {voiceSessionErrors.filter(e => e.ayahNum === ayahNum).map(e => e.expectedWord).join('، ')}

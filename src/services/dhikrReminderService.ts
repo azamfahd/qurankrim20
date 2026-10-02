@@ -12,12 +12,12 @@ import { appEventBus } from "./appEventBus";
 import { DhikrItem, DhikrReminderSettings, DhikrReciterInfo } from '../types';
 
 export const DEFAULT_DHIKR_SETTINGS: DhikrReminderSettings = {
-  enabled: true,
-  triggerOnAppOpen: true, // تفعيل التنبيه المباشر والتلقائي فور فتح التطبيق لعرض الأذكار الجميلة وسماع الصوت العذب
+  enabled: false, // افتراضياً مغلق عند أول دخول للمستخدم (مثل الأذان)، ويمكن تفعيله يدوياً حسب الرغبة
+  triggerOnAppOpen: false,
   intervalMinutes: 15,
   soundType: 'voice_and_chime',
   category: 'all',
-  reciterId: 'mishary', // الصوت التلقائي الأساسي والمباشر للشيخ مشاري راشد العفاسي
+  reciterId: 'mishary', // الصوت الأساسي للشيخ مشاري راشد العفاسي عند التفعيل
   volume: 85,
   vibrate: true,
   showFloatingBanner: true,

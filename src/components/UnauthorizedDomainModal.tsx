@@ -17,8 +17,6 @@ export const UnauthorizedDomainModal: React.FC<UnauthorizedDomainModalProps> = (
 }) => {
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen) return null;
-
   const currentHostname = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
   const firebaseSettingsUrl = 'https://console.firebase.google.com/project/accounting-828e5/authentication/settings';
 
@@ -32,13 +30,25 @@ export const UnauthorizedDomainModal: React.FC<UnauthorizedDomainModalProps> = (
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      {isOpen && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100"
+          key="unauthorized-domain-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
         >
+          <motion.div
+            key="unauthorized-domain-card"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header */}
           <div className="p-5 bg-gradient-to-r from-amber-950/80 via-slate-900 to-slate-900 border-b border-amber-500/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -121,7 +131,8 @@ export const UnauthorizedDomainModal: React.FC<UnauthorizedDomainModalProps> = (
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 };

@@ -43,12 +43,26 @@ export function setCustomApkUrl(url: string): void {
  */
 export function triggerApkDownload(
   onShowToast?: (message: string, type?: 'success' | 'info' | 'error') => void,
-  version: string = '1.1.1',
+  version: string = APP_VERSION,
   overrideUrl?: string
 ): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('anis_apk_installed_version', version);
     localStorage.setItem('anis_pwa_installed', 'true');
+
+    // Trigger direct APK file download on user's device
+    try {
+      const downloadUrl = overrideUrl || getApkDownloadUrl();
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', 'anis-al-qulub.apk');
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.warn('APK download trigger error:', e);
+    }
 
     // Trigger service worker cache update if available
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -60,7 +74,7 @@ export function triggerApkDownload(
     }
 
     if (onShowToast) {
-      onShowToast(`تم تثبيت التحديث المباشر للإصدار v${version} بنجاح! 🚀`, 'success');
+      onShowToast(`جاري تنزيل ملف التطبيق (APK) الرسمي... 🚀`, 'success');
     }
   }
 }

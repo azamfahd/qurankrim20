@@ -106,7 +106,13 @@ export const Sidebar = React.memo<SidebarProps>(({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div key="sidebar-container" className="fixed inset-0 z-50 flex justify-start">
+        <motion.div 
+          key="sidebar-container" 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex justify-start"
+        >
           <motion.div 
             key="sidebar-backdrop"
             initial={{ opacity: 0 }}
@@ -382,7 +388,7 @@ export const Sidebar = React.memo<SidebarProps>(({
               </p>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
@@ -508,8 +514,11 @@ const SidebarItem = ({
 }) => {
   const currentVariant = VARIANT_MAP[variant] || VARIANT_MAP.default;
   return (
-    <button 
-      className={`w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl transition-all duration-300 group border cursor-pointer hover:-translate-y-1 active:translate-y-0 ${
+    <motion.button 
+      whileHover={{ scale: 1.015, x: -3 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+      className={`w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl transition-all duration-200 group border cursor-pointer ${
         primary 
           ? 'bg-gradient-to-r from-[#022c22] via-[#05533f] to-[#022c22] text-white border-[var(--color-gold)]/50 hover:border-[var(--color-gold)] shadow-[0_6px_16px_-2px_rgba(4,61,46,0.35)] hover:shadow-[0_12px_24px_-4px_rgba(4,61,46,0.45)]' 
           : currentVariant.bg
@@ -537,7 +546,7 @@ const SidebarItem = ({
           {badge}
         </span>
       )}
-    </button>
+    </motion.button>
   );
 };
 
@@ -554,14 +563,17 @@ const SidebarItemCompact = ({
 }) => {
   const currentVariant = VARIANT_MAP[variant] || VARIANT_MAP.default;
   return (
-    <button 
-      className={`w-full flex flex-col items-center justify-center gap-2.5 px-3 py-4 rounded-2xl transition-all duration-300 group border hover:-translate-y-1 active:translate-y-0 cursor-pointer ${currentVariant.bg}`}
+    <motion.button 
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+      className={`w-full flex flex-col items-center justify-center gap-2.5 px-3 py-4 rounded-2xl transition-all duration-200 group border cursor-pointer ${currentVariant.bg}`}
       onClick={onClick}
     >
       <div className={`p-2.5 rounded-xl transition-all duration-300 ${currentVariant.iconBg} group-hover:rotate-3 group-hover:scale-105 group-hover:shadow-md`}>
         {React.cloneElement(icon as React.ReactElement<any>, { size: 18 })}
       </div>
       <span className={`font-black text-[11px] leading-tight tracking-wide text-center transition-colors ${currentVariant.text}`}>{label}</span>
-    </button>
+    </motion.button>
   );
 };

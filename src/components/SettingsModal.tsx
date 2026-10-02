@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone, Flame, Layers } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
 import { FirebaseService } from '../services/firebaseService';
 import { BatteryOptimizationGuideModal } from './BatteryOptimizationGuideModal';
-import { UnauthorizedDomainModal } from './UnauthorizedDomainModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -31,10 +30,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   lastSynced
 }) => {
   const [localSettings, setLocalSettings] = useState<UserSettings>({ ...settings });
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLoggingInSupabase, setIsLoggingInSupabase] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
   const [showDeveloperKey, setShowDeveloperKey] = useState(false);
-  const [showUnauthorizedModal, setShowUnauthorizedModal] = useState(false);
+  const [isFirebaseLinked, setIsFirebaseLinked] = useState<boolean>(() => !!FirebaseService.getCurrentUser());
+
+  // Listen to Firebase auth state
+  React.useEffect(() => {
+    const unsub = FirebaseService.onAuthChange((u) => {
+      setIsFirebaseLinked(!!u);
+    });
+    return () => unsub();
+  }, []);
 
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
@@ -49,29 +56,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div 
-          key="settings-modal-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="modal-backdrop flex items-center justify-center p-4 z-50" 
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              onClose();
-            }
-          }}
-        >
+    <>
+      <AnimatePresence>
+        {isOpen && (
           <motion.div 
-            key="settings-modal-container"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-            className="bg-[var(--color-background)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-[var(--color-border)] rounded-3xl" 
-            onClick={e => e.stopPropagation()}
+            key="settings-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal-backdrop flex items-center justify-center p-4 z-50" 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                onClose();
+              }
+            }}
           >
+            <motion.div 
+              key="settings-modal-container"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+              className="bg-[var(--color-background)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-[var(--color-border)] rounded-3xl" 
+              onClick={e => e.stopPropagation()}
+            >
           {/* Header */}
           <div className="relative overflow-hidden bg-[var(--color-primary-light)] p-6 border-b border-[var(--color-border)] shrink-0">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-primary)] opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
@@ -116,28 +124,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               
               {localSettings.isLoggedIn ? (
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl border border-[var(--color-border)]">
+                  {/* User Profile Card */}
+                  <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-emerald-50/70 via-gray-50 to-white rounded-2xl border border-[var(--color-border)] shadow-xs">
                     {localSettings.photoURL ? (
-                      <img src={localSettings.photoURL || undefined} alt="User" className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)]" />
+                      <img src={localSettings.photoURL || undefined} alt="User" className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] object-cover shadow-sm" />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)]">
+                      <div className="w-12 h-12 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)] shadow-sm">
                         <User size={24} />
                       </div>
                     )}
                     <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-bold text-gray-800 truncate">{localSettings.username}</p>
-                      <p className="text-xs text-gray-500 truncate">{localSettings.email}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{localSettings.username}</p>
+                      <p className="text-xs text-gray-500 truncate font-mono mt-0.5">{localSettings.email}</p>
                     </div>
                   </div>
+
+                  {/* Clean Unified Cloud Sync Status */}
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 flex items-center justify-between shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs font-black text-xs">
+                        ☁️
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-emerald-950 truncate">المزامنة السحابية الذكية نشطة</p>
+                        <p className="text-[10px] text-emerald-700 font-bold truncate">
+                          حفظ سحابي تلقائي واحتياطي فوري لمحادثاتك وتفضيلاتك
+                        </p>
+                      </div>
+                    </div>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                  </div>
                   
-                  <div className="flex gap-2">
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-1">
                     <button 
                       onClick={() => onSave(localSettings)}
                       disabled={isSyncing}
-                      className="flex-1 py-2.5 px-4 rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold hover:bg-[var(--color-primary)] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="flex-1 py-3 px-4 rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold hover:bg-[var(--color-primary)] hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-xs"
                     >
                       <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-                      {isSyncing ? 'جاري المزامنة...' : 'مزامنة الآن'}
+                      {isSyncing ? 'جاري المزامنة...' : 'مزامنة سحابية الآن'}
                     </button>
                     <button 
                       onClick={async () => {
@@ -145,6 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           try {
                             await SupabaseService.signOut();
                             await FirebaseService.signOutUser();
+                            setIsFirebaseLinked(false);
                             onShowToast('تم تسجيل الخروج بنجاح', 'success');
                           } catch (err: any) {
                             console.error(err);
@@ -152,48 +179,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }
                         }
                       }}
-                      className="py-2.5 px-4 rounded-2xl border border-red-100 text-red-500 text-xs font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                      className="py-3 px-5 rounded-2xl border border-red-100 text-red-500 text-xs font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                     >
                       <LogOut size={14} />
                       خروج
                     </button>
                   </div>
-                  <p className="text-[10px] text-center text-gray-400">بياناتك وإعداداتك تتم مزامنتها تلقائياً مع حسابك.</p>
+                  <p className="text-[10px] text-center text-gray-400">
+                    بياناتك وإعداداتك تتم مزامنتها تلقائياً مع خادم Supabase الأساسي ونسخها احتياطياً.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-xs text-gray-600 leading-relaxed">قم بتسجيل الدخول لمزامنة إعداداتك، محفوظاتك، وتاريخ محادثاتك عبر جميع أجهزتك.</p>
-                  
-                  {/* Google Login Button */}
-                  <button 
-                    onClick={async () => {
-                      if (isLoggingIn) return;
-                      setIsLoggingIn(true);
-                      try {
-                        await FirebaseService.signInWithGoogle();
-                        await SupabaseService.signInWithGoogle();
-                      } catch (err: any) {
-                        console.error(err);
-                        const errMsg = err?.message || String(err);
-                        if (errMsg.includes('auth/unauthorized-domain') || err?.code === 'auth/unauthorized-domain') {
-                          setShowUnauthorizedModal(true);
-                          onShowToast('يتطلب هذا النطاق إذن النطاقات المصرح بها في Firebase', 'info');
-                        } else {
-                          onShowToast(err.message || 'فشل تسجيل الدخول', 'error');
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    قم بالمتابعة عبر حساب Google لحفظ ومزامنة محادثاتك وتفضيلاتك وتلاواتك سحابياً عبر جميع أجهزتك.
+                  </p>
+
+                  {/* UNIFIED GOOGLE LOGIN */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-50/90 via-emerald-50/40 to-white border-2 border-emerald-500/40 shadow-xs space-y-3 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                          <span>المزامنة السحابية الموحدة</span>
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                        <span>⚡ فوري ومباشر</span>
+                      </span>
+                    </div>
+
+                    <button 
+                      onClick={async () => {
+                        if (isLoggingInSupabase) return;
+                        setIsLoggingInSupabase(true);
+                        try {
+                          // Silent background connection with Firebase
+                          FirebaseService.ensureSilentAuth().catch(() => {});
+                          // Primary Google sign-in via Supabase
+                          await SupabaseService.signInWithGoogle();
+                        } catch (err: any) {
+                          console.error(err);
+                          onShowToast(err.message || 'فشل الاتصال بـ Google', 'error');
+                          setIsLoggingInSupabase(false);
                         }
-                        setIsLoggingIn(false);
-                      }
-                    }}
-                    disabled={isLoggingIn}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-white border border-[var(--color-border)] text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {isLoggingIn ? (
-                      <RefreshCw size={18} className="animate-spin text-[var(--color-primary)]" />
-                    ) : (
-                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                    )}
-                    {isLoggingIn ? 'جاري التحويل...' : 'تسجيل الدخول باستخدام Google'}
-                  </button>
+                      }}
+                      disabled={isLoggingInSupabase}
+                      className="w-full py-3.5 px-4 rounded-2xl bg-white border border-emerald-300 text-gray-800 text-sm font-black hover:bg-emerald-50/50 hover:border-emerald-400 hover:shadow-md transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isLoggingInSupabase ? (
+                        <RefreshCw size={18} className="animate-spin text-emerald-600" />
+                      ) : (
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                      )}
+                      <span>
+                        {isLoggingInSupabase ? 'جاري الاتصال والمزامنة...' : 'المتابعة بحساب Google'}
+                      </span>
+                    </button>
+
+                    <p className="text-[10px] text-emerald-800/90 leading-relaxed font-medium">
+                      ✓ اتصال مباشر فوري وحفظ سحابي تلقائي لجميع محادثاتك وتفضيلاتك وتلاواتك سحابياً دون أي تعقيد.
+                    </p>
+                  </div>
 
                   {/* Direct Link to published site for Web Sync */}
                   <a
@@ -524,22 +570,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </motion.div>
         </motion.div>
       )}
+      </AnimatePresence>
 
       <BatteryOptimizationGuideModal
+        key="settings-battery-guide-modal"
         isOpen={showBatteryGuide}
         onClose={() => setShowBatteryGuide(false)}
         onShowToast={onShowToast}
       />
-
-      <UnauthorizedDomainModal
-        isOpen={showUnauthorizedModal}
-        onClose={() => setShowUnauthorizedModal(false)}
-        unauthorizedDomain={typeof window !== 'undefined' ? window.location.hostname : ''}
-        onContinueFallback={() => {
-          setShowUnauthorizedModal(false);
-          onShowToast('يمكنك استخدام جميع مميزات التطبيق كزائر أو عبر مزامنة Supabase', 'info');
-        }}
-      />
-    </AnimatePresence>
+    </>
   );
 };
