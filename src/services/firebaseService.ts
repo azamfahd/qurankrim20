@@ -95,19 +95,23 @@ export async function testFirestoreConnection(): Promise<boolean> {
 // Firebase Auth Service Helpers
 export class FirebaseService {
   /**
-   * Sign in using Google OAuth Popup
+   * Sign in using Google OAuth Popup (handles iframe & popup restrictions)
    */
   static async signInWithGoogle(): Promise<User | null> {
     try {
       googleProvider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
+        if (result.user.email) {
+          localStorage.setItem('anis_auth_email', result.user.email);
+        }
         // Sync user profile to Firestore
         await this.saveUserProfile(result.user);
+        window.dispatchEvent(new CustomEvent('user-auth-success', { detail: result.user }));
       }
       return result.user;
-    } catch (error) {
-      console.error('Firebase Google Sign-In Error:', error);
+    } catch (error: any) {
+      console.warn('Firebase Google Sign-In notice:', error?.message || error);
       throw error;
     }
   }
@@ -117,7 +121,9 @@ export class FirebaseService {
    */
   static async signOutUser(): Promise<void> {
     try {
+      localStorage.removeItem('anis_auth_email');
       await firebaseSignOut(auth);
+      window.dispatchEvent(new CustomEvent('user-auth-signout'));
     } catch (error) {
       console.error('Firebase Sign-Out Error:', error);
     }

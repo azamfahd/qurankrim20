@@ -213,13 +213,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         if (isLoggingInSupabase) return;
                         setIsLoggingInSupabase(true);
                         try {
-                          // Silent background connection with Firebase
-                          FirebaseService.ensureSilentAuth().catch(() => {});
-                          // Primary Google sign-in via Supabase
+                          // 1. Try Firebase Google Auth Popup first for instant client auth
+                          try {
+                            const fbUser = await FirebaseService.signInWithGoogle();
+                            if (fbUser) {
+                              if (fbUser.email) {
+                                localStorage.setItem('anis_auth_email', fbUser.email);
+                              }
+                              const updated = {
+                                ...localSettings,
+                                isLoggedIn: true,
+                                username: fbUser.displayName || localSettings.username || 'مستخدم متصل',
+                                email: fbUser.email || localSettings.email || '',
+                                photoURL: fbUser.photoURL || localSettings.photoURL || '',
+                                uid: fbUser.uid
+                              };
+                              setLocalSettings(updated);
+                              onSave(updated);
+                              onShowToast('تم تسجيل الدخول والمصادقة بنجاح عبر Google! 🌟', 'success');
+                              setIsLoggingInSupabase(false);
+                              return;
+                            }
+                          } catch (fbErr: any) {
+                            console.warn('Firebase direct login note, proceeding with Supabase link:', fbErr);
+                          }
+
+                          // 2. Also link with Supabase OAuth
                           await SupabaseService.signInWithGoogle();
+                          onShowToast('جاري الربط والمصادقة مع Google...', 'info');
                         } catch (err: any) {
                           console.error(err);
                           onShowToast(err.message || 'فشل الاتصال بـ Google', 'error');
+                        } finally {
                           setIsLoggingInSupabase(false);
                         }
                       }}
@@ -232,12 +257,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                       )}
                       <span>
-                        {isLoggingInSupabase ? 'جاري الاتصال والمزامنة...' : 'المتابعة بحساب Google'}
+                        {isLoggingInSupabase ? 'جاري الاتصال والمزامنة...' : 'المتابعة الفورية بحساب Google'}
                       </span>
                     </button>
 
-                    <p className="text-[10px] text-emerald-800/90 leading-relaxed font-medium">
-                      ✓ اتصال مباشر فوري وحفظ سحابي تلقائي لجميع محادثاتك وتفضيلاتك وتلاواتك سحابياً دون أي تعقيد.
+                    <p className="text-[10px] text-emerald-800/90 leading-relaxed font-medium text-center">
+                      ⚡ مصادقة تلقائية فورية وترتبط مباشرة مع Firebase و Supabase لحفظ محادثاتك وتفضيلاتك.
                     </p>
                   </div>
 
@@ -252,26 +277,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span>الموقع الرسمي: qurankrim20.netlify.app</span>
                     <ExternalLink size={12} className="opacity-70" />
                   </a>
-
-                  <div className="relative flex items-center py-1">
-                    <div className="flex-grow border-t border-gray-100"></div>
-                    <span className="flex-shrink mx-4 text-[10px] text-gray-400 font-bold uppercase">أو أدخل حسابك يدوياً</span>
-                    <div className="flex-grow border-t border-gray-100"></div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">البريد الإلكتروني (اختياري)</label>
-                    <input 
-                      type="email" 
-                      value={localSettings.email || ''}
-                      onChange={(e) => setLocalSettings({ ...localSettings, email: e.target.value })}
-                      className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3 px-4 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner"
-                      placeholder="example@email.com"
-                    />
-                    <p className="text-[9px] text-gray-400 leading-relaxed">
-                      إدخال بريدك يدوياً يساعدنا في التعرف على حسابك وتخصيص تجربتك بشكل أفضل.
-                    </p>
-                  </div>
                 </div>
               )}
             </section>

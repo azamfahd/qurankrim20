@@ -67,7 +67,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event: تنظيف النسخ القديمة والسيطرة فوراً
+// Activate Event: تنظيف النسخ القديمة والسيطرة فوراً وفحص التحديثات بالخلفية
 self.addEventListener('activate', (event) => {
   const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
@@ -80,7 +80,9 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
+    .then(() => self.clients.claim())
+    .then(() => checkPwaVersionAndNotify())
   );
 });
 
@@ -268,7 +270,11 @@ async function checkPwaVersionAndNotify() {
     
     if (cachedResponse) {
       const cachedData = await cachedResponse.json();
-      if (networkData.timestamp && cachedData.timestamp && networkData.timestamp > cachedData.timestamp) {
+      const hasNewerTimestamp = networkData.timestamp && cachedData.timestamp && networkData.timestamp > cachedData.timestamp;
+      const hasNewerVersionCode = networkData.versionCode && cachedData.versionCode && networkData.versionCode > cachedData.versionCode;
+      const hasNewerVerStr = networkData.version && cachedData.version && isVersionNewer(networkData.version, cachedData.version);
+
+      if (hasNewerTimestamp || hasNewerVersionCode || hasNewerVerStr) {
         needsUpdate = true;
       }
     } else {
@@ -277,12 +283,36 @@ async function checkPwaVersionAndNotify() {
     }
     
     if (needsUpdate) {
+      // Pre-cache new build assets in background before notifying clients
+      try {
+        const manifestRes = await fetch('/build-assets.json?t=' + Date.now(), { cache: 'no-store' });
+        if (manifestRes.ok) {
+          const dynamicAssets = await manifestRes.json();
+          if (Array.isArray(dynamicAssets)) {
+            const swCache = await caches.open(CACHE_NAME);
+            const dynamicPromises = dynamicAssets.map(async (assetPath) => {
+              try {
+                if (assetPath.endsWith('.apk') || assetPath.endsWith('.map') || assetPath.endsWith('.zip') || assetPath.endsWith('.mp3')) return;
+                const aRes = await fetch(assetPath, { cache: 'no-cache' });
+                if (aRes.ok) {
+                  const cType = (aRes.headers.get('content-type') || '').toLowerCase();
+                  if ((assetPath.endsWith('.js') || assetPath.endsWith('.css')) && cType.includes('text/html')) return;
+                  await swCache.put(assetPath, aRes);
+                }
+              } catch (e) {}
+            });
+            await Promise.allSettled(dynamicPromises);
+          }
+        }
+      } catch (e) {}
+
       await cache.put('/version.json', new Response(JSON.stringify(networkData)));
       const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       clientsList.forEach((client) => {
         client.postMessage({
           type: 'PWA_UPDATE_AVAILABLE',
-          versionInfo: networkData
+          versionInfo: networkData,
+          message: 'تم العثور على نسخة أحدث من التطبيق. يرجى تحديث الصفحة لاستكمال الميزات مع حفظ كافة بياناتك النشطة.'
         });
       });
     }

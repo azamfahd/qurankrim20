@@ -25,6 +25,37 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId"]
+    },
+    "system_announcements": {
+      "title": "System Announcements",
+      "description": "Broadcast announcements and alerts published by app owner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "active": { "type": "boolean" },
+        "allowDismiss": { "type": "boolean" },
+        "actionUrl": { "type": "string" },
+        "actionText": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "title", "active"]
+    },
+    "system_config": {
+      "title": "System Configuration",
+      "description": "System version control, maintenance mode and feature toggles",
+      "type": "object",
+      "properties": {
+        "latestVersion": { "type": "string" },
+        "apkDownloadUrl": { "type": "string" },
+        "forceUpdate": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "message": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   }
 }

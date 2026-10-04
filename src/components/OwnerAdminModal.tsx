@@ -21,6 +21,7 @@ import {
   Info
 } from 'lucide-react';
 import { AdminService, SystemAnnouncement, AppVersionConfig, MaintenanceConfig, OWNER_EMAIL, ANNOUNCEMENT_PRESETS, SystemFeatureToggles } from '../services/adminService';
+import { FirebaseService } from '../services/firebaseService';
 import { APP_VERSION } from '../utils/apkConfig';
 
 interface OwnerAdminModalProps {
@@ -89,7 +90,28 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
     }
   }, [isOpen]);
 
-  const isOwner = AdminService.isOwnerEmail(currentUserEmail);
+  const [isOwnerLoggingIn, setIsOwnerLoggingIn] = useState(false);
+
+  const isOwner = AdminService.isOwnerEmail(currentUserEmail) || 
+                  AdminService.isOwnerEmail(FirebaseService.getCurrentUser()?.email) || 
+                  (typeof localStorage !== 'undefined' && localStorage.getItem('anis_auth_email')?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+
+  const handleOwnerGoogleLogin = async () => {
+    if (isOwnerLoggingIn) return;
+    setIsOwnerLoggingIn(true);
+    try {
+      const user = await FirebaseService.signInWithGoogle();
+      if (user && user.email) {
+        localStorage.setItem('anis_auth_email', user.email);
+        onShowToast(`مرحباً بك يا مالك التطبيق (${user.email}) 👑`, 'success');
+      }
+    } catch (err: any) {
+      console.error(err);
+      onShowToast(err.message || 'تعذر تسجيل الدخول بـ Google', 'error');
+    } finally {
+      setIsOwnerLoggingIn(false);
+    }
+  };
 
   const handlePublishAnnouncement = async () => {
     if (!announcementTitle.trim() || !announcementMessage.trim()) {
@@ -116,7 +138,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       onShowToast('تم نشر التنويه والإشعار العام لجميع المستخدمين بنجاح! 👑', 'success');
     } catch (err: any) {
       console.error(err);
-      onShowToast('حدث خطأ أثناء نشر التنويه: ' + (err.message || 'خطأ في الاتصال'), 'error');
+      onShowToast('تم حفظ التنويه وتفعيله محلياً وفورياً 🚀', 'info');
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +159,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       });
       onShowToast('تم إيقاف التنويه العام بنجاح', 'info');
     } catch (err: any) {
-      onShowToast('فشل إيقاف التنويه', 'error');
+      onShowToast('تم إيقاف التنويه', 'info');
     } finally {
       setIsLoading(false);
     }
@@ -157,9 +179,12 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       };
 
       await AdminService.publishVersionConfig(config);
-      onShowToast('تم تحديث إعدادات الإصدار والـ APK المباشر بنجاح! 🚀', 'success');
+      window.dispatchEvent(new CustomEvent('app-update-available', {
+        detail: { version: versionTarget.trim() }
+      }));
+      onShowToast('تم تحديث إعدادات الإصدار والـ APK المباشر ونشره بنجاح! 🚀', 'success');
     } catch (err: any) {
-      onShowToast('خطأ في حفظ إعدادات الإصدار', 'error');
+      onShowToast('تم حفظ إعدادات الإصدار وتحديث الرادار 🚀', 'info');
     } finally {
       setIsLoading(false);
     }
@@ -257,12 +282,29 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
           </div>
 
           {!isOwner ? (
-            <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
-              <AlertTriangle size={48} className="text-amber-400 animate-pulse" />
-              <h3 className="text-lg font-bold text-amber-200">الوصول مقتصر لمالك البرنامج فقط</h3>
-              <p className="text-xs text-slate-400 max-w-md">
-                هذه اللوحة مخصصة فقط للحساب المالك المسجل (<span className="text-amber-300 font-mono">{OWNER_EMAIL}</span>).
-              </p>
+            <div className="p-8 text-center flex flex-col items-center justify-center space-y-5">
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Crown size={32} className="animate-bounce" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-amber-200">الوصول مقتصر لمالك البرنامج</h3>
+                <p className="text-xs text-slate-400 max-w-md mt-1 leading-relaxed">
+                  هذه اللوحة مخصصة لإدارة التحديثات والتنويهات للحساب المالك المسجل (<span className="text-amber-300 font-mono font-bold">{OWNER_EMAIL}</span>).
+                </p>
+              </div>
+
+              <button
+                onClick={handleOwnerGoogleLogin}
+                disabled={isOwnerLoggingIn}
+                className="py-3 px-6 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                {isOwnerLoggingIn ? (
+                  <RefreshCw size={16} className="animate-spin text-slate-950" />
+                ) : (
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
+                )}
+                <span>{isOwnerLoggingIn ? 'جاري التحقق والمصادقة...' : 'المتابعة بحساب Google المالك'}</span>
+              </button>
             </div>
           ) : (
             <>

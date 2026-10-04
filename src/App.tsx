@@ -64,6 +64,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import { triggerApkDownload, APP_VERSION } from "./utils/apkConfig";
+import { AdminService } from "./services/adminService";
+import { AppUpdateService } from "./services/appUpdateService";
 import { ApkVersionInfo } from "./components/ApkUpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Suspense } from "react";
@@ -408,18 +410,62 @@ const App: React.FC = () => {
     DhikrReminderService.init(settings.dhikrReminderSettings);
     testFirestoreConnection().catch(() => {});
 
-    // Sync Firebase Auth User Email to identify Owner (azamfahd25@gmail.com)
+    // Sync Firebase Auth User Email to identify Owner (azamfahd25@gmail.com) and auto-sync user profile
     const unsubAuth = FirebaseService.onAuthChange((user) => {
       if (user && user.email) {
         setCurrentUserEmail(user.email);
         localStorage.setItem("anis_auth_email", user.email);
+        setSettings((prev) => ({
+          ...prev,
+          isLoggedIn: true,
+          username: user.displayName || prev.username || "مستخدم متصل",
+          email: user.email || prev.email,
+          photoURL: user.photoURL || prev.photoURL,
+          uid: user.uid,
+        }));
       } else if (settings.isLoggedIn && settings.email) {
         setCurrentUserEmail(settings.email);
       } else {
-        setCurrentUserEmail(null);
-        localStorage.removeItem("anis_auth_email");
+        const savedAuthEmail = localStorage.getItem("anis_auth_email");
+        if (savedAuthEmail) {
+          setCurrentUserEmail(savedAuthEmail);
+        } else {
+          setCurrentUserEmail(null);
+        }
       }
     });
+
+    const handleAuthSuccess = (e: any) => {
+      const u = e?.detail;
+      if (u && u.email) {
+        setCurrentUserEmail(u.email);
+        localStorage.setItem("anis_auth_email", u.email);
+        setSettings((prev) => ({
+          ...prev,
+          isLoggedIn: true,
+          username: u.displayName || prev.username || "مستخدم متصل",
+          email: u.email || prev.email,
+          photoURL: u.photoURL || prev.photoURL,
+          uid: u.uid,
+        }));
+      }
+    };
+
+    const handleAuthSignout = () => {
+      setCurrentUserEmail(null);
+      localStorage.removeItem("anis_auth_email");
+      setSettings((prev) => ({
+        ...prev,
+        isLoggedIn: false,
+        email: "",
+        username: "ضيف كريم",
+        photoURL: undefined,
+        uid: undefined,
+      }));
+    };
+
+    window.addEventListener("user-auth-success", handleAuthSuccess);
+    window.addEventListener("user-auth-signout", handleAuthSignout);
 
     // Idle-time prefetching of all feature modals for instantaneous (0ms) opening
     const preloadModals = () => {
@@ -449,6 +495,12 @@ const App: React.FC = () => {
         setTimeout(preloadModals, 1200);
       }
     }
+
+    return () => {
+      unsubAuth();
+      window.removeEventListener("user-auth-success", handleAuthSuccess);
+      window.removeEventListener("user-auth-signout", handleAuthSignout);
+    };
   }, []);
 
   // Smart Radar Automatic Update Checker (Fetches from https://qurankrim20.netlify.app/version.json)
@@ -555,7 +607,7 @@ const App: React.FC = () => {
         }
 
         if (hasUpdateToNotify) {
-          setApkUpdateInfo({
+          const updatePayload: ApkVersionInfo = {
             version: remoteVer || "1.1.1",
             title: remoteData.title || "تحديث جديد متوفر للتطبيق",
             releaseNotes:
@@ -565,14 +617,24 @@ const App: React.FC = () => {
             updateUrl: remoteData.updateUrl || remoteData.downloadUrl || "",
             updateType: isMajor ? "major" : "simple",
             isMajor,
-          });
+          };
 
-          // Automatically trigger popup banner & notify sidebar simultaneously
+          setApkUpdateInfo(updatePayload);
+
+          // 1. Automatically trigger popup banner & notify sidebar simultaneously
           setIsApkUpdateBannerOpen(true);
           window.dispatchEvent(
             new CustomEvent("app-update-available", {
               detail: { version: remoteVer || "1.1.1" },
             })
+          );
+
+          // 2. Dispatch Android Status Bar / Web Notification
+          NativeNotificationService.dispatchAppUpdateNotification(
+            remoteVer || "1.1.1",
+            updatePayload.title,
+            updatePayload.releaseNotes,
+            updatePayload.updateUrl
           );
         }
       } catch (err) {
@@ -582,7 +644,55 @@ const App: React.FC = () => {
 
     // Trigger check on app startup (slight delay for smooth initial render)
     const timer = setTimeout(checkRemoteVersion, 2500);
-    return () => clearTimeout(timer);
+
+    // Re-check automatically on app foreground/focus
+    const handleRecheckOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        checkRemoteVersion();
+      }
+    };
+    document.addEventListener("visibilitychange", handleRecheckOnFocus);
+    window.addEventListener("focus", handleRecheckOnFocus);
+
+    // Real-time Firestore version push subscription for instantaneous APK update notifications
+    const unsubscribeRealtimeVersion = AdminService.subscribeToVersionConfig((config) => {
+      if (!config || !config.latestVersion) return;
+      const currentLocalVersion =
+        localStorage.getItem("anis_apk_installed_version") || APP_VERSION;
+      if (AppUpdateService.isNewer(currentLocalVersion, config.latestVersion)) {
+        const liveInfo: ApkVersionInfo = {
+          version: config.latestVersion,
+          title: "🚀 تحديث جديد متوفر للتطبيق",
+          releaseNotes:
+            config.releaseNotes ||
+            "تم إصدار تحديث جديد من مالك التطبيق يتضمن تحسينات ومميزات حديثة.",
+          sizeFormatted: "20 MB • تحميل وتثبيت مباشر",
+          updateUrl: config.apkDownloadUrl || "",
+          updateType: config.forceUpdate ? "major" : "simple",
+          isMajor: Boolean(config.forceUpdate),
+        };
+        setApkUpdateInfo(liveInfo);
+        setIsApkUpdateBannerOpen(true);
+        window.dispatchEvent(
+          new CustomEvent("app-update-available", {
+            detail: { version: config.latestVersion },
+          })
+        );
+        NativeNotificationService.dispatchAppUpdateNotification(
+          config.latestVersion,
+          liveInfo.title,
+          liveInfo.releaseNotes,
+          liveInfo.updateUrl
+        );
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleRecheckOnFocus);
+      window.removeEventListener("focus", handleRecheckOnFocus);
+      unsubscribeRealtimeVersion();
+    };
   }, []);
 
   useEffect(() => {
@@ -608,19 +718,44 @@ const App: React.FC = () => {
           setIsApkUpdateBannerOpen(true);
         }
       } else if (event.data.type === "PWA_UPDATE_AVAILABLE") {
+        // Guarantee ZERO active data loss before prompting user to reload
+        try {
+          if (messages && messages.length > 0) {
+            localStorage.setItem("anis_active_chat", JSON.stringify(messages));
+          }
+          if (currentSessionId) {
+            localStorage.setItem("anis_active_session_id", currentSessionId);
+          }
+          if (settings) {
+            localStorage.setItem("anis_settings", JSON.stringify(settings));
+          }
+        } catch (e) {
+          console.warn("Active data backup note:", e);
+        }
+
         showToast(
-          "تم إصدار تحديث جديد للتطبيق! قم بتحديث الصفحة للحصول على الميزات الجديدة.",
+          "تم إصدار تحديث جديد للتطبيق! يُرجى تحديث الصفحة لتفعيل التحسينات بدون فقدان بياناتك.",
           "success"
         );
         setTimeout(() => {
           if (
             window.confirm(
-              "تم العثور على تحديث جديد للبرنامج. هل ترغب بإعادة التحميل لتحديث الملفات الآن؟"
+              "يتوفر إصدار جديد أحدث من التطبيق. هل ترغب بإعادة تحميل الصفحة الآن لتطبيق التحديث؟ (جميع محادثاتك وبياناتك النشطة محفوظة)"
             )
           ) {
+            if (
+              typeof navigator !== "undefined" &&
+              "serviceWorker" in navigator &&
+              navigator.serviceWorker &&
+              navigator.serviceWorker.controller
+            ) {
+              try {
+                navigator.serviceWorker.controller.postMessage({ type: "SKIP_WAITING" });
+              } catch (e) {}
+            }
             window.location.reload();
           }
-        }, 1500);
+        }, 1200);
       }
     };
 

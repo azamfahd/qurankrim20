@@ -152,6 +152,8 @@ export class NativeNotificationService {
                 DhikrReminderService.showDirectBanner();
               }
             }
+          } else if (extra && extra.type === 'app_update') {
+            window.dispatchEvent(new CustomEvent('check-for-app-updates', { detail: extra }));
           }
         }
       });
@@ -249,6 +251,7 @@ export class NativeNotificationService {
         activeDhikrGeneralId,
         silentDhikrChannelId,
         ...activeDhikrCategoryIds,
+        'app_updates_channel',
         'anis_foreground_prayer_tracker'
       ]);
 
@@ -407,6 +410,20 @@ export class NativeNotificationService {
         });
       } catch (e) {}
 
+      // 3.1 Create App Updates Channel for instant update notifications in Android APK
+      try {
+        await LocalNotifications.createChannel({
+          id: 'app_updates_channel',
+          name: 'تحديثات وإصدارات التطبيق الجديدة',
+          description: 'إشعارات وتنبيهات فورية عند توفر إصدار أحدث للتطبيق أو تحديث جديد',
+          importance: 5,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+          lightColor: '#F59E0B'
+        });
+      } catch (e) {}
+
       // 4. Register Interactive Notification Action Buttons
       try {
         await LocalNotifications.registerActionTypes({
@@ -440,6 +457,21 @@ export class NativeNotificationService {
                   foreground: true
                 }
               ]
+            },
+            {
+              id: 'APP_UPDATE_ACTIONS',
+              actions: [
+                {
+                  id: 'update_now',
+                  title: 'تحديث الآن 🚀',
+                  foreground: true
+                },
+                {
+                  id: 'open_app',
+                  title: 'عرض التفاصيل ✨',
+                  foreground: true
+                }
+              ]
             }
           ]
         });
@@ -449,6 +481,77 @@ export class NativeNotificationService {
     } catch (err) {
       console.warn('[NativeNotificationService] Dynamic channel setup error:', err);
       return false;
+    }
+  }
+
+  /**
+   * Dispatches high-priority App Update Notification to Android Status Bar and Web
+   */
+  public static async dispatchAppUpdateNotification(
+    version: string,
+    title?: string,
+    releaseNotes?: string,
+    updateUrl?: string
+  ): Promise<void> {
+    const cleanVer = String(version || '').trim();
+    if (!cleanVer) return;
+
+    // Prevent duplicate alert storm in the same session
+    const notifKey = `anis_update_notified_v_${cleanVer}`;
+    if (sessionStorage.getItem(notifKey)) return;
+    sessionStorage.setItem(notifKey, 'true');
+
+    const notifTitle = title || `🚀 يتوفر تحديث جديد للتطبيق (v${cleanVer})`;
+    const notifBody = releaseNotes || 'تم إصدار نسخة جديدة ومحدثة من أنيس القلوب! اضغط هنا للتحديث المباشر والاستفادة من المميزات الجديدة.';
+
+    // 1. Android Native Local Notification
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const perm = await LocalNotifications.checkPermissions();
+        if (perm.display !== 'granted') {
+          await LocalNotifications.requestPermissions();
+        }
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: 99901,
+              title: notifTitle,
+              body: notifBody,
+              channelId: 'app_updates_channel',
+              actionTypeId: 'APP_UPDATE_ACTIONS',
+              largeBody: `${notifTitle}\n\n${notifBody}`,
+              summaryText: 'تحديث متاح لتطبيق أنيس القلوب',
+              smallIcon: 'ic_stat_name',
+              iconColor: '#F59E0B',
+              extra: {
+                type: 'app_update',
+                version: cleanVer,
+                updateUrl
+              }
+            }
+          ]
+        });
+      } catch (err) {
+        console.warn('Native update notification dispatch error:', err);
+      }
+    } 
+    // 2. Web / PWA Notification
+    else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'APK_UPDATE_AVAILABLE',
+            versionInfo: { version: cleanVer, title: notifTitle, releaseNotes: notifBody, updateUrl }
+          });
+        } else {
+          new Notification(notifTitle, {
+            body: notifBody,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico'
+          });
+        }
+      } catch (e) {}
     }
   }
 
