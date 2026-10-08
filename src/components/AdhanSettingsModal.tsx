@@ -21,7 +21,7 @@ interface AdhanSettingsModalProps {
 }
 
 const defaultAdhanSettings: AdhanSettings = {
-  enabled: true,
+  enabled: false,
   muezzin: 'mishary',
   fajrEnabled: true,
   dhuhrEnabled: true,

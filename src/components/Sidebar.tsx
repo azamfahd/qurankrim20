@@ -66,7 +66,9 @@ export const Sidebar = React.memo<SidebarProps>(({
   const [currentVersion, setCurrentVersion] = React.useState<string>(AppUpdateService.getCurrentVersion());
   const [availableUpdate, setAvailableUpdate] = React.useState<string | null>(null);
 
-  const isOwner = currentUserEmail?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase();
+  const isOwner = (currentUserEmail?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase()) || 
+                  (userInfo.email?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase()) ||
+                  (typeof localStorage !== 'undefined' && localStorage.getItem('anis_auth_email')?.trim().toLowerCase() === OWNER_EMAIL.toLowerCase());
 
   React.useEffect(() => {
     const handleUpdateCompleted = (e: any) => {
@@ -321,6 +323,22 @@ export const Sidebar = React.memo<SidebarProps>(({
                 onClick={() => { onOpenSettings(); onClose(); }} 
                 variant="settings"
               />
+
+              {/* Exclusive Owner Control Panel Button in Sidebar */}
+              {isOwner && (
+                <SidebarItem 
+                  icon={<Crown size={20} className="text-amber-500 animate-pulse" />} 
+                  label="لوحة تحكم مالك التطبيق" 
+                  badge="👑 المالك"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenOwnerAdmin) {
+                      onOpenOwnerAdmin();
+                    }
+                  }} 
+                  variant="dhikr_alert"
+                />
+              )}
 
               <div className="pt-1 space-y-1.5">
                 <SidebarItem 

@@ -1,10 +1,13 @@
 /**
  * In-App Smart Update Service for Anis Al-Qulub
+ * Directly connected to published deployment: https://qurankrim20.netlify.app
  * Supports both Live OTA Hot Updates (Features & UI without re-downloading APK)
- * and Full APK Direct Downloads.
+ * and Full APK Direct Downloads for Android APK users.
  */
 
 import { Capacitor } from '@capacitor/core';
+
+export const PUBLISHED_DOMAIN_URL = 'https://qurankrim20.netlify.app';
 
 export interface AppVersionInfo {
   version: string;
@@ -15,7 +18,9 @@ export interface AppVersionInfo {
   releaseNotes?: string;
   features?: string[];
   updateUrl?: string;
+  downloadUrl?: string;
   apkSize?: string;
+  sizeFormatted?: string;
   timestamp?: number;
 }
 
@@ -29,10 +34,8 @@ export interface UpdateCheckResult {
 }
 
 export class AppUpdateService {
-  private static readonly GITHUB_REPO = 'azamfahd/qurankrim20';
-  private static readonly GITHUB_RELEASES_API = `https://api.github.com/repos/azamfahd/qurankrim20/releases/latest`;
-
   private static readonly VERSION_ENDPOINTS = [
+    `${PUBLISHED_DOMAIN_URL}/version.json`,
     '/version.json',
     'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json'
   ];
@@ -74,47 +77,9 @@ export class AppUpdateService {
   }
 
   /**
-   * Fetch the latest version info from available endpoints
+   * Fetch the latest version info directly from https://qurankrim20.netlify.app/version.json
    */
   public static async fetchLatestVersionInfo(): Promise<AppVersionInfo | null> {
-    // 1. First priority: Direct GitHub Releases API lookup
-    try {
-      const ghRes = await fetch(this.GITHUB_RELEASES_API, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' },
-        cache: 'no-cache'
-      });
-      if (ghRes.ok) {
-        const release = await ghRes.json();
-        if (release && release.tag_name) {
-          const rawTag = String(release.tag_name).trim();
-          const cleanVer = rawTag.replace(/^v/i, '');
-          
-          const apkAsset = Array.isArray(release.assets) 
-            ? release.assets.find((a: { name?: string; browser_download_url?: string }) => 
-                typeof a.name === 'string' && a.name.toLowerCase().endsWith('.apk')
-              )
-            : null;
-
-          const downloadUrl = apkAsset?.browser_download_url || release.html_url || `https://github.com/${this.GITHUB_REPO}/releases/latest`;
-          const sizeMb = apkAsset?.size ? `${(apkAsset.size / (1024 * 1024)).toFixed(1)} ميجابايت` : undefined;
-
-          return {
-            version: cleanVer,
-            releaseDate: release.published_at ? new Date(release.published_at).toLocaleDateString('ar-SA') : undefined,
-            updateType: apkAsset ? 'apk' : 'both',
-            title: release.name || `تحديث جديد (${rawTag})`,
-            releaseNotes: release.body || 'يتوفر إصدار جديد تم نشره على مستودع GitHub!',
-            updateUrl: downloadUrl,
-            apkSize: sizeMb,
-            timestamp: release.published_at ? new Date(release.published_at).getTime() : Date.now()
-          };
-        }
-      }
-    } catch (ghErr) {
-      console.warn('GitHub Releases API check note:', ghErr);
-    }
-
-    // 2. Secondary fallback: version.json endpoints
     const cacheBuster = `t=${Date.now()}`;
     for (const endpoint of this.VERSION_ENDPOINTS) {
       try {
@@ -124,9 +89,27 @@ export class AppUpdateService {
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         });
         if (res.ok) {
-          const data: AppVersionInfo = await res.json();
+          const data: any = await res.json();
           if (data && data.version) {
-            return data;
+            const normalized: AppVersionInfo = {
+              version: data.version,
+              versionCode: data.versionCode || 1,
+              releaseDate: data.releaseDate || new Date().toISOString().split('T')[0],
+              updateType: data.updateType || 'smart',
+              title: data.title || `تحديث جديد متاح (v${data.version})`,
+              releaseNotes: data.releaseNotes || 'تحديث جديد يتضمن تحسينات للأداء واستقرار التنبيهات والأذكار.',
+              features: data.features || [
+                'تحسين استقرار تنبيهات الأذكار والأذان للعمل بدقة',
+                'مزامنة التحديثات تلقائياً مع خادم التطبيق',
+                'تسريع التصفح والاستجابة الفورية'
+              ],
+              updateUrl: data.updateUrl || data.downloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+              downloadUrl: data.downloadUrl || data.updateUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+              apkSize: data.apkSize || data.sizeFormatted || '20 MB',
+              sizeFormatted: data.sizeFormatted || data.apkSize || '20 MB',
+              timestamp: data.timestamp || Date.now()
+            };
+            return normalized;
           }
         }
       } catch (err) {
@@ -137,7 +120,7 @@ export class AppUpdateService {
   }
 
   /**
-   * Complete check comparing current installed version with remote version.json
+   * Complete check comparing current installed version with remote version.json on the domain
    */
   public static async checkForUpdates(): Promise<UpdateCheckResult> {
     const currentVer = this.getCurrentVersion();
@@ -169,7 +152,7 @@ export class AppUpdateService {
     return {
       hasUpdate,
       isHotUpdate: updateType !== 'apk', // In-app feature update is available for web, PWA and native hybrid
-      isApkUpdate: isNative || Boolean(remoteInfo.updateUrl),
+      isApkUpdate: isNative || Boolean(remoteInfo.updateUrl || remoteInfo.downloadUrl),
       currentVersion: currentVer,
       remoteVersion: remoteInfo.version,
       details: remoteInfo
@@ -179,28 +162,28 @@ export class AppUpdateService {
   /**
    * Performs Live In-App Hot Update (Over The Air):
    * Synchronizes assets, clears outdated caches, fetches the latest app bundle
-   * without re-downloading or reinstalling the APK!
+   * directly from the published domain without re-downloading APK!
    */
   public static async applyInAppHotUpdate(
     onProgress?: (progress: number, statusText: string) => void
   ): Promise<boolean> {
     try {
-      onProgress?.(15, 'الاتصال بالخادم وجلب قائمة الميزات والتحسينات...');
+      onProgress?.(15, 'الاتصال بخادم التحديثات (qurankrim20.netlify.app)...');
 
       // 1. Fetch latest build-assets.json if available
       try {
-        const manifestRes = await fetch(`/build-assets.json?t=${Date.now()}`, { cache: 'no-store' });
+        const manifestRes = await fetch(`${PUBLISHED_DOMAIN_URL}/build-assets.json?t=${Date.now()}`, { cache: 'no-store' });
         if (manifestRes.ok) {
           const assets = await manifestRes.json();
           if (Array.isArray(assets) && assets.length > 0) {
             onProgress?.(40, 'تحديث الموارد البرمجية وحزم الميزات...');
-            // Preload critical JS/CSS assets safely in the background
             const criticalAssets = assets.filter(a => typeof a === 'string' && (a.endsWith('.js') || a.endsWith('.css'))).slice(0, 15);
             let loaded = 0;
             await Promise.allSettled(
               criticalAssets.map(async (assetUrl) => {
                 try {
-                  await fetch(assetUrl, { cache: 'no-cache' });
+                  const resolvedUrl = assetUrl.startsWith('http') ? assetUrl : `${PUBLISHED_DOMAIN_URL}${assetUrl.startsWith('/') ? '' : '/'}${assetUrl}`;
+                  await fetch(resolvedUrl, { cache: 'no-cache' });
                   loaded++;
                   const pct = 40 + Math.floor((loaded / criticalAssets.length) * 35);
                   onProgress?.(pct, `تحديث الملفات البرمجية (${loaded}/${criticalAssets.length})...`);
@@ -246,22 +229,25 @@ export class AppUpdateService {
   }
 
   /**
-   * Direct APK Download & Install
-   * Initiates browser download or system package installer for full APK
+   * Direct APK Download & Install linked to the published domain
    */
   public static downloadApk(customUrl?: string): void {
-    const targetUrl = customUrl || 'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/app-release.apk';
+    const targetUrl = customUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`;
     try {
-      // In native Capacitor or external browsers, trigger external download
-      window.open(targetUrl, '_system');
+      if (Capacitor.isNativePlatform()) {
+        window.open(targetUrl, '_system');
+      } else {
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.download = 'أنيس القلوب - القرآن الذكي.apk';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } catch {
-      const a = document.createElement('a');
-      a.href = targetUrl;
-      a.download = 'anis-al-qulub.apk';
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      window.open(targetUrl, '_blank');
     }
   }
 

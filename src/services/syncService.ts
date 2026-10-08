@@ -1,5 +1,4 @@
 import { SupabaseService, getSupabase } from './supabaseService';
-import { FirebaseService } from './firebaseService';
 import { ChatSession, UserSettings, Bookmark } from '../types';
 import { LocalDatabaseService } from '../db/localDb';
 
@@ -105,10 +104,8 @@ export class SyncService {
 
     try {
       await SupabaseService.saveSessions(userId, [session]);
-      // Dual-sync to Firebase Firestore
-      FirebaseService.saveUserData(userId, { sessions: [session] }).catch(() => {});
     } catch (e) {
-      console.warn('Background cloud sync failed, queuing for offline retry:', e);
+      console.warn('Background Supabase cloud sync failed, queuing for offline retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
         type: 'session',
         payload: session,
@@ -134,14 +131,7 @@ export class SyncService {
       // First process any pending sync items
       await this.processSyncQueue(userId, settings);
 
-      let cloudSessions = await SupabaseService.loadSessions(userId).catch(() => null);
-      if (!cloudSessions || cloudSessions.length === 0) {
-        // Silent fallback to Firebase Firestore as secondary cloud backup
-        const fbData = await FirebaseService.getUserData(userId).catch(() => null);
-        if (fbData && fbData.sessions && fbData.sessions.length > 0) {
-          cloudSessions = fbData.sessions;
-        }
-      }
+      const cloudSessions = await SupabaseService.loadSessions(userId).catch(() => null);
 
       if (cloudSessions && cloudSessions.length > 0) {
         // Merge & update local DB
@@ -151,7 +141,7 @@ export class SyncService {
         return await LocalDatabaseService.getAllSessions();
       }
     } catch (e) {
-      console.warn('Cloud loadSessions failed, using local database:', e);
+      console.warn('Supabase loadSessions failed, using local database:', e);
     }
 
     return localSessions.length > 0 ? localSessions : null;
@@ -161,7 +151,7 @@ export class SyncService {
     // 1. Always save to local database first
     await LocalDatabaseService.saveLocalSettings(settings);
 
-    // 2. Cloud sync
+    // 2. Cloud sync with Supabase
     if (!userId || this.isGuest(userId)) return;
 
     if (!navigator.onLine) {
@@ -175,9 +165,8 @@ export class SyncService {
 
     try {
       await SupabaseService.saveUserSettings(userId, settings);
-      FirebaseService.saveUserData(userId, { settings }).catch(() => {});
     } catch (e) {
-      console.warn('Cloud saveSettings failed, queuing for offline retry:', e);
+      console.warn('Supabase saveSettings failed, queuing for offline retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
         type: 'settings',
         payload: settings,
@@ -190,20 +179,13 @@ export class SyncService {
     // 1. Load from local database
     const localSettings = await LocalDatabaseService.getLocalSettings();
 
-    // 2. Try loading from Cloud if logged in and online
+    // 2. Try loading from Supabase Cloud if logged in and online
     if (!userId || this.isGuest(userId) || !navigator.onLine) {
       return localSettings;
     }
 
     try {
       let loadedSettings: Partial<UserSettings> | null = await SupabaseService.loadUserSettings(userId).catch(() => null);
-      if (!loadedSettings) {
-        // Silent fallback to Firebase Firestore
-        const fbData = await FirebaseService.getUserData(userId).catch(() => null);
-        if (fbData && fbData.settings) {
-          loadedSettings = fbData.settings;
-        }
-      }
       
       try {
         const bookmarks = await SupabaseService.getBookmarks(userId);
@@ -217,7 +199,7 @@ export class SyncService {
           }
         }
       } catch (e) {
-        console.warn('Error fetching separate bookmarks from cloud:', e);
+        console.warn('Error fetching separate bookmarks from Supabase:', e);
       }
 
       if (loadedSettings) {
@@ -228,7 +210,7 @@ export class SyncService {
         return merged;
       }
     } catch (e) {
-      console.warn('Cloud loadSettings failed, using local database:', e);
+      console.warn('Supabase loadSettings failed, using local database:', e);
     }
 
     return localSettings;
@@ -250,7 +232,7 @@ export class SyncService {
     try {
       await SupabaseService.deleteSession(sessionId);
     } catch (e) {
-      console.warn('Cloud deleteSession failed, queuing for retry:', e);
+      console.warn('Supabase deleteSession failed, queuing for retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
         type: 'delete_session',
         payload: { sessionId },
@@ -265,7 +247,7 @@ export class SyncService {
     try {
       await SupabaseService.clearAllSessions(userId);
     } catch (e) {
-      console.warn('Cloud clearAllSessions failed:', e);
+      console.warn('Supabase clearAllSessions failed:', e);
     }
   }
 
@@ -284,9 +266,8 @@ export class SyncService {
 
     try {
       await SupabaseService.saveBookmark(userId, bookmark);
-      FirebaseService.saveUserData(userId, { bookmarks: [bookmark] }).catch(() => {});
     } catch (e) {
-      console.warn('Cloud saveBookmark failed, queuing for retry:', e);
+      console.warn('Supabase saveBookmark failed, queuing for retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
         type: 'bookmark',
         payload: bookmark,
@@ -311,7 +292,7 @@ export class SyncService {
     try {
       await SupabaseService.deleteBookmark(userId, bookmarkId);
     } catch (e) {
-      console.warn('Cloud deleteBookmark failed, queuing for retry:', e);
+      console.warn('Supabase deleteBookmark failed, queuing for retry:', e);
       await LocalDatabaseService.enqueueSyncItem({
         type: 'delete_bookmark',
         payload: { bookmarkId },
@@ -325,7 +306,7 @@ export class SyncService {
     try {
       await SupabaseService.registerUser(userId, metadata, settings);
     } catch (e) {
-      console.warn('Cloud registerUser failed:', e);
+      console.warn('Supabase registerUser failed:', e);
     }
   }
 
@@ -334,7 +315,7 @@ export class SyncService {
     try {
       await SupabaseService.updateUserInstallStatus(userId, isInstalled);
     } catch (e) {
-      console.warn('Cloud updateUserInstallStatus failed:', e);
+      console.warn('Supabase updateUserInstallStatus failed:', e);
     }
   }
 }

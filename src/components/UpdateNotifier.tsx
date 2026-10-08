@@ -11,19 +11,36 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleManualCheck = useCallback(async () => {
-    onShowToast?.('جاري التحقق من وجود تحديثات...', 'info');
+    onShowToast?.('جاري الاتصال بالسيرفر والتحقق من التحديثات...', 'info');
     try {
       const result = await AppUpdateService.checkForUpdates();
       if (result.hasUpdate && result.details) {
         setUpdateResult(result);
         setIsModalOpen(true);
       } else {
-        onShowToast?.(`تطبيقك محدث إلى أحدث إصدار (v${result.currentVersion}) ✨`, 'success');
+        onShowToast?.(`تطبيقك محدث إلى أحدث إصدار متاح (v${result.currentVersion}) ✨`, 'success');
       }
     } catch (err) {
-      onShowToast?.('تعذر الاتصال بخادم التحديثات حالياً، يرجى المحاولة لاحقاً.', 'error');
+      onShowToast?.('تعذر الاتصال بخادم التحديثات حالياً، يرجى التحقق من اتصال الإنترنت.', 'error');
     }
   }, [onShowToast]);
+
+  // Initial silent background check on startup
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const result = await AppUpdateService.checkForUpdates();
+        if (result.hasUpdate && result.details) {
+          setUpdateResult(result);
+          setIsModalOpen(true);
+        }
+      } catch (err) {
+        // Silent background fail
+      }
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Listen to manual update check trigger from any component (e.g., Sidebar or About)

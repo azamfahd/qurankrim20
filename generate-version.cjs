@@ -27,7 +27,9 @@ const versionData = {
   ...existingData,
   version: pkg.version || "1.1.0",
   versionCode: versionCode,
-  updateUrl: process.env.VITE_APK_DOWNLOAD_URL || existingData.updateUrl || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
+  updateUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
+  downloadUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
+  mirrorUrl: "https://qurankrim20.netlify.app/app-release.apk",
   releaseNotes: "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
   timestamp: Date.now(),
   apkUpdated: new Date().toISOString()

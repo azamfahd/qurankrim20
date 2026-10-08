@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone, Flame, Layers } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone, Flame, Layers, Crown } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
-import { FirebaseService } from '../services/firebaseService';
+import { AdminService, OWNER_EMAIL } from '../services/adminService';
 import { BatteryOptimizationGuideModal } from './BatteryOptimizationGuideModal';
 
 interface SettingsModalProps {
@@ -14,6 +14,7 @@ interface SettingsModalProps {
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   onOpenLocationModal?: () => void;
   onOpenAdhanSettings?: () => void;
+  onOpenOwnerAdmin?: () => void;
   isSyncing?: boolean;
   lastSynced?: number | null;
 }
@@ -26,6 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onShowToast,
   onOpenLocationModal,
   onOpenAdhanSettings,
+  onOpenOwnerAdmin,
   isSyncing,
   lastSynced
 }) => {
@@ -33,15 +35,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isLoggingInSupabase, setIsLoggingInSupabase] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
   const [showDeveloperKey, setShowDeveloperKey] = useState(false);
-  const [isFirebaseLinked, setIsFirebaseLinked] = useState<boolean>(() => !!FirebaseService.getCurrentUser());
-
-  // Listen to Firebase auth state
-  React.useEffect(() => {
-    const unsub = FirebaseService.onAuthChange((u) => {
-      setIsFirebaseLinked(!!u);
-    });
-    return () => unsub();
-  }, []);
 
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
@@ -139,6 +132,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Owner VIP Control Panel Button (Displayed exclusively for azamfahd25@gmail.com) */}
+                  {(AdminService.isOwnerEmail(localSettings.email) || localSettings.email?.toLowerCase() === OWNER_EMAIL.toLowerCase()) && (
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-600/20 border-2 border-amber-400/60 shadow-md space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">👑</span>
+                          <div>
+                            <h4 className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                              <span>مالك التطبيق المعتمد</span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
+                                Verified Owner
+                              </span>
+                            </h4>
+                            <p className="text-[10px] text-amber-900/80 font-semibold mt-0.5">
+                              لديك كامل الصلاحيات لإرسال الإشعارات والتحكم في الإصدارات وقاعدة البيانات.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          if (onOpenOwnerAdmin) {
+                            onOpenOwnerAdmin();
+                          }
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      >
+                        <Crown size={15} />
+                        <span>فتح لوحة تحكم وإدارة المالك 👑</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Clean Unified Cloud Sync Status */}
                   <div className="p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 flex items-center justify-between shadow-2xs">
                     <div className="flex items-center gap-3 min-w-0">
@@ -170,8 +199,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         if (window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج؟')) {
                           try {
                             await SupabaseService.signOut();
-                            await FirebaseService.signOutUser();
-                            setIsFirebaseLinked(false);
                             onShowToast('تم تسجيل الخروج بنجاح', 'success');
                           } catch (err: any) {
                             console.error(err);
@@ -186,7 +213,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   </div>
                   <p className="text-[10px] text-center text-gray-400">
-                    بياناتك وإعداداتك تتم مزامنتها تلقائياً مع خادم Supabase الأساسي ونسخها احتياطياً.
+                    بياناتك وإعداداتك تتم مزامنتها تلقائياً مع قاعدة بيانات Supabase السحابية.
                   </p>
                 </div>
               ) : (
@@ -195,12 +222,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     قم بالمتابعة عبر حساب Google لحفظ ومزامنة محادثاتك وتفضيلاتك وتلاواتك سحابياً عبر جميع أجهزتك.
                   </p>
 
-                  {/* UNIFIED GOOGLE LOGIN */}
+                  {/* UNIFIED GOOGLE LOGIN VIA SUPABASE */}
                   <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-50/90 via-emerald-50/40 to-white border-2 border-emerald-500/40 shadow-xs space-y-3 relative overflow-hidden">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                          <span>المزامنة السحابية الموحدة</span>
+                          <span>المزامنة السحابية عبر Supabase</span>
                         </span>
                       </div>
                       <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
@@ -213,34 +240,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         if (isLoggingInSupabase) return;
                         setIsLoggingInSupabase(true);
                         try {
-                          // 1. Try Firebase Google Auth Popup first for instant client auth
-                          try {
-                            const fbUser = await FirebaseService.signInWithGoogle();
-                            if (fbUser) {
-                              if (fbUser.email) {
-                                localStorage.setItem('anis_auth_email', fbUser.email);
-                              }
-                              const updated = {
-                                ...localSettings,
-                                isLoggedIn: true,
-                                username: fbUser.displayName || localSettings.username || 'مستخدم متصل',
-                                email: fbUser.email || localSettings.email || '',
-                                photoURL: fbUser.photoURL || localSettings.photoURL || '',
-                                uid: fbUser.uid
-                              };
-                              setLocalSettings(updated);
-                              onSave(updated);
-                              onShowToast('تم تسجيل الدخول والمصادقة بنجاح عبر Google! 🌟', 'success');
-                              setIsLoggingInSupabase(false);
-                              return;
-                            }
-                          } catch (fbErr: any) {
-                            console.warn('Firebase direct login note, proceeding with Supabase link:', fbErr);
-                          }
-
-                          // 2. Also link with Supabase OAuth
                           await SupabaseService.signInWithGoogle();
-                          onShowToast('جاري الربط والمصادقة مع Google...', 'info');
+                          onShowToast('جاري الاتصال والمصادقة مع Google عبر Supabase...', 'info');
                         } catch (err: any) {
                           console.error(err);
                           onShowToast(err.message || 'فشل الاتصال بـ Google', 'error');
@@ -254,7 +255,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {isLoggingInSupabase ? (
                         <RefreshCw size={18} className="animate-spin text-emerald-600" />
                       ) : (
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path
+                            fill="#4285F4"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          />
+                          <path
+                            fill="#EA4335"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          />
+                        </svg>
                       )}
                       <span>
                         {isLoggingInSupabase ? 'جاري الاتصال والمزامنة...' : 'المتابعة الفورية بحساب Google'}
@@ -262,7 +280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
 
                     <p className="text-[10px] text-emerald-800/90 leading-relaxed font-medium text-center">
-                      ⚡ مصادقة تلقائية فورية وترتبط مباشرة مع Firebase و Supabase لحفظ محادثاتك وتفضيلاتك.
+                      ⚡ مصادقة فورية ومباشرة ترتبط مع قاعدة بيانات Supabase السحابية لحفظ ومزامنة محادثاتك وتفضيلاتك ومحفوظاتك.
                     </p>
                   </div>
 

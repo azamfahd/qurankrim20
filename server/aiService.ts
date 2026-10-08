@@ -114,7 +114,7 @@ export class ServerAIService {
         },
         introMessage: {
           type: Type.STRING,
-          description: "تحليل ذكي واحترافي للسؤال المطروح مصاغ بالكامل وفق النمط المحدد (تفسيري مفصل، تلخيصي عبقري، إيماني وجداني، علمي عقلاني، أو متوازن).",
+          description: "المدخل الاستبصاري الذكي (لب الموضوع): ابدأ مباشرة وبدون مقدمات إنشائية بتشخيص دقيق وسريع لجوهر السؤال أو الحالة النفسية/الفكرية في 2 إلى 3 جمل مكثفة وممتلئة بالبصيرة توضح كيف عالج القرآن هذا الأصل بدقة.",
         },
         verseMappings: {
           type: Type.ARRAY,
@@ -124,20 +124,20 @@ export class ServerAIService {
               surahNumber: { type: Type.INTEGER },
               ayahNumber: { type: Type.INTEGER },
               arabicText: { type: Type.STRING, description: "نص الآية الكريمة بالكامل بشكل دقيق بالرسم العثماني أو الإملائي الصحيح كنسخة احتياطية سريعة وموثوقة." },
-              tafsir: { type: Type.STRING, description: "التفسير: تفسير دقيق موثوق ومفصل ومصاغ بالكامل وفق قواعد النمط المحدد." },
-              tadabbur: { type: Type.STRING, description: "التدبر: استنباط ذكي وإسقاط واقعي للآية يتبع بدقة النمط المختار." },
+              tafsir: { type: Type.STRING, description: "التفسير: بيان ميسر وواضح لمعاني المفردات وجوهر الآية بأسلوب حديث يفهمه الجميع دون تعقيد." },
+              tadabbur: { type: Type.STRING, description: "التدبر: إشراقة وجدانية وتأمل عميق يربط الآية بحال السائل وواقعه." },
             },
             required: ["surahNumber", "ayahNumber", "arabicText", "tafsir", "tadabbur"]
           },
-          description: "قائمة بالآيات القرآنية الأكثر صلة (أرقام السور والآيات والنص والتحليل). اختر الآيات بذكاء شديد لتغطي جوانب السؤال المختلفة (من 1 إلى 10 آيات أو أكثر حسب الحاجة).",
+          description: "قائمة شاملة ومستفيضة بالآيات القرآنية الأكثر صلة ومركزية في معالجة صلب الموضوع. اختر أعداداً كافية ودقيقة (5 إلى 10 آيات أو أكثر حسب غزارة الأدلة وحاجة الموضوع) لضمان الشرح الشامل والدقة المطلقة دون تقييد ضيق.",
         },
         tafakkur: {
           type: Type.STRING,
-          description: "التفكر والعمل: صياغة عبقرية، ذكية، ومرنة غير مشروطة بقوالب جامدة أو نقاط آلية. تفهم كنه السؤال وحال السائل بعمق، وتقدم نمط الرد الأنسب له (فقرة استبصارية ملهمة، رؤية واقعية سلسة، أو توجيه عملي مباشر)، رابطةً جوهر الهداية بواقع الحياة اليومية بمثال حي ملموس وتطبيق واقعي ذكي دون إطالة مفرطة أو تشتيت.",
+          description: "التفكر والعمل والتطبيق الواقعي: تحويل الآية إلى تطبيق سلوكي ومثال معاش حي (كيف أعيش بهذه الآية اليوم؟)، بصياغة حرة ذكية وانسيابية دون التقيد بنقاط آلية.",
         },
         summary: {
           type: Type.STRING,
-          description: "خلاصة احترافية، مركزة، وذكية تعبر عن النمط المختار بدقة.",
+          description: "القاعدة القرآنية الذهبية والخلاصة العبقرية (The Golden Rule): صياغة حكمة مكثفة وخالدة في سطر إلى سطرين تجمع بين حقيقة الآية والحل المباشر وتظل عالقة في ذهن القارئ لتهديه وتبث السكينة في روحه.",
         },
       },
       required: ["title", "introMessage", "verseMappings", "tafakkur", "summary"]
@@ -254,9 +254,10 @@ export class ServerAIService {
       1. UNIVERSAL DEEP INTENT UNDERSTANDING (الفهم الشامل والذكي لمراد السائل):
          - In EVERY mode without exception, you MUST first conduct an ultra-deep cognitive analysis of the user's inquiry: dissect what they are truly asking, their psychological/spiritual state, the fiqh or real-life dilemmas involved, and their root intent.
          - The selected mode ("${style}") dictates the TONE, LENS, AND PACKAGING of your supportive explanation — it NEVER dumbs down, restricts, or limits your deep comprehension of the question and user needs.
-      2. ADAPTIVE DEPTH FOR COMPLEX & MULTI-LAYERED QUESTIONS (المرونة والعمق عند الحاجة للشرح والتحليل التفصيلي):
-         - If the question inherently requires detailed analysis, nuanced clarification, scholarly breakdown, or multi-step guidance, you MUST provide full clarity, depth, and comprehensive insight.
-         - Never sacrifice vital understanding, precision, or thoroughness; smartly deliver the necessary analytical depth while honoring the aesthetic and spirit of the active mode.
+      2. DYNAMIC ADAPTATION OF VERSE QUANTITY & EXPLANATION DEPTH (المرونة الكاملة والتكيف بحسب حاجة السؤال):
+         - You are NEVER bound by a fixed number of verses or artificial length limits.
+         - If the question is simple, direct, or highly specific -> provide 1 or 2 most direct, crystal-clear Ayahs and a concise explanation without artificial inflation or padding.
+         - If the question is broad, complex, multi-layered, or rich in proofs -> provide as many relevant Ayahs as necessary (4, 5, 8 or more) with the full analytical depth required for complete clarity.
       3. RELEVANT & ACCURATE QURANIC GROUNDING:
          - Every selected Ayah must directly address the core of the user's real situation discovered through your deep intent analysis.
 

@@ -1,5 +1,10 @@
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from './firebaseService';
+/**
+ * Owner Admin & System Control Service
+ * Directly connected to Supabase Database
+ * Handles: Announcements, Remote Version Control, Maintenance Mode, Feature Toggles, and Realtime Stats.
+ */
+
+import { getSupabase, PUBLISHED_WEB_URL } from './supabaseService';
 
 export const OWNER_EMAIL = 'azamfahd25@gmail.com';
 
@@ -31,6 +36,8 @@ export interface MaintenanceConfig {
   enabled: boolean;
   message: string;
   estimatedEndTime?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface SystemFeatureToggles {
@@ -39,6 +46,7 @@ export interface SystemFeatureToggles {
   enableAyahCards?: boolean;
   enableCommunityKhatma?: boolean;
   updatedAt?: string;
+  updatedBy?: string;
 }
 
 export const ANNOUNCEMENT_PRESETS = [
@@ -61,7 +69,7 @@ export const ANNOUNCEMENT_PRESETS = [
     message: 'تم إضافة مميزات وتحسينات جديدة لسلاسة القراءة واستماع القرآن. حمّل الإصدار الأخير الآن.',
     type: 'update' as const,
     actionText: 'تحميل الـ APK الآن',
-    actionUrl: 'https://raw.githubusercontent.com/azamfahd25/qurankrim20/main/qurankrim20.apk'
+    actionUrl: 'https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk'
   },
   {
     title: '🌙 تهنئة بحلول الشهر المبارك',
@@ -73,6 +81,7 @@ export const ANNOUNCEMENT_PRESETS = [
 ];
 
 export class AdminService {
+  private static TABLE_CONFIG = 'system_config';
   private static ANNOUNCEMENT_STORAGE_KEY = 'anis_system_announcement_cache';
   private static VERSION_STORAGE_KEY = 'anis_system_version_cache';
   private static MAINTENANCE_STORAGE_KEY = 'anis_system_maintenance_cache';
@@ -83,7 +92,6 @@ export class AdminService {
    */
   static isOwnerEmail(email?: string | null): boolean {
     if (!email) {
-      // Check localStorage for authenticated owner email
       const localEmail = typeof localStorage !== 'undefined' ? localStorage.getItem('anis_auth_email') : null;
       if (localEmail && localEmail.trim().toLowerCase() === OWNER_EMAIL.toLowerCase()) {
         return true;
@@ -94,7 +102,7 @@ export class AdminService {
   }
 
   /**
-   * Publish App Version Configuration to Firestore + Local Cache + Broadcast
+   * Publish App Version Configuration to Supabase + Local Cache + Broadcast
    */
   static async publishVersionConfig(config: AppVersionConfig): Promise<void> {
     const payload: AppVersionConfig = {
@@ -116,18 +124,27 @@ export class AdminService {
       console.warn('Local version caching note:', e);
     }
 
-    // 2. Publish to Firestore
-    try {
-      await setDoc(doc(db, 'system_config', 'app_version'), payload, { merge: true });
-      console.log('👑 [Admin] App version config updated successfully in Firestore');
-    } catch (error) {
-      console.warn('👑 [Admin] Firestore version write notice (saved locally):', error);
-      // We do not rethrow if local cache succeeded, ensuring the owner is never completely blocked
+    // 2. Publish to Supabase
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client
+          .from(this.TABLE_CONFIG)
+          .upsert({
+            id: 'app_version',
+            data: payload,
+            updated_at: new Date().toISOString(),
+            updated_by: OWNER_EMAIL
+          });
+        console.log('👑 [Admin] App version config updated successfully in Supabase');
+      } catch (error) {
+        console.warn('👑 [Admin] Supabase version write notice (saved locally):', error);
+      }
     }
   }
 
   /**
-   * Get App Version Config (Cache first, then Firestore)
+   * Get App Version Config (Cache first, then Supabase)
    */
   static async getVersionConfig(): Promise<AppVersionConfig | null> {
     // 1. Try local cache
@@ -135,29 +152,47 @@ export class AdminService {
       const cached = localStorage.getItem(this.VERSION_STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        // Start background firestore fetch
-        getDoc(doc(db, 'system_config', 'app_version')).then((snap) => {
-          if (snap.exists()) {
-            localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(snap.data()));
-          }
-        }).catch(() => {});
+        // Start background Supabase fetch to refresh cache
+        const client = getSupabase();
+        if (client) {
+          client
+            .from(this.TABLE_CONFIG)
+            .select('data')
+            .eq('id', 'app_version')
+            .single()
+            .then(
+              ({ data }) => {
+                if (data?.data) {
+                  localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(data.data));
+                }
+              },
+              () => {}
+            );
+        }
         return parsed as AppVersionConfig;
       }
     } catch (e) {}
 
-    // 2. Fetch from Firestore
-    try {
-      const snap = await getDoc(doc(db, 'system_config', 'app_version'));
-      if (snap.exists()) {
-        const data = snap.data() as AppVersionConfig;
-        localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(data));
-        return data;
+    // 2. Fetch from Supabase
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from(this.TABLE_CONFIG)
+          .select('data')
+          .eq('id', 'app_version')
+          .single();
+
+        if (!error && data?.data) {
+          const versionData = data.data as AppVersionConfig;
+          localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(versionData));
+          return versionData;
+        }
+      } catch (error) {
+        console.warn('👑 [Admin] Error fetching version config from Supabase:', error);
       }
-      return null;
-    } catch (error) {
-      console.warn('👑 [Admin] Error fetching version config from Firestore:', error);
-      return null;
     }
+    return null;
   }
 
   /**
@@ -178,36 +213,43 @@ export class AdminService {
     };
     window.addEventListener('admin-version-updated', handleLocal);
 
-    // Firestore Snapshot Listener
-    let unsubscribeFirestore = () => {};
-    try {
-      unsubscribeFirestore = onSnapshot(
-        doc(db, 'system_config', 'app_version'),
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as AppVersionConfig;
-            try {
-              localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(data));
-            } catch {}
-            callback(data);
-          } else {
-            callback(null);
-          }
-        },
-        (err) => console.warn('👑 [Admin] Version config snapshot listener note:', err)
-      );
-    } catch (e) {
-      console.warn('Firestore snapshot setup warning:', e);
+    // Supabase Realtime channel subscription
+    const client = getSupabase();
+    let channel: any = null;
+
+    if (client) {
+      try {
+        channel = client
+          .channel('system-version-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: this.TABLE_CONFIG, filter: 'id=eq.app_version' },
+            (payload) => {
+              if (payload.new && (payload.new as any).data) {
+                const updated = (payload.new as any).data as AppVersionConfig;
+                try {
+                  localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(updated));
+                } catch {}
+                callback(updated);
+              }
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.warn('Supabase version realtime subscription note:', e);
+      }
     }
 
     return () => {
       window.removeEventListener('admin-version-updated', handleLocal);
-      unsubscribeFirestore();
+      if (channel && client) {
+        client.removeChannel(channel).catch(() => {});
+      }
     };
   }
 
   /**
-   * Publish Broadcast System Announcement
+   * Publish Broadcast System Announcement to Supabase
    */
   static async publishAnnouncement(announcement: SystemAnnouncement): Promise<void> {
     const payload: SystemAnnouncement = {
@@ -229,12 +271,22 @@ export class AdminService {
       console.warn('Local announcement cache note:', e);
     }
 
-    // 2. Publish to Firestore
-    try {
-      await setDoc(doc(db, 'system_announcements', 'latest'), payload, { merge: true });
-      console.log('👑 [Admin] System announcement published successfully to Firestore');
-    } catch (error) {
-      console.warn('👑 [Admin] Firestore announcement write notice (saved locally):', error);
+    // 2. Publish to Supabase
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client
+          .from(this.TABLE_CONFIG)
+          .upsert({
+            id: 'announcement_latest',
+            data: payload,
+            updated_at: new Date().toISOString(),
+            updated_by: OWNER_EMAIL
+          });
+        console.log('👑 [Admin] System announcement published successfully to Supabase');
+      } catch (error) {
+        console.warn('👑 [Admin] Supabase announcement write notice (saved locally):', error);
+      }
     }
   }
 
@@ -269,40 +321,47 @@ export class AdminService {
       } catch {}
     }
 
-    // Firestore Snapshot Listener
-    let unsubscribeFirestore = () => {};
-    try {
-      unsubscribeFirestore = onSnapshot(
-        doc(db, 'system_announcements', 'latest'),
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as SystemAnnouncement;
-            try {
-              localStorage.setItem(this.ANNOUNCEMENT_STORAGE_KEY, JSON.stringify(data));
-            } catch {}
-            callback(data);
-          } else {
-            callback(null);
-          }
-        },
-        (err) => console.warn('👑 [Admin] Announcement snapshot listener note:', err)
-      );
-    } catch (e) {
-      console.warn('Firestore announcement snapshot setup warning:', e);
+    // Supabase Realtime channel
+    const client = getSupabase();
+    let channel: any = null;
+
+    if (client) {
+      try {
+        channel = client
+          .channel('system-announcements-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: this.TABLE_CONFIG, filter: 'id=eq.announcement_latest' },
+            (payload) => {
+              if (payload.new && (payload.new as any).data) {
+                const updated = (payload.new as any).data as SystemAnnouncement;
+                try {
+                  localStorage.setItem(this.ANNOUNCEMENT_STORAGE_KEY, JSON.stringify(updated));
+                } catch {}
+                callback(updated);
+              }
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.warn('Supabase announcement subscription warning:', e);
+      }
     }
 
     return () => {
       window.removeEventListener('admin-announcement-updated', handleLocal);
       if (bc) bc.close();
-      unsubscribeFirestore();
+      if (channel && client) {
+        client.removeChannel(channel).catch(() => {});
+      }
     };
   }
 
   /**
-   * Publish Maintenance Mode Config
+   * Publish Maintenance Mode Config to Supabase
    */
   static async publishMaintenanceConfig(config: MaintenanceConfig): Promise<void> {
-    const payload = {
+    const payload: MaintenanceConfig = {
       ...config,
       updatedAt: new Date().toISOString(),
       updatedBy: OWNER_EMAIL
@@ -313,11 +372,21 @@ export class AdminService {
       window.dispatchEvent(new CustomEvent('admin-maintenance-updated', { detail: payload }));
     } catch {}
 
-    try {
-      await setDoc(doc(db, 'system_config', 'maintenance'), payload, { merge: true });
-      console.log('👑 [Admin] Maintenance config updated');
-    } catch (error) {
-      console.warn('👑 [Admin] Firestore maintenance write notice:', error);
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client
+          .from(this.TABLE_CONFIG)
+          .upsert({
+            id: 'maintenance',
+            data: payload,
+            updated_at: new Date().toISOString(),
+            updated_by: OWNER_EMAIL
+          });
+        console.log('👑 [Admin] Maintenance config updated in Supabase');
+      } catch (error) {
+        console.warn('👑 [Admin] Supabase maintenance write notice:', error);
+      }
     }
   }
 
@@ -335,36 +404,43 @@ export class AdminService {
     };
     window.addEventListener('admin-maintenance-updated', handleLocal);
 
-    let unsubscribeFirestore = () => {};
-    try {
-      unsubscribeFirestore = onSnapshot(
-        doc(db, 'system_config', 'maintenance'),
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as MaintenanceConfig;
-            try {
-              localStorage.setItem(this.MAINTENANCE_STORAGE_KEY, JSON.stringify(data));
-            } catch {}
-            callback(data);
-          } else {
-            callback(null);
-          }
-        },
-        (err) => console.warn('👑 [Admin] Maintenance snapshot note:', err)
-      );
-    } catch {}
+    const client = getSupabase();
+    let channel: any = null;
+
+    if (client) {
+      try {
+        channel = client
+          .channel('system-maintenance-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: this.TABLE_CONFIG, filter: 'id=eq.maintenance' },
+            (payload) => {
+              if (payload.new && (payload.new as any).data) {
+                const data = (payload.new as any).data as MaintenanceConfig;
+                try {
+                  localStorage.setItem(this.MAINTENANCE_STORAGE_KEY, JSON.stringify(data));
+                } catch {}
+                callback(data);
+              }
+            }
+          )
+          .subscribe();
+      } catch {}
+    }
 
     return () => {
       window.removeEventListener('admin-maintenance-updated', handleLocal);
-      unsubscribeFirestore();
+      if (channel && client) {
+        client.removeChannel(channel).catch(() => {});
+      }
     };
   }
 
   /**
-   * Publish System Feature Toggles
+   * Publish System Feature Toggles to Supabase
    */
   static async publishFeatureToggles(toggles: SystemFeatureToggles): Promise<void> {
-    const payload = {
+    const payload: SystemFeatureToggles = {
       ...toggles,
       updatedAt: new Date().toISOString(),
       updatedBy: OWNER_EMAIL
@@ -375,16 +451,26 @@ export class AdminService {
       window.dispatchEvent(new CustomEvent('admin-features-updated', { detail: payload }));
     } catch {}
 
-    try {
-      await setDoc(doc(db, 'system_config', 'feature_toggles'), payload, { merge: true });
-      console.log('👑 [Admin] Feature toggles updated in Firestore');
-    } catch (error) {
-      console.warn('👑 [Admin] Firestore feature toggles write notice:', error);
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client
+          .from(this.TABLE_CONFIG)
+          .upsert({
+            id: 'feature_toggles',
+            data: payload,
+            updated_at: new Date().toISOString(),
+            updated_by: OWNER_EMAIL
+          });
+        console.log('👑 [Admin] Feature toggles updated in Supabase');
+      } catch (error) {
+        console.warn('👑 [Admin] Supabase feature toggles write notice:', error);
+      }
     }
   }
 
   /**
-   * Get Feature Toggles
+   * Get Feature Toggles from Supabase / Cache
    */
   static async getFeatureToggles(): Promise<SystemFeatureToggles | null> {
     try {
@@ -392,18 +478,25 @@ export class AdminService {
       if (cached) return JSON.parse(cached);
     } catch {}
 
-    try {
-      const snap = await getDoc(doc(db, 'system_config', 'feature_toggles'));
-      if (snap.exists()) {
-        const data = snap.data() as SystemFeatureToggles;
-        localStorage.setItem(this.FEATURES_STORAGE_KEY, JSON.stringify(data));
-        return data;
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from(this.TABLE_CONFIG)
+          .select('data')
+          .eq('id', 'feature_toggles')
+          .single();
+
+        if (!error && data?.data) {
+          const featureData = data.data as SystemFeatureToggles;
+          localStorage.setItem(this.FEATURES_STORAGE_KEY, JSON.stringify(featureData));
+          return featureData;
+        }
+      } catch (error) {
+        console.warn('👑 [Admin] Error fetching feature toggles from Supabase:', error);
       }
-      return null;
-    } catch (error) {
-      console.warn('👑 [Admin] Error fetching feature toggles:', error);
-      return null;
     }
+    return null;
   }
 
   /**
@@ -420,28 +513,35 @@ export class AdminService {
     };
     window.addEventListener('admin-features-updated', handleLocal);
 
-    let unsubscribeFirestore = () => {};
-    try {
-      unsubscribeFirestore = onSnapshot(
-        doc(db, 'system_config', 'feature_toggles'),
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as SystemFeatureToggles;
-            try {
-              localStorage.setItem(this.FEATURES_STORAGE_KEY, JSON.stringify(data));
-            } catch {}
-            callback(data);
-          } else {
-            callback(null);
-          }
-        },
-        (err) => console.warn('👑 [Admin] Feature toggles snapshot note:', err)
-      );
-    } catch {}
+    const client = getSupabase();
+    let channel: any = null;
+
+    if (client) {
+      try {
+        channel = client
+          .channel('system-features-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: this.TABLE_CONFIG, filter: 'id=eq.feature_toggles' },
+            (payload) => {
+              if (payload.new && (payload.new as any).data) {
+                const data = (payload.new as any).data as SystemFeatureToggles;
+                try {
+                  localStorage.setItem(this.FEATURES_STORAGE_KEY, JSON.stringify(data));
+                } catch {}
+                callback(data);
+              }
+            }
+          )
+          .subscribe();
+      } catch {}
+    }
 
     return () => {
       window.removeEventListener('admin-features-updated', handleLocal);
-      unsubscribeFirestore();
+      if (channel && client) {
+        client.removeChannel(channel).catch(() => {});
+      }
     };
   }
 }

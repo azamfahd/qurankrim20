@@ -1,13 +1,17 @@
 // Centralized configuration and helpers for external APK downloading
-export const APP_VERSION = "1.1.1";
-const DEFAULT_FALLBACK_APK_URL = '/app-release.apk';
+export const APP_VERSION = "1.1.0";
+
+export const GITHUB_RELEASE_APK_URL = 'https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk';
+export const NETLIFY_MIRROR_APK_URL = 'https://qurankrim20.netlify.app/app-release.apk';
+
+const DEFAULT_FALLBACK_APK_URL = GITHUB_RELEASE_APK_URL;
 
 /**
  * Gets the configured APK download URL.
  * Priority order:
  * 1. Saved custom URL in localStorage ('anis_custom_apk_url')
  * 2. Environment variable VITE_APK_DOWNLOAD_URL (e.g., set in Netlify dashboard)
- * 3. Default fallback local path
+ * 3. Official GitHub Releases Latest APK download URL
  */
 export function getApkDownloadUrl(): string {
   if (typeof window !== 'undefined') {
@@ -26,7 +30,7 @@ export function getApkDownloadUrl(): string {
 }
 
 /**
- * Sets a custom external APK download URL (e.g. from GitHub Releases, Firebase Storage, etc.)
+ * Sets a custom external APK download URL (e.g. from GitHub Releases, Netlify CDN, etc.)
  */
 export function setCustomApkUrl(url: string): void {
   if (typeof window !== 'undefined') {
@@ -39,42 +43,36 @@ export function setCustomApkUrl(url: string): void {
 }
 
 /**
- * Triggers in-app instant update without redirecting the user to external websites or browser tabs.
+ * Triggers the download or opens the external link for the APK file.
  */
 export function triggerApkDownload(
   onShowToast?: (message: string, type?: 'success' | 'info' | 'error') => void,
-  version: string = APP_VERSION,
+  version: string = '1.1.0',
   overrideUrl?: string
 ): void {
+  const apkUrl = (overrideUrl && overrideUrl.trim().length > 0) ? overrideUrl.trim() : getApkDownloadUrl();
+  
   if (typeof window !== 'undefined') {
     localStorage.setItem('anis_apk_installed_version', version);
     localStorage.setItem('anis_pwa_installed', 'true');
 
-    // Trigger direct APK file download on user's device
-    try {
-      const downloadUrl = overrideUrl || getApkDownloadUrl();
+    if (apkUrl.startsWith('http://') || apkUrl.startsWith('https://')) {
+      // External link (GitHub Releases, Netlify CDN, Mirror)
+      window.open(apkUrl, '_blank', 'noopener,noreferrer');
+      if (onShowToast) {
+        onShowToast(`جاري فتح رابط تحميل حزمة الـ APK المعتمدة (v${version})...`, 'success');
+      }
+    } else {
+      // Local path download
       const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', 'anis-al-qulub.apk');
-      link.setAttribute('target', '_blank');
+      link.href = apkUrl;
+      link.download = `أنيس القلوب - القرآن الذكي ${version}.apk`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (e) {
-      console.warn('APK download trigger error:', e);
-    }
-
-    // Trigger service worker cache update if available
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      try {
-        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-      } catch (err) {
-        // Ignore SW errors
+      if (onShowToast) {
+        onShowToast(`جاري بدء تحميل ملف الـ APK المباشر (v${version})...`, 'success');
       }
-    }
-
-    if (onShowToast) {
-      onShowToast(`جاري تنزيل ملف التطبيق (APK) الرسمي... 🚀`, 'success');
     }
   }
 }
