@@ -83,7 +83,7 @@ class SQLiteNativeBridge {
         if (sqlitePlugin && typeof sqlitePlugin.openDatabase === 'function') {
           this.db = sqlitePlugin.openDatabase({
             name: 'anis_al_qulub.db',
-            location: 'default',
+            location: 'external',
             androidDatabaseProvider: 'system'
           });
           await this.initTables();
@@ -177,6 +177,9 @@ export class LocalDatabaseService {
     if (this.isInitialized) return;
 
     try {
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(() => {});
+      }
       await localDb.open();
       await SQLiteNativeBridge.getDB();
       await this.migrateLegacyLocalStorage();

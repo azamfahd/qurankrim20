@@ -236,12 +236,11 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     const isLevel = Math.abs(beta) < 18 && Math.abs(gamma) < 18;
     setTilt({ pitch: beta, roll: gamma, isLevel });
 
-    // فحص ما إذا كان الحدث صادرًا من مستشعر بوصلة مغناطيسية حقيقي ومطلق (Magnetic Absolute)
     const isIOSCompass = (event as any).webkitCompassHeading !== undefined && (event as any).webkitCompassHeading !== null;
-    const isAbsoluteW3C = event.type === 'deviceorientationabsolute' || event.absolute === true;
+    const hasAlpha = event.alpha !== null && event.alpha !== undefined;
 
-    // تجاهل الأحداث النسبية العادية (التي تعتمد على وضعية الهاتف لحظة الفتح وتسبب خطأ القبلة)
-    if (!isIOSCompass && !isAbsoluteW3C) {
+    // قبول بيانات الاتجاه من أي مستشعر متاح (سواء iOS أو Android أو القياسي)
+    if (!isIOSCompass && !hasAlpha) {
       return;
     }
 
@@ -254,10 +253,10 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     if (isIOSCompass) {
       headingValue = (event as any).webkitCompassHeading;
     } 
-    // أجهزة أندرويد و W3C Standard (Absolute Magnetic Compass)
-    else if (event.alpha !== null && event.alpha !== undefined) {
+    // أجهزة أندرويد و المتصفحات (W3C Standard)
+    else if (hasAlpha) {
       const screenAngle = (window.screen?.orientation?.angle) || (window.orientation as number) || 0;
-      let h = (360 - event.alpha) % 360;
+      let h = (360 - event.alpha!) % 360;
       h = (h + screenAngle + 360) % 360;
       headingValue = h;
     }
@@ -324,14 +323,13 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
 
-        // مؤقت ذكي لمدة 1.8 ثانية للتأكد مما إذا كان الجهاز يمتلك مستشعر بوصلة مغناطيسية حقيقي أم لا
+        // مؤقت ذكي لمدة 4 ثوانٍ لإعطاء فرصة كافية لجميع أنواع الهواتف والأجهزة لاستشعار الحركة والبوصلة
         timer = setTimeout(() => {
           if (!hasReceivedSensorDataRef.current) {
             setSensorStatus('unsupported');
-            // تنبيه المستخدم وتفعيل خيار تحديد القبلة عبر الموقع تلقائيًا كخيار بديل مع التنبيه
             setActiveTab('location');
           }
-        }, 1800);
+        }, 4000);
       }
     } else {
       // إعادة ضبط جميع الحالات عند إغلاق النوافذ

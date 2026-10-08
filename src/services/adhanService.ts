@@ -133,6 +133,15 @@ export class AdhanOfflineManager {
   };
   private static activeDownloads: Map<string, Promise<{ success: boolean; error?: string }>> = new Map();
 
+  private static getPersistentDirectory(): any {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        return (Directory as any).External || (Directory as any).ExternalStorage || (Directory as any).Documents || Directory.Data;
+      }
+    } catch {}
+    return Directory.Data;
+  }
+
   /**
    * Validate audio blob integrity (checks MIME type and minimum size to avoid caching HTML 404s)
    */
@@ -199,11 +208,20 @@ export class AdhanOfflineManager {
             };
             reader.onerror = reject;
           });
-          await Filesystem.writeFile({
-            path: `adhan_${muezzinId}.mp3`,
-            data: base64Data,
-            directory: Directory.Data
-          });
+          const dir = this.getPersistentDirectory();
+          try {
+            await Filesystem.writeFile({
+              path: `adhan_${muezzinId}.mp3`,
+              data: base64Data,
+              directory: dir
+            });
+          } catch (primaryErr) {
+            await Filesystem.writeFile({
+              path: `adhan_${muezzinId}.mp3`,
+              data: base64Data,
+              directory: Directory.Data
+            });
+          }
         } catch (nativeErr) {
           console.warn('Native Filesystem storage notice:', nativeErr);
         }
@@ -330,12 +348,21 @@ export class AdhanOfflineManager {
 
     // Check Native Filesystem on Capacitor
     if (Capacitor.isNativePlatform()) {
+      const dir = this.getPersistentDirectory();
       for (const m of MUEZZINS_LIST) {
         try {
-          const stat = await Filesystem.stat({
-            directory: Directory.Data,
-            path: `adhan_${m.id}.mp3`
-          });
+          let stat: any = null;
+          try {
+            stat = await Filesystem.stat({
+              directory: dir,
+              path: `adhan_${m.id}.mp3`
+            });
+          } catch {
+            stat = await Filesystem.stat({
+              directory: Directory.Data,
+              path: `adhan_${m.id}.mp3`
+            });
+          }
           if (stat && stat.size > 50000) {
             validIdsSet.add(m.id);
             totalSize += stat.size;
@@ -419,14 +446,19 @@ export class AdhanOfflineManager {
 
       // 2. Delete from Native Filesystem (Capacitor)
       if (Capacitor.isNativePlatform()) {
+        const dir = this.getPersistentDirectory();
+        try {
+          await Filesystem.deleteFile({
+            path: `adhan_${muezzinId}.mp3`,
+            directory: dir
+          });
+        } catch {}
         try {
           await Filesystem.deleteFile({
             path: `adhan_${muezzinId}.mp3`,
             directory: Directory.Data
           });
-        } catch (nativeErr) {
-          // File might not exist on native storage, ignore
-        }
+        } catch {}
       }
 
       // 3. Delete from IndexedDB

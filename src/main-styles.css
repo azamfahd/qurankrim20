@@ -189,18 +189,18 @@ a,
 }
 
 .reading-size-compact {
-  font-size: 0.825rem !important;
-  line-height: 1.65 !important;
-}
-
-.reading-size-comfortable {
-  font-size: 0.9rem !important;
+  font-size: 0.95rem !important;
   line-height: 1.75 !important;
 }
 
-.reading-size-large {
-  font-size: 1.05rem !important;
+.reading-size-comfortable {
+  font-size: 1.1rem !important;
   line-height: 1.85 !important;
+}
+
+.reading-size-large {
+  font-size: 1.25rem !important;
+  line-height: 1.95 !important;
 }
 
 .app-wrapper {

@@ -324,6 +324,63 @@ export const QuranSettingsModal: React.FC = () => {
     }
   };
 
+  const handleExportBackup = () => {
+    try {
+      const backupData = {
+        version: '1.1.0',
+        timestamp: new Date().toISOString(),
+        localStorage: {
+          quran_bookmarks: localStorage.getItem('quran_bookmarks'),
+          quran_highlights: localStorage.getItem('quran_highlights'),
+          quran_marked_verses: localStorage.getItem('quran_marked_verses'),
+          quran_stats: localStorage.getItem('quran_stats'),
+          quran_quiz_stats: localStorage.getItem('quran_quiz_stats'),
+          quran_reciter: localStorage.getItem('quran_reciter'),
+          quran_theme: localStorage.getItem('quran_theme'),
+          quran_show_translation: localStorage.getItem('quran_show_translation'),
+          quran_khatmas_list: localStorage.getItem('quran_khatmas_list'),
+        }
+      };
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `anis_al_qulub_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setCacheMessage({ text: 'تم تصدير النسخة الاحتياطية لجميع البيانات والإعدادات والمحفوظات بنجاح.', type: 'success' });
+    } catch (e) {
+      setCacheMessage({ text: 'فشل تصدير النسخة الاحتياطية.', type: 'error' });
+    }
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json && json.localStorage) {
+          Object.entries(json.localStorage).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+              localStorage.setItem(key, value as string);
+            }
+          });
+          setCacheMessage({ text: 'تمت استعادة كافة البيانات والإعدادات بنجاح! سيتم إعادة تحميل التطبيق...', type: 'success' });
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          setCacheMessage({ text: 'ملف النسخة الاحتياطية غير صالح.', type: 'error' });
+        }
+      } catch (err) {
+        setCacheMessage({ text: 'حدث خطأ أثناء قراءة ملف النسخة الاحتياطية.', type: 'error' });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const jumpToView = (view: 'index' | 'reader' | 'tafsir' | 'info' | 'memorize' | 'stats') => {
     setCurrentView(view);
     setShowSettingsModal(false);
@@ -1018,6 +1075,32 @@ export const QuranSettingsModal: React.FC = () => {
                       {cacheMessage.text}
                     </div>
                   )}
+                </div>
+
+                {/* Data Backup & Restore */}
+                <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 p-3 rounded-xl space-y-2.5 text-right">
+                  <div className="flex items-center gap-2">
+                    <Database size={18} className="text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <h4 className="font-bold text-xs text-gray-900 dark:text-white">النسخ الاحتياطي واستعادة البيانات والمحفوظات</h4>
+                      <p className="text-[10px] text-gray-400">احفظ نسخة احتياطية لجميع علاماتك، ختماتك، وإعداداتك واستعادتها في أي وقت بأمان تام</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleExportBackup}
+                      className="flex-1 py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles size={12} />
+                      <span>تصدير نسخة احتياطية</span>
+                    </button>
+                    <label className="flex-1 py-1.5 px-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer">
+                      <RefreshCw size={12} />
+                      <span>استعادة نسخة</span>
+                      <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+                    </label>
+                  </div>
                 </div>
               </motion.div>
             )}
