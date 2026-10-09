@@ -38,7 +38,13 @@ export interface ChatRequestPayload {
 
 export class ServerAIService {
   private static getGenAI(customKey?: string): GoogleGenAI | null {
-    const key = (customKey || process.env.GEMINI_API_KEY || "").trim();
+    const key = (
+      customKey || 
+      process.env.GEMINI_API_KEY || 
+      process.env.VITE_GEMINI_API_KEY || 
+      process.env.API_KEY || 
+      ""
+    ).trim();
     if (!key || key === "undefined" || key === "null") {
       return null;
     }

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck, BatteryCharging, BellRing, Smartphone, CheckCircle2, AlertTriangle, Play, RefreshCw, ChevronLeft, Volume2 } from 'lucide-react';
+import { X, ShieldCheck, BatteryCharging, BellRing, Smartphone, AlertTriangle, RefreshCw, Volume2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { AdhanAudioEngine } from '../services/adhanService';
 import { NativeNotificationService } from '../services/nativeNotificationService';
-import { DhikrReminderService } from '../services/dhikrReminderService';
 import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
 import { AudioPoolManager } from '../services/audioPoolManager';
 import { appEventBus } from '../services/appEventBus';

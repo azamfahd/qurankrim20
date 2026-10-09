@@ -11,11 +11,7 @@ import {
   Sparkles,
   Layers,
   ChevronLeft,
-  Cpu,
-  CheckCircle,
-  Filter,
-  Zap,
-  Info
+  Zap
 } from 'lucide-react';
 import { QuranSearchService } from '../service/QuranSearchService';
 import { ArabicNormalizer } from '../utils/ArabicNormalizer';
@@ -23,7 +19,6 @@ import {
   UnifiedSearchResult,
   SearchSuggestion,
   SearchHistoryItem,
-  SearchResultType,
   MatchType
 } from '../types';
 import { useQuranContext } from '../../store/QuranContext';

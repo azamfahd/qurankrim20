@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Smartphone, CheckCircle2, ShieldCheck, Cpu, Volume2, Play, Sparkles, Terminal, Copy, Check, BellRing, Zap, Layers, Link as LinkIcon, ExternalLink, Save } from 'lucide-react';
+import { X, Smartphone, CheckCircle2, Cpu, Volume2, Sparkles, Terminal, Copy, Check, BellRing, Layers, Link as LinkIcon, Save } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { PlatformEnvironmentService } from '../services/platformEnvironmentService';
 import { NativeForegroundService } from '../services/nativeForegroundService';
@@ -263,7 +263,7 @@ export const NativeApkExportModal: React.FC<NativeApkExportModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-300 leading-relaxed">
-                  لتجنب كبر حجم المشروع على Netlify وتخفيف استهلاك الباندويث، قم برفع ملف الـ APK على GitHub Releases أو Google Drive أو Firebase Storage، وضع الرابط المباشر هنا:
+                  لتجنب كبر حجم المشروع على Netlify وتخفيف استهلاك الباندويث، قم برفع ملف الـ APK على GitHub Releases أو Google Drive أو Supabase Storage، وضع الرابط المباشر هنا:
                 </p>
                 <div className="flex items-center gap-2">
                   <input

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Download, RefreshCw, Smartphone, Sparkles, X, 
-  CheckCircle2, Zap, ArrowRight, Check, AlertCircle, 
-  ShieldCheck, Rocket 
+  CheckCircle2, Zap, Check, 
+  Rocket 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppUpdateService, AppVersionInfo } from '../services/appUpdateService';

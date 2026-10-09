@@ -31,7 +31,6 @@
     "dexie": "^4.4.5",
     "esbuild": "^0.28.2",
     "express": "^5.2.1",
-    "firebase": "^12.19.0",
     "framer-motion": "^12.38.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.562.0",

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, User, Settings, Key, Sliders, Save, Shield, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Database, Globe, CheckCircle2, AlertCircle, LogOut, ShieldCheck, BatteryCharging, BellRing, Smartphone, Flame, Layers, Crown } from 'lucide-react';
+import { X, User, Settings, Key, Sliders, Save, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Globe, CheckCircle2, LogOut, ShieldCheck, Crown } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SupabaseService, getSupabase, PUBLISHED_WEB_URL } from '../services/supabaseService';
+import { SupabaseService, PUBLISHED_WEB_URL } from '../services/supabaseService';
 import { AdminService, OWNER_EMAIL } from '../services/adminService';
 import { BatteryOptimizationGuideModal } from './BatteryOptimizationGuideModal';
 
@@ -292,7 +292,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="w-full py-2.5 px-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
                   >
                     <Globe size={14} className="text-emerald-600" />
-                    <span>الموقع الرسمي: qurankrim20.netlify.app</span>
+                    <span>الموقع الرسمي: quramkrim20.netlify.app</span>
                     <ExternalLink size={12} className="opacity-70" />
                   </a>
                 </div>

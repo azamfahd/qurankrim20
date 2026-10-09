@@ -1,10 +1,10 @@
 /**
  * Owner Admin & System Control Service
- * Directly connected to Supabase Database
+ * Directly connected to Supabase Database (Primary & Exclusive Backend)
  * Handles: Announcements, Remote Version Control, Maintenance Mode, Feature Toggles, and Realtime Stats.
  */
 
-import { getSupabase, PUBLISHED_WEB_URL } from './supabaseService';
+import { getSupabase } from './supabaseService';
 
 export const OWNER_EMAIL = 'azamfahd25@gmail.com';
 
@@ -102,7 +102,7 @@ export class AdminService {
   }
 
   /**
-   * Publish App Version Configuration to Supabase + Local Cache + Broadcast
+   * Publish App Version Configuration to Supabase (Primary) + Local Cache + Broadcast
    */
   static async publishVersionConfig(config: AppVersionConfig): Promise<void> {
     const payload: AppVersionConfig = {
@@ -124,7 +124,7 @@ export class AdminService {
       console.warn('Local version caching note:', e);
     }
 
-    // 2. Publish to Supabase
+    // 2. Publish to Supabase as PRIMARY Database
     const client = getSupabase();
     if (client) {
       try {
@@ -136,7 +136,7 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
-        console.log('👑 [Admin] App version config updated successfully in Supabase');
+        console.log('👑 [Admin] App version config updated successfully in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase version write notice (saved locally):', error);
       }
@@ -144,36 +144,10 @@ export class AdminService {
   }
 
   /**
-   * Get App Version Config (Cache first, then Supabase)
+   * Get App Version Config (Supabase as Primary, with Local Cache Fallback)
    */
   static async getVersionConfig(): Promise<AppVersionConfig | null> {
-    // 1. Try local cache
-    try {
-      const cached = localStorage.getItem(this.VERSION_STORAGE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        // Start background Supabase fetch to refresh cache
-        const client = getSupabase();
-        if (client) {
-          client
-            .from(this.TABLE_CONFIG)
-            .select('data')
-            .eq('id', 'app_version')
-            .single()
-            .then(
-              ({ data }) => {
-                if (data?.data) {
-                  localStorage.setItem(this.VERSION_STORAGE_KEY, JSON.stringify(data.data));
-                }
-              },
-              () => {}
-            );
-        }
-        return parsed as AppVersionConfig;
-      }
-    } catch (e) {}
-
-    // 2. Fetch from Supabase
+    // 1. Fetch from Supabase (Primary Database)
     const client = getSupabase();
     if (client) {
       try {
@@ -181,7 +155,7 @@ export class AdminService {
           .from(this.TABLE_CONFIG)
           .select('data')
           .eq('id', 'app_version')
-          .single();
+          .maybeSingle();
 
         if (!error && data?.data) {
           const versionData = data.data as AppVersionConfig;
@@ -189,14 +163,23 @@ export class AdminService {
           return versionData;
         }
       } catch (error) {
-        console.warn('👑 [Admin] Error fetching version config from Supabase:', error);
+        console.warn('👑 [Admin] Notice fetching version config from Supabase:', error);
       }
     }
+
+    // 2. Fallback to local cache
+    try {
+      const cached = localStorage.getItem(this.VERSION_STORAGE_KEY);
+      if (cached) {
+        return JSON.parse(cached) as AppVersionConfig;
+      }
+    } catch (e) {}
+
     return null;
   }
 
   /**
-   * Subscribe to real-time App Version Config changes
+   * Subscribe to real-time App Version Config changes (Supabase Realtime + Local Broadcast)
    */
   static subscribeToVersionConfig(callback: (config: AppVersionConfig | null) => void) {
     // Immediate callback from cache
@@ -212,6 +195,19 @@ export class AdminService {
       if (e?.detail) callback(e.detail);
     };
     window.addEventListener('admin-version-updated', handleLocal);
+
+    // Cross-tab broadcast listener
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('anis_admin_channel');
+        bc.onmessage = (event) => {
+          if (event?.data?.type === 'VERSION_UPDATE' && event?.data?.data) {
+            callback(event.data.data);
+          }
+        };
+      } catch {}
+    }
 
     // Supabase Realtime channel subscription
     const client = getSupabase();
@@ -242,6 +238,7 @@ export class AdminService {
 
     return () => {
       window.removeEventListener('admin-version-updated', handleLocal);
+      if (bc) bc.close();
       if (channel && client) {
         client.removeChannel(channel).catch(() => {});
       }
@@ -249,7 +246,7 @@ export class AdminService {
   }
 
   /**
-   * Publish Broadcast System Announcement to Supabase
+   * Publish Broadcast System Announcement to Supabase (Primary) + Local Cache + Broadcast
    */
   static async publishAnnouncement(announcement: SystemAnnouncement): Promise<void> {
     const payload: SystemAnnouncement = {
@@ -271,7 +268,7 @@ export class AdminService {
       console.warn('Local announcement cache note:', e);
     }
 
-    // 2. Publish to Supabase
+    // 2. Publish to Supabase as PRIMARY Database
     const client = getSupabase();
     if (client) {
       try {
@@ -283,7 +280,7 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
-        console.log('👑 [Admin] System announcement published successfully to Supabase');
+        console.log('👑 [Admin] System announcement published successfully to Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase announcement write notice (saved locally):', error);
       }
@@ -291,7 +288,40 @@ export class AdminService {
   }
 
   /**
-   * Subscribe to real-time System Announcement
+   * Get Current System Announcement (Supabase Primary, with Local Cache Fallback)
+   */
+  static async getAnnouncement(): Promise<SystemAnnouncement | null> {
+    // 1. Fetch from Supabase (Primary)
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from(this.TABLE_CONFIG)
+          .select('data')
+          .eq('id', 'announcement_latest')
+          .maybeSingle();
+
+        if (!error && data?.data) {
+          const ann = data.data as SystemAnnouncement;
+          localStorage.setItem(this.ANNOUNCEMENT_STORAGE_KEY, JSON.stringify(ann));
+          return ann;
+        }
+      } catch (e) {
+        console.warn('👑 [Admin] Notice fetching announcement from Supabase:', e);
+      }
+    }
+
+    // 2. Fallback to local cache
+    try {
+      const cached = localStorage.getItem(this.ANNOUNCEMENT_STORAGE_KEY);
+      if (cached) return JSON.parse(cached) as SystemAnnouncement;
+    } catch {}
+
+    return null;
+  }
+
+  /**
+   * Subscribe to real-time System Announcement (Supabase Realtime + Local Broadcast)
    */
   static subscribeToAnnouncement(callback: (announcement: SystemAnnouncement | null) => void) {
     // Immediate callback from cache
@@ -358,7 +388,7 @@ export class AdminService {
   }
 
   /**
-   * Publish Maintenance Mode Config to Supabase
+   * Publish Maintenance Mode Config to Supabase (Primary) + Local Cache
    */
   static async publishMaintenanceConfig(config: MaintenanceConfig): Promise<void> {
     const payload: MaintenanceConfig = {
@@ -372,6 +402,7 @@ export class AdminService {
       window.dispatchEvent(new CustomEvent('admin-maintenance-updated', { detail: payload }));
     } catch {}
 
+    // 1. Supabase as PRIMARY Database
     const client = getSupabase();
     if (client) {
       try {
@@ -383,7 +414,7 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
-        console.log('👑 [Admin] Maintenance config updated in Supabase');
+        console.log('👑 [Admin] Maintenance config updated in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase maintenance write notice:', error);
       }
@@ -391,7 +422,38 @@ export class AdminService {
   }
 
   /**
-   * Subscribe to Maintenance Config
+   * Get Maintenance Mode Config (Supabase Primary, with Local Cache Fallback)
+   */
+  static async getMaintenanceConfig(): Promise<MaintenanceConfig | null> {
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from(this.TABLE_CONFIG)
+          .select('data')
+          .eq('id', 'maintenance')
+          .maybeSingle();
+
+        if (!error && data?.data) {
+          const config = data.data as MaintenanceConfig;
+          localStorage.setItem(this.MAINTENANCE_STORAGE_KEY, JSON.stringify(config));
+          return config;
+        }
+      } catch (e) {
+        console.warn('👑 [Admin] Notice fetching maintenance from Supabase:', e);
+      }
+    }
+
+    try {
+      const cached = localStorage.getItem(this.MAINTENANCE_STORAGE_KEY);
+      if (cached) return JSON.parse(cached) as MaintenanceConfig;
+    } catch {}
+
+    return null;
+  }
+
+  /**
+   * Subscribe to Maintenance Config (Supabase Realtime + Local Broadcast)
    */
   static subscribeToMaintenance(callback: (config: MaintenanceConfig | null) => void) {
     try {
@@ -451,6 +513,7 @@ export class AdminService {
       window.dispatchEvent(new CustomEvent('admin-features-updated', { detail: payload }));
     } catch {}
 
+    // 1. Supabase as PRIMARY Database
     const client = getSupabase();
     if (client) {
       try {
@@ -462,7 +525,7 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
-        console.log('👑 [Admin] Feature toggles updated in Supabase');
+        console.log('👑 [Admin] Feature toggles updated in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase feature toggles write notice:', error);
       }
@@ -470,14 +533,10 @@ export class AdminService {
   }
 
   /**
-   * Get Feature Toggles from Supabase / Cache
+   * Get Feature Toggles from Supabase (Primary) / Local Cache
    */
   static async getFeatureToggles(): Promise<SystemFeatureToggles | null> {
-    try {
-      const cached = localStorage.getItem(this.FEATURES_STORAGE_KEY);
-      if (cached) return JSON.parse(cached);
-    } catch {}
-
+    // 1. Fetch from Supabase (Primary)
     const client = getSupabase();
     if (client) {
       try {
@@ -485,7 +544,7 @@ export class AdminService {
           .from(this.TABLE_CONFIG)
           .select('data')
           .eq('id', 'feature_toggles')
-          .single();
+          .maybeSingle();
 
         if (!error && data?.data) {
           const featureData = data.data as SystemFeatureToggles;
@@ -493,14 +552,21 @@ export class AdminService {
           return featureData;
         }
       } catch (error) {
-        console.warn('👑 [Admin] Error fetching feature toggles from Supabase:', error);
+        console.warn('👑 [Admin] Notice fetching feature toggles from Supabase:', error);
       }
     }
+
+    // 2. Fallback to local cache
+    try {
+      const cached = localStorage.getItem(this.FEATURES_STORAGE_KEY);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
     return null;
   }
 
   /**
-   * Subscribe to Feature Toggles
+   * Subscribe to Feature Toggles (Supabase Realtime + Local Broadcast)
    */
   static subscribeToFeatureToggles(callback: (toggles: SystemFeatureToggles | null) => void) {
     try {

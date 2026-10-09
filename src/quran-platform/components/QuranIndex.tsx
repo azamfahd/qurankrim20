@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuranDataService } from '../services/QuranDataService';
 import { useQuranContext } from '../store/QuranContext';
-import { Book, Search, Bookmark, ChevronLeft, Filter, Sparkles, Hash, Layers, Info, Cloud, Check, Compass, Star, Moon, Sun, ArrowUpRight, Sliders, MoreHorizontal } from 'lucide-react';
+import { Book, Bookmark, ChevronLeft, Layers, Cloud, Check, ArrowUpRight, MoreHorizontal } from 'lucide-react';
 import { SurahInfoModal } from './SurahInfoModal';
 import { JuzSurahsModal } from './JuzSurahsModal';
 import { getCleanSurahName } from './AyahMarker';

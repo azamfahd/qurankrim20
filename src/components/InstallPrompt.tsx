@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Download, Smartphone, CheckCircle2, Sparkles, 
-  WifiOff, BellRing, ArrowLeft, ShieldCheck, HelpCircle 
+  X, Download, Smartphone, CheckCircle2, 
+  WifiOff, BellRing, ShieldCheck 
 } from 'lucide-react';
 import { triggerApkDownload, APP_VERSION } from '../utils/apkConfig';
 import { motion, AnimatePresence } from 'framer-motion';

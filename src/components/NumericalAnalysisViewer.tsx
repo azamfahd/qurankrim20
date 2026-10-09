@@ -1,5 +1,4 @@
-import React from 'react';
-import { PieChart, BarChart2, Hash, Scale, Zap, BookOpen, Divide } from 'lucide-react';
+import { PieChart, BarChart2, Hash, Scale, BookOpen, Divide } from 'lucide-react';
 
 export const NumericalAnalysisViewer = ({ id }: { id: string }) => {
   if (id === 'sea-land-ratio') {

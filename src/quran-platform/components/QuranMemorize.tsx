@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Target, Calendar, CheckCircle2, Circle, TrendingUp, AlertCircle, Play, Pause, Check, 
-  RotateCcw, Eye, EyeOff, Brain, Volume2, Sparkles, Repeat, Layers, RefreshCw, ArrowRight, ArrowLeft, Star, Award,
-  ListOrdered, History, Trash2, HelpCircle, Shuffle, XCircle, BookOpen, Gamepad2, Mic, MicOff, VolumeX, ShieldCheck,
-  Trophy, Activity, FileText, CheckSquare, AlertTriangle, Scale, BarChart, ChevronDown, ChevronUp, Lock, Clock, Search, X
+  Calendar, CheckCircle2, Circle, TrendingUp, AlertCircle, Play, Pause, Check, 
+  RotateCcw, Eye, EyeOff, Brain, Volume2, Sparkles, Repeat, RefreshCw, ArrowLeft, Star, Award,
+  ListOrdered, History, Trash2, Shuffle, XCircle, BookOpen, Gamepad2, Mic, MicOff,
+  Trophy, Activity, AlertTriangle, BarChart, ChevronDown, ChevronUp, Lock, Search, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuranContext } from '../store/QuranContext';

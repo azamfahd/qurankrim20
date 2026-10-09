@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Play, Pause, Volume2, Settings, X, Check, Repeat, ListOrdered, 
-  SkipBack, SkipForward, RefreshCw, Download, Trash2, Loader2, CheckCircle, SlidersHorizontal,
-  FolderDown, CheckSquare, Square, Search, Sparkles, Layers
+  Play, Pause, Volume2, X, Check, Repeat, 
+  SkipBack, SkipForward, Download, Trash2, Loader2, CheckCircle, SlidersHorizontal,
+  FolderDown, Search, Sparkles, Layers
 } from 'lucide-react';
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
@@ -12,7 +12,7 @@ import { getQuranAudioUrl } from '../../utils/quranAudio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DownloadManager } from '../../services/DownloadManager';
 import { getCleanSurahName } from './AyahMarker';
-import { SURAHS_STATIC_LIST, SurahItem } from '../data/surahsData';
+import { SURAHS_STATIC_LIST } from '../data/surahsData';
 
 import { MediaSessionService } from '../../services/mediaSessionService';
 import { QURAN_RECITERS, getQuranAudioFallbackUrl } from '../../utils/quranAudio';

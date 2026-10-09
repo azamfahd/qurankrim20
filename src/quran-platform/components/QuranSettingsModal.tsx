@@ -2,77 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, BookOpen, Layers, Palette, Type, Check, Settings, ChevronLeft, ChevronRight, Hash, 
-  Volume2, Heart, Target, BarChart2, Eye, RefreshCw, Cloud, Database, Sparkles, 
-  Loader2, AlertCircle, ArrowDownToLine, Trash2, Compass, Repeat, ListOrdered, 
-  Zap, Info, Award
+  Volume2, Heart, Target, BarChart2, RefreshCw, Cloud, Database, Sparkles, 
+  Loader2, ArrowDownToLine, Trash2, Compass, 
+  Info
 } from 'lucide-react';
-import { useQuranContext, MushafTheme } from '../store/QuranContext';
+import { useQuranContext } from '../store/QuranContext';
 import { QuranSyncService } from '../services/quranSyncService';
 import { QuranDataService, TextCacheProgress } from '../services/QuranDataService';
 import { DownloadManager } from '../../services/DownloadManager';
 import { QURAN_RECITERS, normalizeReciterId } from '../../utils/quranAudio';
+import { MUSHAF_THEMES } from '../constants/mushafThemes';
 
-export const MUSHAF_THEMES: {
-  id: MushafTheme;
-  name: string;
-  sub: string;
-  previewBg: string;
-  previewBorder: string;
-  previewHeader: string;
-  accent: string;
-  textColor: string;
-}[] = [
-  {
-    id: 'royal_green',
-    name: 'مصحف المدينة الملكي',
-    sub: 'طبعة مجمع الملك فهد',
-    previewBg: 'bg-[#fcf8ed]',
-    previewBorder: 'border-[#1b4332]',
-    previewHeader: 'bg-[#1b4332] text-amber-200',
-    accent: '#1b4332',
-    textColor: 'text-gray-900',
-  },
-  {
-    id: 'shamarli',
-    name: 'مصحف ابن عثمان (الشمرلي)',
-    sub: 'الطبعة المصرية التراثية',
-    previewBg: 'bg-[#f5eecb]',
-    previewBorder: 'border-[#8c6239]',
-    previewHeader: 'bg-[#8c6239] text-amber-100',
-    accent: '#8c6239',
-    textColor: 'text-[#2a1a08]',
-  },
-  {
-    id: 'golden',
-    name: 'المصحف الذهبي الفاخر',
-    sub: 'إطار مذهب وزخارف أندلسية',
-    previewBg: 'bg-[#fffdf7]',
-    previewBorder: 'border-amber-400',
-    previewHeader: 'bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-700 text-white',
-    accent: '#d97706',
-    textColor: 'text-amber-950',
-  },
-  {
-    id: 'tajweed',
-    name: 'مصحف التجويد الملون',
-    sub: 'ورق مخملي مع دلالات الأحكام',
-    previewBg: 'bg-[#fdf6f0]',
-    previewBorder: 'border-[#b5838d]',
-    previewHeader: 'bg-[#6d597a] text-pink-100',
-    accent: '#b5838d',
-    textColor: 'text-gray-900',
-  },
-  {
-    id: 'night',
-    name: 'المصحف الليلي الفاخر',
-    sub: 'مريح للعين ومناسب للظلام',
-    previewBg: 'bg-[#121824]',
-    previewBorder: 'border-emerald-800',
-    previewHeader: 'bg-[#0a0f18] text-emerald-400 border-b border-emerald-900',
-    accent: '#34d399',
-    textColor: 'text-emerald-300',
-  }
-];
+export { MUSHAF_THEMES };
 
 export const RECITERS = QURAN_RECITERS;
 

@@ -1,4 +1,4 @@
-import { QuizQuestion, saveCustomQuestions, shuffleQuestionOptions, getStoredCustomQuestions } from '../data/islamicQuizData';
+import { QuizQuestion, saveCustomQuestions } from '../data/islamicQuizData';
 import { getRefreshedOfflineStageQuestions } from '../data/offlineQuizBank';
 
 export interface GenerateQuestionsResult {

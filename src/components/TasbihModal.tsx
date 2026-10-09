@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, RotateCcw, ChevronLeft, ChevronRight, Plus, Trash2, 
-  Volume2, VolumeX, Sparkles, Award, Settings, CheckCircle2, 
-  Flame, Check, Layers
+  Volume2, VolumeX, Sparkles, Award, CheckCircle2, 
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

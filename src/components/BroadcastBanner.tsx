@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, AlertTriangle, Sparkles, X, Info, ExternalLink, ShieldCheck, Download } from 'lucide-react';
-import { SystemAnnouncement, AdminService } from '../services/adminService';
+import { Bell, AlertTriangle, Sparkles, X, ExternalLink, ShieldCheck, Download } from 'lucide-react';
+import { SystemAnnouncement } from '../services/adminService';
+import { AppSync } from '../services/appSyncService';
 
 export const BroadcastBanner: React.FC = () => {
   const [announcement, setAnnouncement] = useState<SystemAnnouncement | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
 
   useEffect(() => {
-    const unsubscribe = AdminService.subscribeToAnnouncement((data) => {
+    const unsubscribe = AppSync.subscribeToAlerts((data) => {
       if (data && data.active) {
         // Check local storage if this specific notification id was dismissed
         const dismissedId = localStorage.getItem('dismissed_announcement_id');
@@ -17,7 +18,7 @@ export const BroadcastBanner: React.FC = () => {
         } else {
           setDismissed(false);
         }
-        setAnnouncement(data);
+        setAnnouncement(data as unknown as SystemAnnouncement);
       } else {
         setAnnouncement(null);
       }
@@ -100,15 +101,28 @@ export const BroadcastBanner: React.FC = () => {
             </p>
 
             {announcement.actionUrl && (
-              <a
-                href={announcement.actionUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl transition-all border border-white/20 shadow-sm active:scale-95"
-              >
-                <span>{announcement.actionText || 'عرض التفاصيل'}</span>
-                <ExternalLink size={13} />
-              </a>
+              announcement.type === 'update' || announcement.actionUrl === '#update' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('check-for-app-updates'));
+                  }}
+                  className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  <Download size={14} className="stroke-[2.5]" />
+                  <span>{announcement.actionText || 'تحديث وتثبيت الإصدار الآن'}</span>
+                </button>
+              ) : (
+                <a
+                  href={announcement.actionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl transition-all border border-white/20 shadow-sm active:scale-95"
+                >
+                  <span>{announcement.actionText || 'عرض التفاصيل'}</span>
+                  <ExternalLink size={13} />
+                </a>
+              )
             )}
           </div>
 

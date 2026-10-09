@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Sun, Moon, Bed, CheckCircle2, RotateCcw, Sparkles, Calendar, 
   BookOpen, Copy, ChevronDown, ChevronUp, Search, 
-  Check, Layers, Compass, Heart, Share2, Flame, Award
+  Check, Layers, Compass, Heart, Flame, Award
 } from 'lucide-react';
 import { 
   MORNING_ADHKAR, EVENING_ADHKAR, SLEEP_ADHKAR, POST_PRAYER_ADHKAR, 
   DEEP_ISTIGHFAR_ADHKAR, HIJRI_MONTHS_ADHKAR, DAILY_HIJRI_ADHKAR, 
-  DAILY_LIFE_ADHKAR, Dhikr, HijriMonthAdhkarInfo, DailyHijriDhikrInfo 
+  DAILY_LIFE_ADHKAR, Dhikr
 } from '../data/adhkar';
 import { getCurrentHijriDate, HIJRI_MONTHS_AR } from '../utils/hijri';
 import { motion, AnimatePresence } from 'framer-motion';

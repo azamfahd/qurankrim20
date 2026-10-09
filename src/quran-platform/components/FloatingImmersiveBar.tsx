@@ -5,24 +5,16 @@ import {
   ChevronLeft, 
   Play, 
   Pause, 
-  Maximize2, 
   Minimize2, 
-  Type, 
   BookOpen, 
   AlignJustify, 
-  Settings2, 
-  Settings, 
   Sparkles, 
-  Eye, 
-  EyeOff,
-  Search,
-  Check,
-  ChevronUp,
-  ChevronDown
+  Check, 
+  ChevronUp, 
+  ChevronDown 
 } from 'lucide-react';
-import { useQuranContext, MushafTheme } from '../store/QuranContext';
-import { MUSHAF_THEMES } from './QuranSettingsModal';
-import { getCleanSurahName } from './AyahMarker';
+import { useQuranContext } from '../store/QuranContext';
+import { MUSHAF_THEMES } from '../constants/mushafThemes';
 
 export const FloatingImmersiveBar: React.FC = () => {
   const {

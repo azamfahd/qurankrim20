@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, Star, Flame, Heart, RefreshCw, Sparkles, CheckCircle2, XCircle, 
-  HelpCircle, Zap, Shield, Award, ArrowRight, ArrowLeft, WifiOff, Map, 
-  BookOpen, Compass, Lightbulb, Share2, Layers, Check, ChevronLeft, Lock, ArrowUpRight, RotateCcw,
-  Copy, AlertTriangle, FileText
+  Zap, Award, ArrowRight, ArrowLeft, WifiOff, Map, 
+  BookOpen, Compass, Lightbulb, Check, ChevronLeft, Lock, RotateCcw,
+  Copy, AlertTriangle
 } from 'lucide-react';
 import { 
-  QuizQuestion, QuizStage, QUIZ_STAGES, getAllQuestions, 
+  QuizQuestion, QUIZ_STAGES, getAllQuestions, 
   getStoredUserProgress, saveUserQuizProgress, UserQuizProgress, shuffleQuestionOptions, saveCustomQuestions,
   resetAllQuizProgress
 } from '../data/islamicQuizData';
 import { getLevelTheme } from '../data/levelThemes';
 import { refreshStageQuestionsOffline, generateNewQuizQuestions } from '../services/quizAiGenerator';
-import { getRefreshedOfflineStageQuestions, getStoredStageSetNumber, getStageQuestionSet } from '../data/offlineQuizBank';
+import { getStoredStageSetNumber, getStageQuestionSet } from '../data/offlineQuizBank';
 import { playGameSound } from '../../utils/gameAudio';
 
 interface IslamicQuizGameProps {

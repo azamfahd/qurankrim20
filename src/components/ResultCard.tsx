@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, Quote, BookOpen, CheckCircle2, HeartHandshake } from 'lucide-react';
+import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, BookOpen, CheckCircle2 } from 'lucide-react';
 import { QuranResponse, Verse, Bookmark } from '../types';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { AudioCacheService } from '../quran-platform/services/audioCacheService';

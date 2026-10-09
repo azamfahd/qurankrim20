@@ -1,11 +1,11 @@
 import React from 'react';
-import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Download, MonitorCheck, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin, Smartphone, Bell, Crown } from 'lucide-react';
+import { Settings, History, PlusCircle, X, User, Heart, Bookmark as BookmarkIcon, SunMoon, BookOpenText, Share2, Compass, Calculator, Calendar, Leaf, Sparkles, MessageSquare, BookOpen, Scroll, MapPin, Smartphone, Bell, Crown } from 'lucide-react';
 import { UserSettings } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SmartAppButton } from './SmartAppButton';
 import { DhikrReminderService } from '../services/dhikrReminderService';
 import { AppUpdateService } from '../services/appUpdateService';
-import { OWNER_EMAIL } from '../services/adminService';
+import { AppSync } from '../services/appSyncService';
+import { AdminService, OWNER_EMAIL } from '../services/adminService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -86,9 +86,28 @@ export const Sidebar = React.memo<SidebarProps>(({
     window.addEventListener('app-update-completed', handleUpdateCompleted);
     window.addEventListener('app-update-available', handleUpdateAvailable);
 
+    // Unified AppSync update subscription across Web and APK
+    const unsubscribeSync = AppSync.subscribeToUpdates((result) => {
+      if (result.hasUpdate && result.remoteVersion) {
+        setAvailableUpdate(result.remoteVersion);
+      }
+    });
+
+    // Also listen to remote version changes for immediate badge notification
+    const unsubscribeVersion = AdminService.subscribeToVersionConfig((config) => {
+      if (config?.latestVersion) {
+        const cur = AppUpdateService.getCurrentVersion();
+        if (AppUpdateService.isNewer(cur, config.latestVersion)) {
+          setAvailableUpdate(config.latestVersion);
+        }
+      }
+    });
+
     return () => {
       window.removeEventListener('app-update-completed', handleUpdateCompleted);
       window.removeEventListener('app-update-available', handleUpdateAvailable);
+      unsubscribeSync();
+      unsubscribeVersion();
     };
   }, []);
 

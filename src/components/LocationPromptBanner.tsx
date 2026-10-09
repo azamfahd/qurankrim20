@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Navigation, X, CheckCircle2, ChevronLeft, Sliders } from 'lucide-react';
+import { MapPin, Navigation, X, Sliders } from 'lucide-react';
 import { UserLocation } from '../types';
 
 interface LocationPromptBannerProps {

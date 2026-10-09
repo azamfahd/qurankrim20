@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Star, Trophy, RefreshCw, Heart, Music, CheckCircle2, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Sparkles, Star, Trophy, RefreshCw, Heart, CheckCircle2, XCircle } from 'lucide-react';
 import { getCleanSurahName } from './AyahMarker';
 import { playGameSound } from '../../utils/gameAudio';
 

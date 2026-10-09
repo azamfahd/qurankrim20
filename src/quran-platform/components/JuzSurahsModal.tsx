@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BookOpen, MapPin, Hash, Layers, ChevronLeft } from 'lucide-react';
+import { X, BookOpen, ChevronLeft } from 'lucide-react';
 
 interface JuzSurahsModalProps {
   isOpen: boolean;

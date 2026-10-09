@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, ArrowRight, Play, Volume2, ShieldAlert, Heart, Map, Lock, Unlock, CheckCircle2, XCircle, Gem, Crown, Check, Key, HelpCircle, FileText, Flame, Sparkles, Waves, Compass, Landmark, Sun, Moon } from 'lucide-react';
+import { Trophy, Star, ArrowRight, Play, ShieldAlert, Heart, Map, Lock, CheckCircle2, XCircle, Gem, Crown, Check, Key, HelpCircle, FileText, Flame, Sparkles, Waves, Compass, Landmark, Sun, Moon } from 'lucide-react';
 import { playGameSound } from '../../utils/gameAudio';
 
 interface QuranTreasureGameProps {

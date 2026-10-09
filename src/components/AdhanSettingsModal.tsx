@@ -1,9 +1,9 @@
 import { requestDynamicPermission, PermissionService } from "../services/permissionService";
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Volume2, VolumeX, Save, Bell, BellRing, Info, 
+  X, Volume2, VolumeX, Save, Bell, BellRing, 
   Check, Play, Square, Sparkles, Moon, Sun, Sunrise, Sunset, Clock, Compass, ShieldCheck,
-  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2, Zap, Settings, ShieldAlert, AlertTriangle, ChevronLeft
+  Download, Trash2, WifiOff, HardDrive, Loader2, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';

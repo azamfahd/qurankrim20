@@ -1,5 +1,3 @@
-import { Capacitor } from '@capacitor/core';
-
 export interface MediaMetadataInfo {
   title: string;
   artist: string;

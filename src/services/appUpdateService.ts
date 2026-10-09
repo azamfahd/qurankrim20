@@ -1,13 +1,16 @@
 /**
  * In-App Smart Update Service for Anis Al-Qulub
- * Directly connected to published deployment: https://qurankrim20.netlify.app
+ * Directly connected to published deployment: https://quramkrim20.netlify.app
+ * Synchronized with Supabase Database & Netlify deployment for seamless APK & Web updates
  * Supports both Live OTA Hot Updates (Features & UI without re-downloading APK)
  * and Full APK Direct Downloads for Android APK users.
  */
 
 import { Capacitor } from '@capacitor/core';
+import { AdminService } from './adminService';
 
 export const PUBLISHED_DOMAIN_URL = 'https://qurankrim20.netlify.app';
+export const FALLBACK_DOMAIN_URL = 'https://quramkrim20.netlify.app';
 
 export interface AppVersionInfo {
   version: string;
@@ -36,6 +39,7 @@ export interface UpdateCheckResult {
 export class AppUpdateService {
   private static readonly VERSION_ENDPOINTS = [
     `${PUBLISHED_DOMAIN_URL}/version.json`,
+    `${FALLBACK_DOMAIN_URL}/version.json`,
     '/version.json',
     'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json'
   ];
@@ -47,6 +51,10 @@ export class AppUpdateService {
     const localHotVersion = localStorage.getItem('anis_hot_updated_version');
     if (localHotVersion) {
       return localHotVersion;
+    }
+    const localApkVersion = localStorage.getItem('anis_apk_installed_version');
+    if (localApkVersion) {
+      return localApkVersion;
     }
     if (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) {
       return __APP_VERSION__;
@@ -77,10 +85,14 @@ export class AppUpdateService {
   }
 
   /**
-   * Fetch the latest version info directly from https://qurankrim20.netlify.app/version.json
+   * Fetch latest version info by checking both the published website (quramkrim20.netlify.app)
+   * and the cloud database (Supabase system_config) to ensure APK and Web are always in sync!
    */
   public static async fetchLatestVersionInfo(): Promise<AppVersionInfo | null> {
     const cacheBuster = `t=${Date.now()}`;
+    let jsonVersionInfo: AppVersionInfo | null = null;
+
+    // 1. Fetch from published web endpoints
     for (const endpoint of this.VERSION_ENDPOINTS) {
       try {
         const url = endpoint.includes('?') ? `${endpoint}&${cacheBuster}` : `${endpoint}?${cacheBuster}`;
@@ -91,7 +103,7 @@ export class AppUpdateService {
         if (res.ok) {
           const data: any = await res.json();
           if (data && data.version) {
-            const normalized: AppVersionInfo = {
+            jsonVersionInfo = {
               version: data.version,
               versionCode: data.versionCode || 1,
               releaseDate: data.releaseDate || new Date().toISOString().split('T')[0],
@@ -99,9 +111,9 @@ export class AppUpdateService {
               title: data.title || `تحديث جديد متاح (v${data.version})`,
               releaseNotes: data.releaseNotes || 'تحديث جديد يتضمن تحسينات للأداء واستقرار التنبيهات والأذكار.',
               features: data.features || [
+                'مزامنة فورية ودائمة بين التطبيق والموقع الرسمي',
                 'تحسين استقرار تنبيهات الأذكار والأذان للعمل بدقة',
-                'مزامنة التحديثات تلقائياً مع خادم التطبيق',
-                'تسريع التصفح والاستجابة الفورية'
+                'تسريع التصفح والاستجابة الفورية للمصحف الشريف'
               ],
               updateUrl: data.updateUrl || data.downloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
               downloadUrl: data.downloadUrl || data.updateUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
@@ -109,18 +121,66 @@ export class AppUpdateService {
               sizeFormatted: data.sizeFormatted || data.apkSize || '20 MB',
               timestamp: data.timestamp || Date.now()
             };
-            return normalized;
+            break;
           }
         }
       } catch (err) {
-        // Continue to fallback endpoint
+        // Try next endpoint silently
       }
     }
-    return null;
+
+    // 2. Fetch remote version config from Supabase via AdminService
+    let supabaseVersionInfo: AppVersionInfo | null = null;
+    try {
+      const remoteConfig = await AdminService.getVersionConfig();
+      if (remoteConfig && remoteConfig.latestVersion) {
+        supabaseVersionInfo = {
+          version: remoteConfig.latestVersion,
+          versionCode: 2,
+          releaseDate: remoteConfig.updatedAt ? remoteConfig.updatedAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          updateType: remoteConfig.forceUpdate ? 'both' : 'smart',
+          title: `تحديث متوفر من إدارة التطبيق (v${remoteConfig.latestVersion})`,
+          releaseNotes: remoteConfig.releaseNotes || 'تحديث دوري من إدارة التطبيق يتضمن تحسينات ومميزات جديدة.',
+          features: [
+            'تحديث فوري لجميع أقسام التطبيق بدون فقدان أي بيانات سابقة',
+            'مزامنة مباشرة مع الخادم الرسمي (quramkrim20.netlify.app)',
+            'استقرار عالي في الأداء ودقة متناهية للبوصلة والتنبيهات'
+          ],
+          updateUrl: remoteConfig.apkDownloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+          downloadUrl: remoteConfig.apkDownloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+          apkSize: '20 MB',
+          sizeFormatted: '20 MB • تحميل وتثبيت مباشر',
+          timestamp: remoteConfig.updatedAt ? new Date(remoteConfig.updatedAt).getTime() : Date.now()
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase version check note:', e);
+    }
+
+    // 3. Choose the freshest / newest version between static JSON and Supabase
+    if (jsonVersionInfo && supabaseVersionInfo) {
+      if (this.isNewer(jsonVersionInfo.version, supabaseVersionInfo.version)) {
+        return supabaseVersionInfo;
+      }
+      if (this.isNewer(supabaseVersionInfo.version, jsonVersionInfo.version)) {
+        return jsonVersionInfo;
+      }
+      // If same version number, pick the one with later timestamp
+      if ((supabaseVersionInfo.timestamp || 0) > (jsonVersionInfo.timestamp || 0)) {
+        return {
+          ...jsonVersionInfo,
+          ...supabaseVersionInfo,
+          features: jsonVersionInfo.features || supabaseVersionInfo.features
+        };
+      }
+      return jsonVersionInfo;
+    }
+
+    return jsonVersionInfo || supabaseVersionInfo || null;
   }
 
   /**
-   * Complete check comparing current installed version with remote version.json on the domain
+   * Complete check comparing current installed version with remote version on the domain and Supabase
    */
   public static async checkForUpdates(): Promise<UpdateCheckResult> {
     const currentVer = this.getCurrentVersion();
@@ -161,42 +221,58 @@ export class AppUpdateService {
 
   /**
    * Performs Live In-App Hot Update (Over The Air):
-   * Synchronizes assets, clears outdated caches, fetches the latest app bundle
-   * directly from the published domain without re-downloading APK!
+   * Synchronizes assets, clears outdated caches (preserving downloaded Quran & audio),
+   * fetches the latest app bundle directly from https://quramkrim20.netlify.app without re-downloading APK!
    */
   public static async applyInAppHotUpdate(
     onProgress?: (progress: number, statusText: string) => void
   ): Promise<boolean> {
     try {
-      onProgress?.(15, 'الاتصال بخادم التحديثات (qurankrim20.netlify.app)...');
+      onProgress?.(15, 'الاتصال بخادم التحديثات الرسمي (qurankrim20.netlify.app)...');
 
       // 1. Fetch latest build-assets.json if available
-      try {
-        const manifestRes = await fetch(`${PUBLISHED_DOMAIN_URL}/build-assets.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (manifestRes.ok) {
-          const assets = await manifestRes.json();
-          if (Array.isArray(assets) && assets.length > 0) {
-            onProgress?.(40, 'تحديث الموارد البرمجية وحزم الميزات...');
-            const criticalAssets = assets.filter(a => typeof a === 'string' && (a.endsWith('.js') || a.endsWith('.css'))).slice(0, 15);
-            let loaded = 0;
-            await Promise.allSettled(
-              criticalAssets.map(async (assetUrl) => {
-                try {
-                  const resolvedUrl = assetUrl.startsWith('http') ? assetUrl : `${PUBLISHED_DOMAIN_URL}${assetUrl.startsWith('/') ? '' : '/'}${assetUrl}`;
-                  await fetch(resolvedUrl, { cache: 'no-cache' });
-                  loaded++;
-                  const pct = 40 + Math.floor((loaded / criticalAssets.length) * 35);
-                  onProgress?.(pct, `تحديث الملفات البرمجية (${loaded}/${criticalAssets.length})...`);
-                } catch {}
-              })
-            );
+      const domainsToTry = [PUBLISHED_DOMAIN_URL, FALLBACK_DOMAIN_URL];
+      for (const domain of domainsToTry) {
+        try {
+          const manifestRes = await fetch(`${domain}/build-assets.json?t=${Date.now()}`, { cache: 'no-store' });
+          if (manifestRes.ok) {
+            const assets = await manifestRes.json();
+            if (Array.isArray(assets) && assets.length > 0) {
+              onProgress?.(40, 'تحديث الموارد البرمجية وحزم الميزات...');
+              const criticalAssets = assets.filter(a => typeof a === 'string' && (a.endsWith('.js') || a.endsWith('.css'))).slice(0, 15);
+              let loaded = 0;
+              await Promise.allSettled(
+                criticalAssets.map(async (assetUrl) => {
+                  try {
+                    const resolvedUrl = assetUrl.startsWith('http') ? assetUrl : `${domain}${assetUrl.startsWith('/') ? '' : '/'}${assetUrl}`;
+                    await fetch(resolvedUrl, { cache: 'no-cache' });
+                    loaded++;
+                    const pct = 40 + Math.floor((loaded / criticalAssets.length) * 35);
+                    onProgress?.(pct, `تحديث الملفات البرمجية (${loaded}/${criticalAssets.length})...`);
+                  } catch {}
+                })
+              );
+              break;
+            }
           }
+        } catch (assetErr) {
+          // Try next domain
         }
-      } catch (assetErr) {
-        console.warn('Asset refresh note:', assetErr);
       }
 
-      onProgress?.(80, 'تحديث ذاكرة التطبيق السريعة وتنظيف النسخ السابقة...');
+      onProgress?.(75, 'تحديث ذاكرة التطبيق السريعة وتنظيف النسخ السابقة...');
+
+      // Clean non-permanent asset caches (keeping downloaded Quran and audio intact!)
+      if ('caches' in window) {
+        try {
+          const cacheKeys = await caches.keys();
+          for (const key of cacheKeys) {
+            if (!key.includes('quran_audio') && !key.includes('mushaf_offline') && !key.includes('permanent')) {
+              await caches.delete(key);
+            }
+          }
+        } catch {}
+      }
 
       // 2. Notify Service Worker to refresh and check updates
       if ('serviceWorker' in navigator) {
@@ -215,9 +291,11 @@ export class AppUpdateService {
       const remoteInfo = await this.fetchLatestVersionInfo();
       if (remoteInfo?.version) {
         localStorage.setItem('anis_hot_updated_version', remoteInfo.version);
+        localStorage.setItem('anis_apk_installed_version', remoteInfo.version);
         if (remoteInfo.timestamp) {
           localStorage.setItem('anis_last_update_ts', remoteInfo.timestamp.toString());
         }
+        window.dispatchEvent(new CustomEvent('app-update-completed', { detail: { version: remoteInfo.version } }));
       }
 
       onProgress?.(100, 'اكتمل التحديث بنجاح! جاري التفعيل...');
@@ -229,7 +307,7 @@ export class AppUpdateService {
   }
 
   /**
-   * Direct APK Download & Install linked to the published domain
+   * Direct APK Download & Install linked to the published domain (quramkrim20.netlify.app)
    */
   public static downloadApk(customUrl?: string): void {
     const targetUrl = customUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`;
@@ -263,3 +341,4 @@ export class AppUpdateService {
     }
   }
 }
+

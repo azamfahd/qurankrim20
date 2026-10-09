@@ -215,10 +215,26 @@ async function startServer() {
 
   // Check server AI status (whether a server-side GEMINI_API_KEY is configured)
   app.get("/api/ai/status", (req, res) => {
-    const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
+    const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY || "";
+    const hasKey = Boolean(rawKey && rawKey.trim().length > 0);
     res.json({
       configured: hasKey,
       status: hasKey ? "ready" : "no_key"
+    });
+  });
+
+  // Provide public/client AI key endpoint to synchronize default key with APK / Native app
+  app.get("/api/ai/key", (req, res) => {
+    const defaultKey = (
+      process.env.VITE_GEMINI_API_KEY || 
+      process.env.GEMINI_API_KEY || 
+      process.env.API_KEY || 
+      ""
+    ).trim();
+    res.json({
+      success: true,
+      hasKey: Boolean(defaultKey),
+      key: defaultKey
     });
   });
 

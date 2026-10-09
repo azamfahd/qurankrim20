@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';
 import { 
   X, Bell, Volume2, VolumeX, Sparkles, Clock, 
-  Check, Play, Pause, CheckCircle2, 
+  Check, Play, CheckCircle2, 
   Settings2, ListFilter, Users, Download,
-  Trash2, RefreshCw, HardDrive, CheckCircle,
-  ShieldCheck, ShieldAlert, BellRing, Zap, ChevronLeft
+  Trash2, RefreshCw, HardDrive,
+  BellRing
 } from 'lucide-react';
 import { DhikrReminderSettings, DhikrReciterInfo } from '../types';
 import { 

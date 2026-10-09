@@ -24,7 +24,6 @@ import { miraclesData, MiracleCategory, MiracleItem } from '../data/miracles';
 import { getQuranAudioUrl } from '../utils/quranAudio';
 import { NumericalAnalysisViewer } from './NumericalAnalysisViewer';
 import { AudioPoolManager } from '../services/audioPoolManager';
-import { appEventBus } from '../services/appEventBus';
 import { useAppEvent } from '../services/appEventBus';
 
 interface MiraclesModalProps {

@@ -211,14 +211,6 @@ function configureAndroid() {
         console.log('✅ Copied persistent release.keystore to android/app/release.keystore');
       }
 
-      // Copy google-services.json to android/app/google-services.json if available
-      const srcGoogleServices = path.join(__dirname, '..', 'google-services.json');
-      const targetGoogleServices = path.join(__dirname, '..', 'android', 'app', 'google-services.json');
-      if (fs.existsSync(srcGoogleServices)) {
-        fs.copyFileSync(srcGoogleServices, targetGoogleServices);
-        console.log('✅ Copied google-services.json to android/app/google-services.json');
-      }
-
       // Calculate versionCode and versionName from package.json & GITHUB_RUN_NUMBER
       let pkg = { version: '1.1.0' };
       try {

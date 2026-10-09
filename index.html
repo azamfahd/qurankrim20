@@ -6,6 +6,42 @@
     <meta name="theme-color" content="#022c22" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <script>
+      // Early Error & Unhandled Rejection Guard to protect against sandbox iframe pings & network timeouts
+      (function() {
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = event.reason;
+          var msg = (typeof reason === 'string' ? reason : (reason && reason.message) || '') + '';
+          var code = (reason && reason.code) || '';
+          if (
+            code === 'auth/network-request-failed' ||
+            code === 'auth/popup-closed-by-user' ||
+            code === 'auth/cancelled-popup-request' ||
+            msg.indexOf('auth/network-request-failed') !== -1 ||
+            msg.indexOf('network-request-failed') !== -1 ||
+            (reason && (reason.name === 'AbortError' || reason.name === 'NotAllowedError')) ||
+            msg.indexOf('aborted') !== -1 ||
+            msg.indexOf('play() failed') !== -1 ||
+            msg.indexOf('ResizeObserver') !== -1 ||
+            msg.indexOf('Failed to fetch') !== -1
+          ) {
+            event.preventDefault();
+          }
+        });
+        window.addEventListener('error', function(event) {
+          var msg = (event && event.message) || '';
+          if (
+            msg.indexOf('ResizeObserver') !== -1 ||
+            msg.indexOf('Script error.') !== -1 ||
+            msg.indexOf('auth/network-request-failed') !== -1 ||
+            msg.indexOf('network-request-failed') !== -1
+          ) {
+            event.preventDefault();
+          }
+        });
+      })();
+    </script>
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="أنيس القلوب - رفيقك القرآني للتدبر والمواساة. تطبيق يقدم لك آيات قرآنية تواسي قلبك وتجيب على تساؤلاتك، مع مسبحة إلكترونية وأذكار ومواقيت الصلاة." />

@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { SURAHS_STATIC_LIST } from '../data/surahsData';
 import { 
   ChevronRight, 
-  ChevronLeft, 
   Share2, 
   Copy, 
   Check, 
@@ -12,11 +11,7 @@ import {
   BookOpen, 
   Volume2, 
   ArrowRight, 
-  ArrowLeft,
-  Sparkles,
-  WifiOff,
-  Type,
-  Maximize2
+  ArrowLeft
 } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 

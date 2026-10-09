@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { QuranSyncService } from '../services/quranSyncService';
-import { ChevronRight, ChevronLeft, Bookmark, BookOpen, Share2, Palette, EyeOff, Eye, Play, Pause, Sliders, Maximize2, Settings2, Sparkles, Copy, Check, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Bookmark, BookOpen, EyeOff, Eye, Play, Pause, Sliders, Maximize2, Sparkles, Copy, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MUSHAF_THEMES } from './QuranSettingsModal';
+import { MUSHAF_THEMES } from '../constants/mushafThemes';
 import { AyahMarker, getCleanSurahName, DecoratedBismillah } from './AyahMarker';
 export const QuranPageViewer: React.FC = () => {
   const { 

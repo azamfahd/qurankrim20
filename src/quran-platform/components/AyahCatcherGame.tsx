@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, RefreshCw, Heart, Leaf, TreeDeciduous, Cloud, Clock, AlertTriangle, Wind, Zap, Layers, CloudRain, Map, Star, Flag } from 'lucide-react';
-import { getCleanSurahName } from './AyahMarker';
 import { playGameSound } from '../../utils/gameAudio';
 
 interface AyahCatcherGameProps {

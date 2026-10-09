@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Calculator, Info, TrendingUp, DollarSign, Coins, Gem, 
-  Building, Scale, Copy, Check, RotateCcw, BookOpen, ChevronDown, 
-  ChevronUp, Sparkles, ShieldCheck, Layers, HelpCircle, Share2,
+  X, Calculator, TrendingUp, DollarSign, Gem, 
+  Scale, Copy, Check, RotateCcw, BookOpen, 
+  Sparkles, ShieldCheck,
   ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

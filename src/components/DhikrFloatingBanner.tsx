@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Volume2, VolumeX, X, Heart, CheckCircle2, 
-  Settings as SettingsIcon, Sparkles, BookOpen
+  Settings as SettingsIcon, Sparkles
 } from 'lucide-react';
 import { DhikrItem } from '../types';
 import { DhikrReminderService, DHIKR_RECITERS, DhikrAudioState } from '../services/dhikrReminderService';

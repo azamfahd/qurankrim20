@@ -2,7 +2,7 @@
 export const APP_VERSION = "1.1.0";
 
 export const GITHUB_RELEASE_APK_URL = 'https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk';
-export const NETLIFY_MIRROR_APK_URL = 'https://qurankrim20.netlify.app/app-release.apk';
+export const NETLIFY_MIRROR_APK_URL = 'https://quramkrim20.netlify.app/app-release.apk';
 
 const DEFAULT_FALLBACK_APK_URL = GITHUB_RELEASE_APK_URL;
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, BookOpen, Clock, Award, Flame, Target, Star, Shield, Trophy, 
-  Plus, Check, Trash2, Calendar, Sparkles, CheckCircle2, ChevronLeft, Layers, TrendingUp
+  Plus, Check, Trash2, Calendar, Sparkles, CheckCircle2, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface KhatmaItem {
   id: string;

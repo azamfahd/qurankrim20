@@ -4,9 +4,10 @@
   "releaseNotes": "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
   "sizeFormatted": "20 MB • تحميل وتثبيت مباشر",
   "downloadUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "versionCode": 10126,
+  "versionCode": 10125,
   "updateUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "timestamp": 1791493272101,
-  "apkUpdated": "2026-10-08T21:01:12.101Z",
-  "mirrorUrl": "https://qurankrim20.netlify.app/app-release.apk"
+  "timestamp": 1791484290360,
+  "apkUpdated": "2026-10-08T18:31:30.360Z",
+  "primaryUrl": "https://qurankrim20.netlify.app/app-release.apk",
+  "mirrorUrl": "https://quramkrim20.netlify.app/app-release.apk"
 }

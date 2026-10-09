@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { QuranSyncService } from '../services/quranSyncService';
-import { ChevronRight, Settings2, Bookmark, Check, Maximize, Minimize, Play, Pause, BookOpen, EyeOff, Eye, Share2, Type, Palette, Sliders, Book, AlignJustify, Brain, Sparkles, Copy, X } from 'lucide-react';
+import { ChevronRight, Bookmark, Check, Maximize, Play, Pause, BookOpen, EyeOff, Eye, Type, Sliders, Brain, Sparkles, Copy, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuranPageViewer } from './QuranPageViewer';
-import { QuranSettingsModal, MUSHAF_THEMES } from './QuranSettingsModal';
-import { AyahMarker, getCleanSurahName, DecoratedBismillah, toArabicNumerals } from './AyahMarker';
+import { MUSHAF_THEMES } from '../constants/mushafThemes';
+import { getCleanSurahName, DecoratedBismillah } from './AyahMarker';
 import { OptimizedAyahItem, OptimizedAyahChunk } from './OptimizedAyahBlock';
 const HIGHLIGHT_COLORS = [
   { id: 'none', class: '' },

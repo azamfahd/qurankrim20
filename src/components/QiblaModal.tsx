@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   X, Compass, MapPin, AlertCircle, CheckCircle2, Navigation, 
   RotateCcw, Shield, ChevronDown, RefreshCw, Crosshair, Globe, 
-  Smartphone, Info, Gauge, Layers, Sparkles
+  Smartphone, Info, Gauge, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coordinates, Qibla } from 'adhan';
 import { UserSettings } from '../types';
 import { LocationService } from '../services/locationService';
 
@@ -128,6 +127,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
   const isAbsoluteAvailableRef = useRef<boolean>(false);
   const hasReceivedSensorDataRef = useRef<boolean>(false);
   const lastHeadingRef = useRef<number | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   // Refs to avoid infinite useEffect re-render loops when settings change
   const settingsRef = useRef(settings);
@@ -236,6 +236,14 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     const isLevel = Math.abs(beta) < 18 && Math.abs(gamma) < 18;
     setTilt({ pitch: beta, roll: gamma, isLevel });
 
+    const isAbsoluteEvent = event.type === 'deviceorientationabsolute';
+    if (isAbsoluteEvent) {
+      isAbsoluteAvailableRef.current = true;
+    } else if (isAbsoluteAvailableRef.current) {
+      // إذا كان حدث Absolute متاحاً ونشطاً، نتجاهل حدث orientation العادي لتفادي تضارب القراءات واهتزاز الشوكة!
+      return;
+    }
+
     const isIOSCompass = (event as any).webkitCompassHeading !== undefined && (event as any).webkitCompassHeading !== null;
     const hasAlpha = event.alpha !== null && event.alpha !== undefined;
 
@@ -245,7 +253,6 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     }
 
     hasReceivedSensorDataRef.current = true;
-    isAbsoluteAvailableRef.current = true;
 
     let headingValue: number | null = null;
     
@@ -264,24 +271,38 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
     if (headingValue !== null && !isNaN(headingValue)) {
       if (lastHeadingRef.current === null) {
         lastHeadingRef.current = headingValue;
-      } else {
-        let diff = (headingValue - lastHeadingRef.current) % 360;
-        if (diff < -180) diff += 360;
-        if (diff > 180) diff -= 360;
-
-        const absDiff = Math.abs(diff);
-        if (absDiff < 0.2) {
-          headingValue = lastHeadingRef.current;
-        } else {
-          // معامل تنعيم ديناميكي: استجابة سريعة عند التدوير السريع، وتنعيم فائق لمنع الارتجاف عند الحركة البطيئة
-          const factor = absDiff > 15 ? 0.6 : absDiff > 5 ? 0.35 : 0.18;
-          headingValue = (lastHeadingRef.current + diff * factor + 360) % 360;
-          lastHeadingRef.current = headingValue;
-        }
+        setRawHeading(Math.round(headingValue));
+        setSensorStatus('available');
+        return;
       }
 
-      setRawHeading(headingValue);
-      setSensorStatus('available');
+      let diff = (headingValue - lastHeadingRef.current) % 360;
+      if (diff < -180) diff += 360;
+      if (diff > 180) diff -= 360;
+
+      const absDiff = Math.abs(diff);
+
+      // عتبة التثبيت التام (Deadband Filter): إذا كان الهاتف ثابتاً في يد المستخدم أو على سطح،
+      // فإن التغيرات العشوائية الطفيفة الناتجة عن ضوضاء المغناطيسية (< 1.8°) تُهمل تماماً لضمان ثبات الشوكة كبوصلة فيزيائية حقيقية
+      if (absDiff < 1.8) {
+        return;
+      }
+
+      // معامل التنعيم الخطي المتكيف (EMA Low-Pass Filter) للحركة الحقيقية
+      const factor = absDiff > 25 ? 0.45 : absDiff > 10 ? 0.28 : 0.16;
+      const smoothedHeading = (lastHeadingRef.current + diff * factor + 360) % 360;
+      lastHeadingRef.current = smoothedHeading;
+
+      // استخدام requestAnimationFrame لضمان تحديث الواجهة بسلاسة مطابقة لمعدل تحديث الشاشة
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+
+      animFrameRef.current = requestAnimationFrame(() => {
+        animFrameRef.current = null;
+        setRawHeading(Math.round(smoothedHeading * 2) / 2);
+        setSensorStatus('available');
+      });
     }
   }, []);
 
@@ -346,6 +367,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
 
     return () => {
       if (timer) clearTimeout(timer);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
       window.removeEventListener('deviceorientation', handleOrientation, true);
     };
@@ -691,7 +713,7 @@ export const QiblaModal: React.FC<QiblaModalProps> = ({
                       <motion.div 
                         className="absolute inset-0 flex flex-col items-center justify-start z-30 pointer-events-none p-2"
                         animate={{ rotate: headingRotation }}
-                        transition={{ type: "spring", stiffness: 180, damping: 24, mass: 0.8 }}
+                        transition={{ type: "tween", duration: 0.22, ease: "easeOut" }}
                       >
                         <div className="flex flex-col items-center relative top-2">
                           <div className={`w-10 h-10 rounded-full border-2 shadow-2xl flex items-center justify-center transition-all duration-300 ${

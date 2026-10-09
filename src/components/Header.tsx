@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, User, Calendar, Moon, RefreshCw, BookOpen, Heart, Clock, Scroll, Monitor, Download, Crown } from 'lucide-react';
+import { Menu, User, Calendar, Moon, RefreshCw, BookOpen, Heart, Clock, Scroll, Monitor, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentHijriDate } from '../utils/hijri';
 import { OWNER_EMAIL } from '../services/adminService';

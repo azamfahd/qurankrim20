@@ -52,16 +52,13 @@ import {
   Sparkles,
   User,
   Scroll,
-  Smartphone,
   HeartHandshake,
   BookHeart,
-  Download,
   Bell,
-  Cpu,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { triggerApkDownload, APP_VERSION } from "./utils/apkConfig";
+import { triggerApkDownload } from "./utils/apkConfig";
 import { ApkVersionInfo } from "./components/ApkUpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Suspense } from "react";
@@ -444,159 +441,17 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Smart Radar Automatic & Manual Update Checker (Fetches from https://qurankrim20.netlify.app/version.json)
+  // Smart Radar Automatic & Manual Update Checker is managed uniformly by UpdateNotifier and AppUpdateService
   useEffect(() => {
-    const checkRemoteVersion = async (isManualCheck = false) => {
-      try {
-        if (isManualCheck) {
-          showToast("جاري فحص التحديثات من الخادم الرسمي (qurankrim20.netlify.app)...", "info");
-        }
-
-        const endpoints = [
-          "https://qurankrim20.netlify.app/version.json",
-          "/version.json",
-        ];
-
-        let remoteData: any = null;
-
-        for (const url of endpoints) {
-          try {
-            const cacheBustedUrl = `${url}?t=${Date.now()}`;
-            const response = await fetch(cacheBustedUrl, {
-              cache: "no-store",
-              headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-            });
-            if (response.ok) {
-              const data = await response.json();
-              if (data && data.version) {
-                remoteData = data;
-                break;
-              }
-            }
-          } catch (e) {
-            // Try fallback endpoint silently
-          }
-        }
-
-        if (!remoteData || !remoteData.version) {
-          if (isManualCheck) {
-            showToast(`أنت تستخدم الإصدار الأخير (v${APP_VERSION}) ✨`, "success");
-          }
-          return;
-        }
-
-        // Current version running locally or stored in APK installation marker
-        const currentLocalVersion =
-          localStorage.getItem("anis_apk_installed_version") || APP_VERSION;
-
-        const remoteVer = String(remoteData.version).trim();
-        const localVer = String(currentLocalVersion).trim();
-
-        // Version numbers comparison helper
-        const cleanL = localVer.replace(/^v/i, "");
-        const cleanR = remoteVer.replace(/^v/i, "");
-
-        const lParts = cleanL.split(".").map((n) => parseInt(n, 10) || 0);
-        const rParts = cleanR.split(".").map((n) => parseInt(n, 10) || 0);
-
-        let isNewer = false;
-        let isMajor = false;
-
-        for (let i = 0; i < Math.max(lParts.length, rParts.length); i++) {
-          const l = lParts[i] ?? 0;
-          const r = rParts[i] ?? 0;
-          if (r > l) {
-            isNewer = true;
-            if (i === 0 || i === 1) {
-              isMajor = true;
-            }
-            break;
-          } else if (l > r) {
-            isNewer = false;
-            break;
-          }
-        }
-
-        if (remoteData.updateType === "major" || remoteData.isMajor) {
-          isMajor = true;
-        } else if (
-          remoteData.updateType === "patch" ||
-          remoteData.updateType === "simple" ||
-          remoteData.updateType === "minor" ||
-          remoteData.isSimple ||
-          remoteData.isMinor
-        ) {
-          isMajor = false;
-        }
-
-        const lastAckTs = parseInt(
-          localStorage.getItem("anis_last_update_ts") || "0",
-          10
-        );
-        const hasNewerTimestamp =
-          Boolean(remoteData.timestamp) &&
-          Number(remoteData.timestamp) > lastAckTs &&
-          lastAckTs > 0;
-
-        const isSameVersion = cleanL === cleanR;
-
-        let hasUpdateToNotify = false;
-        if (isNewer) {
-          hasUpdateToNotify = true;
-        } else if (isSameVersion) {
-          if (Boolean(remoteData.forceUpdate) || (hasNewerTimestamp && Boolean(remoteData.hasFixes))) {
-            hasUpdateToNotify = true;
-          } else {
-            hasUpdateToNotify = false;
-          }
-        }
-
-        if (hasUpdateToNotify) {
-          const updateInfo: ApkVersionInfo = {
-            version: remoteVer,
-            title: remoteData.title || `تحديث جديد متاح (v${remoteVer})`,
-            releaseNotes:
-              remoteData.releaseNotes ||
-              (isMajor
-                ? "يتوفر إصدار رئيسي جديد بميزات وتصميمات جديدة ومواقيت دقيقة."
-                : "يتوفر تحديث بسيط يتضمن تحسينات سريعة للجودة وإصلاحات في الأداء."),
-            sizeFormatted: remoteData.sizeFormatted || remoteData.apkSize || "20 MB",
-            updateUrl:
-              remoteData.updateUrl ||
-              remoteData.downloadUrl ||
-              "https://qurankrim20.netlify.app/app-release.apk",
-            updateType: isMajor ? "major" : "simple",
-            isMajor,
-          };
-
-          setApkUpdateInfo(updateInfo);
-          setIsApkUpdateBannerOpen(true);
-
-          if (isManualCheck) {
-            showToast(`تم العثور على إصدار جديد (v${remoteVer})! 🎉`, "success");
-          }
-        } else if (isManualCheck) {
-          showToast(`أنت تستخدم أحدث إصدار من التطبيق (v${localVer}) ✨`, "success");
-        }
-      } catch (err) {
-        if (isManualCheck) {
-          showToast(`أنت تستخدم الإصدار الحالي (v${APP_VERSION}) ✨`, "info");
-        }
+    // Keep APK update listener for service worker background push
+    const handleApkUpdateEvent = (e: any) => {
+      if (e?.detail?.version) {
+        // Handled via AppUpdateService
       }
     };
-
-    // 1. Trigger check on app startup (slight delay for smooth initial render)
-    const timer = setTimeout(() => checkRemoteVersion(false), 2500);
-
-    // 2. Listen for manual update check requests from Sidebar or Settings
-    const handleManualCheck = () => {
-      checkRemoteVersion(true);
-    };
-    window.addEventListener("check-for-app-updates", handleManualCheck);
-
+    window.addEventListener("app-update-available", handleApkUpdateEvent);
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener("check-for-app-updates", handleManualCheck);
+      window.removeEventListener("app-update-available", handleApkUpdateEvent);
     };
   }, []);
 
@@ -1346,11 +1201,11 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [state]);
 
-  // Save history to localStorage and Firestore
+  // Save history to localStorage and Supabase
   useEffect(() => {
     localStorage.setItem("anis_history", JSON.stringify(sessions));
 
-    // Also save to Firestore if logged in
+    // Also sync to Supabase if logged in
     if (supabaseUser && isOnline) {
       // We handle individual session saves in saveCurrentSessionToHistory
     }

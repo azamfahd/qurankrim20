@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BellRing, MapPin, ShieldCheck, ArrowLeft, Settings, CheckCircle2 } from 'lucide-react';
+import { BellRing, MapPin, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Geolocation } from '@capacitor/geolocation';

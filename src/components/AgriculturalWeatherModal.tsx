@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, 
   Sun, 
@@ -6,16 +6,11 @@ import {
   Cloud, 
   Wind, 
   Droplets, 
-  Thermometer, 
   Gauge, 
-  Compass, 
-  RefreshCw, 
   MapPin, 
   Sparkles, 
-  AlertTriangle, 
   CheckCircle, 
   Zap,
-  Info, 
   Calendar,
   CloudLightning,
   CloudFog,

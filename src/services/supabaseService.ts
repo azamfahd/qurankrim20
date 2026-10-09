@@ -8,7 +8,7 @@ import { SyncQueueService } from './syncQueueService';
 SyncQueueService.init();
 
 // Official published web URL
-export const PUBLISHED_WEB_URL = 'https://qurankrim20.netlify.app';
+export const PUBLISHED_WEB_URL = 'https://quramkrim20.netlify.app';
 
 // Set up Deep Link Listener for Supabase Auth on Android
 if (Capacitor.isNativePlatform()) {

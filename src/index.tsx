@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -20,12 +19,18 @@ if (typeof window !== 'undefined') {
   } catch {}
 }
 
-// Global safety net: prevent aborted requests, audio autoplay rejections, quota limits, or minor DOM warnings from freezing the app
+// Global safety net: prevent aborted requests, audio autoplay rejections, quota limits, or auth network timeouts from freezing the app
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = typeof reason === 'string' ? reason : reason?.message || '';
+    const code = (reason as any)?.code || '';
     if (
+      code === 'auth/network-request-failed' ||
+      code === 'auth/popup-closed-by-user' ||
+      code === 'auth/cancelled-popup-request' ||
+      msg.includes('auth/network-request-failed') ||
+      msg.includes('network-request-failed') ||
       reason?.name === 'AbortError' ||
       reason?.name === 'NotAllowedError' ||
       msg.includes('aborted') ||
@@ -43,9 +48,12 @@ if (typeof window !== 'undefined') {
   });
 
   window.addEventListener('error', (event) => {
+    const msg = event.message || '';
     if (
-      event.message?.includes('ResizeObserver') ||
-      event.message?.includes('Script error.')
+      msg.includes('ResizeObserver') ||
+      msg.includes('Script error.') ||
+      msg.includes('auth/network-request-failed') ||
+      msg.includes('network-request-failed')
     ) {
       event.preventDefault();
     }

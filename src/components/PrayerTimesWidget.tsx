@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, MapPin, Settings, Sparkles } from 'lucide-react';
-import { UserSettings, UserLocation } from '../types';
-import { calculateAccuratePrayerTimes, AdhanAudioEngine, AdhanOfflineManager } from '../services/adhanService';
+import { Clock, MapPin, Settings } from 'lucide-react';
+import { UserSettings } from '../types';
+import { calculateAccuratePrayerTimes, AdhanAudioEngine } from '../services/adhanService';
 import { LocationService } from '../services/locationService';
 import { Suspense } from 'react';
 import { lazyWithRetry } from '../utils/lazyWithRetry';

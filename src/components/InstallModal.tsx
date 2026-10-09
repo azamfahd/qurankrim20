@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Share2, Smartphone, Globe, CheckCircle2, Sparkles, Apple, ArrowRight, ShieldCheck, Zap, Info, Monitor } from 'lucide-react';
+import { X, Download, Share2, Smartphone, Globe, CheckCircle2, Apple, ShieldCheck, Zap, Info, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { triggerApkDownload } from '../utils/apkConfig';
 

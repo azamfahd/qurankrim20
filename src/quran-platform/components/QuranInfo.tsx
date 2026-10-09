@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { ChevronRight, Info, MapPin, Hash, Clock, Compass, ShieldCheck, HeartHandshake, Award, FileText, Sparkles } from 'lucide-react';

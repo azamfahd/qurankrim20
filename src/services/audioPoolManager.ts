@@ -1,5 +1,3 @@
-import { Capacitor } from '@capacitor/core';
-
 export class AudioPoolManager {
   private static pool: { audio: HTMLAudioElement; inUse: boolean; id: number }[] = [];
   private static MAX_POOL_SIZE = 3;

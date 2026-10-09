@@ -4,6 +4,8 @@ import { QuranDataService } from './quranDataService';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 
 // Intelligent Arabic prompt caching system to reduce network latency and prevent API quota limits
+export const SYNCED_KEY_STORAGE = 'anis_synced_default_gemini_key';
+
 export function getPrioritizedGeminiKey(userCustomKey?: string): string {
   // 1. User's custom entered key in Settings (Highest Priority)
   if (userCustomKey && typeof userCustomKey === 'string' && userCustomKey.trim().length > 0 && userCustomKey !== 'undefined' && userCustomKey !== 'null') {
@@ -14,14 +16,66 @@ export function getPrioritizedGeminiKey(userCustomKey?: string): string {
   if (viteKey && typeof viteKey === 'string' && viteKey.trim().length > 0 && viteKey !== 'undefined' && viteKey !== 'null') {
     return viteKey.trim();
   }
-  // 3. Process environment key if available in build/runtime
+  // 3. Synced default key from Netlify deployment (stored in local storage)
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const syncedKey = localStorage.getItem(SYNCED_KEY_STORAGE);
+      if (syncedKey && typeof syncedKey === 'string' && syncedKey.trim().length > 0) {
+        return syncedKey.trim();
+      }
+    } catch {}
+  }
+  // 4. Process environment key if available in build/runtime
   if (typeof process !== 'undefined' && process.env) {
-    const pKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+    const pKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY || '';
     if (pKey && typeof pKey === 'string' && pKey.trim().length > 0 && pKey !== 'undefined' && pKey !== 'null') {
       return pKey.trim();
     }
   }
   return '';
+}
+
+/**
+ * Automatically synchronize default Gemini API key from published deployment (quramkrim20.netlify.app)
+ * Allows APK users to use the default AI key configured in Netlify environment variables seamlessly!
+ */
+export async function syncDefaultApiKeyFromWeb(): Promise<string | null> {
+  const endpoints = [
+    'https://quramkrim20.netlify.app/api/ai/key',
+    'https://quramkrim20.netlify.app/.netlify/functions/ai-key',
+    'https://qurankrim20.netlify.app/api/ai/key',
+    'https://qurankrim20.netlify.app/.netlify/functions/ai-key',
+    '/api/ai/key'
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.key && typeof data.key === 'string' && data.key.trim().length > 0) {
+          const validKey = data.key.trim();
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(SYNCED_KEY_STORAGE, validKey);
+          }
+          console.info(`[GeminiService] Successfully retrieved default AI key from: ${url}`);
+          return validKey;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+// Background sync on app boot
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    syncDefaultApiKeyFromWeb().catch(() => {});
+  }, 1000);
 }
 
 class PromptCache {
@@ -421,7 +475,15 @@ export class QuranChatSession {
     }
 
     let aiResult: any = null;
-    const prioritizedKey = getPrioritizedGeminiKey(this.settings.apiKey);
+    let prioritizedKey = getPrioritizedGeminiKey(this.settings.apiKey);
+
+    // If no key yet, perform quick sync with published Netlify deployment
+    if (!prioritizedKey) {
+      try {
+        const synced = await syncDefaultApiKeyFromWeb();
+        if (synced) prioritizedKey = synced;
+      } catch {}
+    }
 
     // Strategy 1: Direct Client Call to Google Gemini API using @google/genai SDK
     if (prioritizedKey) {
@@ -433,7 +495,7 @@ export class QuranChatSession {
       }
     }
 
-    // Strategy 2: Server-side proxy endpoint (/api/ai/chat)
+    // Strategy 2: Server-side proxy endpoint (/api/ai/chat and /.netlify/functions/ai-chat)
     if (!aiResult) {
       // Smart detection for Capacitor APK / WebView / local file environment
       const isNativeApp = 
@@ -448,38 +510,39 @@ export class QuranChatSession {
       const candidateEndpoints: string[] = [];
       
       if (isNativeApp) {
-        // In APK / Native app, prioritize Netlify proxy and Cloud Run production servers directly!
-        candidateEndpoints.push('https://qurankrim20.netlify.app');
-        candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
-        candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
+        // In APK / Native app, prioritize published Netlify serverless endpoints directly!
+        candidateEndpoints.push('https://quramkrim20.netlify.app/api/ai/chat');
+        candidateEndpoints.push('https://quramkrim20.netlify.app/.netlify/functions/ai-chat');
+        candidateEndpoints.push('https://qurankrim20.netlify.app/api/ai/chat');
+        candidateEndpoints.push('https://qurankrim20.netlify.app/.netlify/functions/ai-chat');
         if (import.meta.env.VITE_BACKEND_API_URL) {
-          candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
+          candidateEndpoints.push(`${(import.meta.env.VITE_BACKEND_API_URL as string).replace(/\/$/, '')}/api/ai/chat`);
         }
       } else {
-        // In standard web browser, check relative / origin first, then Netlify & Cloud Run
+        // In standard web browser, check relative / origin first, then Netlify
         if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('about:blank')) {
-          candidateEndpoints.push('');
-          candidateEndpoints.push(window.location.origin);
+          candidateEndpoints.push(`${window.location.origin.replace(/\/$/, '')}/api/ai/chat`);
+          candidateEndpoints.push('/api/ai/chat');
         }
-        candidateEndpoints.push('https://qurankrim20.netlify.app');
+        candidateEndpoints.push('https://quramkrim20.netlify.app/api/ai/chat');
+        candidateEndpoints.push('https://quramkrim20.netlify.app/.netlify/functions/ai-chat');
+        candidateEndpoints.push('https://qurankrim20.netlify.app/api/ai/chat');
+        candidateEndpoints.push('https://qurankrim20.netlify.app/.netlify/functions/ai-chat');
         if (import.meta.env.VITE_BACKEND_API_URL) {
-          candidateEndpoints.push(import.meta.env.VITE_BACKEND_API_URL as string);
+          candidateEndpoints.push(`${(import.meta.env.VITE_BACKEND_API_URL as string).replace(/\/$/, '')}/api/ai/chat`);
         }
-        candidateEndpoints.push('https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
-        candidateEndpoints.push('https://ais-dev-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app');
       }
 
       const uniqueEndpoints = Array.from(new Set(candidateEndpoints.filter(Boolean)));
 
-      for (const baseUrl of uniqueEndpoints) {
+      for (const endpointUrl of uniqueEndpoints) {
         try {
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           if (prioritizedKey) headers['x-user-gemini-key'] = prioritizedKey;
 
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for fast failover
+          const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout for robust response
 
-          const endpointUrl = `${baseUrl.replace(/\/$/, '')}/api/ai/chat`;
           const response = await fetch(endpointUrl, {
             method: 'POST',
             headers,
@@ -507,12 +570,12 @@ export class QuranChatSession {
             const jsonResult = await response.json();
             if (jsonResult && jsonResult.success && jsonResult.data) {
               aiResult = jsonResult.data;
-              console.log(`[GeminiService] Successfully retrieved AI response from server endpoint: ${baseUrl || 'relative'}`);
+              console.log(`[GeminiService] Successfully retrieved AI response from endpoint: ${endpointUrl}`);
               break;
             }
           }
         } catch (endpointErr) {
-          console.warn(`[GeminiService] Server endpoint attempt ${baseUrl || 'relative'} failed:`, endpointErr);
+          console.warn(`[GeminiService] Server endpoint attempt ${endpointUrl} failed:`, endpointErr);
         }
       }
     }

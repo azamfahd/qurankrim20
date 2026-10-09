@@ -1,6 +1,6 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BookOpen, Layers, Bookmark, Heart, Settings, PlayCircle, Info, Target, BarChart2, Minimize2 } from 'lucide-react';
+import { X, BookOpen, Layers, Heart, Settings, Info, Target, BarChart2 } from 'lucide-react';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
 const QuranReader = lazyWithRetry(() => import('./components/QuranReader'));

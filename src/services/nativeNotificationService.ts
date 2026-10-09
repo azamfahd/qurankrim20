@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
 import { AdhanAudioEngine } from './adhanService';
-import { DhikrReminderService, DEFAULT_DHIKR_SETTINGS } from './dhikrReminderService';
+import { DhikrReminderService } from './dhikrReminderService';
 
 export class NativeNotificationService {
   private static isInitialized = false;

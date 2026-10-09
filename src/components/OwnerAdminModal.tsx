@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ShieldCheck, 
   X, 
   Crown, 
   Bell, 
   Download, 
   RefreshCw, 
-  AlertTriangle, 
   CheckCircle2, 
   Sparkles, 
   Globe, 
   Database, 
-  Radio, 
   Settings, 
-  Layers, 
   Send, 
   Power,
-  Smartphone,
-  Info
+  Smartphone
 } from 'lucide-react';
-import { AdminService, SystemAnnouncement, AppVersionConfig, MaintenanceConfig, OWNER_EMAIL, ANNOUNCEMENT_PRESETS, SystemFeatureToggles } from '../services/adminService';
+import { AdminService, SystemAnnouncement, AppVersionConfig, OWNER_EMAIL, ANNOUNCEMENT_PRESETS } from '../services/adminService';
+import { AppSync } from '../services/appSyncService';
 import { SupabaseService, getSupabase } from '../services/supabaseService';
 import { APP_VERSION } from '../utils/apkConfig';
 
@@ -52,7 +48,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
   // Version Config State
   const [versionTarget, setVersionTarget] = useState<string>(APP_VERSION);
   const [minSupportedVersion, setMinSupportedVersion] = useState<string>('1.0.0');
-  const [apkDownloadUrl, setApkDownloadUrl] = useState<string>('https://raw.githubusercontent.com/azamfahd25/qurankrim20/main/qurankrim20.apk');
+  const [apkDownloadUrl, setApkDownloadUrl] = useState<string>('https://quramkrim20.netlify.app/app-release.apk');
   const [forceUpdate, setForceUpdate] = useState<boolean>(false);
   const [releaseNotes, setReleaseNotes] = useState<string>('تحسينات أداء عامة، تحديث أوقات الصلاة المباشرة وإضافة لوحة تحكم المالك.');
 
@@ -68,7 +64,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Load current version config & announcement & feature toggles from Firestore
+      // Load current version config & announcement & feature toggles from Supabase
       AdminService.getVersionConfig().then((config) => {
         if (config) {
           setVersionTarget(config.latestVersion || APP_VERSION);
@@ -131,8 +127,8 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
         updatedBy: OWNER_EMAIL
       };
 
-      await AdminService.publishAnnouncement(payload);
-      onShowToast('تم نشر التنويه والإشعار العام لجميع المستخدمين بنجاح! 👑', 'success');
+      await AppSync.broadcastAnnouncement(payload);
+      onShowToast('تم نشر التنويه والإشعار العام لجميع المستخدمين (ويب وAPK) بنجاح! 👑', 'success');
     } catch (err: any) {
       console.error(err);
       onShowToast('تم حفظ التنويه وتفعيله محلياً وفورياً 🚀', 'info');
@@ -169,17 +165,14 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
         currentVersion: APP_VERSION,
         latestVersion: versionTarget.trim(),
         minSupportedVersion: minSupportedVersion.trim(),
-        apkDownloadUrl: apkDownloadUrl.trim(),
+        apkDownloadUrl: apkDownloadUrl.trim() || 'https://qurankrim20.netlify.app/app-release.apk',
         forceUpdate,
         releaseNotes: releaseNotes.trim(),
         updatedAt: new Date().toISOString()
       };
 
-      await AdminService.publishVersionConfig(config);
-      window.dispatchEvent(new CustomEvent('app-update-available', {
-        detail: { version: versionTarget.trim() }
-      }));
-      onShowToast('تم تحديث إعدادات الإصدار والـ APK المباشر ونشره بنجاح! 🚀', 'success');
+      await AppSync.broadcastVersionUpdate(config);
+      onShowToast('تم تحديث إعدادات الإصدار ومزامنتها فورياً على الويب وتطبيق الـ APK بنجاح! 🚀', 'success');
     } catch (err: any) {
       onShowToast('تم حفظ إعدادات الإصدار وتحديث الرادار 🚀', 'info');
     } finally {
@@ -395,7 +388,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
                       <div>
                         <h4 className="text-xs font-bold text-amber-300">البث المباشر لجميع مستخدمي التطبيق</h4>
                         <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
-                          عند نشر تنويه هنا، سيظهر فوراً كشريط إشعار علوي فخم أعلى التطبيق وفي موقع الويب والـ APK لكل المستخدمين الذين يستخدمون تطبيقك المربوط بـ Firebase.
+                          عند نشر تنويه هنا، سيظهر فوراً كشريط إشعار علوي فخم أعلى التطبيق وفي موقع الويب والـ APK لكل المستخدمين الذين يستخدمون تطبيقك المربوط بقاعدة البيانات (Supabase).
                         </p>
                       </div>
                     </div>
