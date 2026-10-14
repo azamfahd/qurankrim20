@@ -168,8 +168,7 @@ export class MediaSessionService {
     if (this.keepAliveAudio) {
       try {
         this.keepAliveAudio.pause();
-        this.keepAliveAudio.src = '';
-        this.keepAliveAudio.load();
+        this.keepAliveAudio.removeAttribute('src');
       } catch (e) {}
       this.keepAliveAudio = null;
     }

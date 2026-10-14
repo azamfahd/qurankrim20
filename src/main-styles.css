@@ -108,19 +108,31 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
-html,
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-size: 14px;
+}
+
 body {
   margin: 0;
   padding: 0;
   width: 100%;
   max-width: 100%;
   min-height: 100%;
+  min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
-  font-family: "Cairo", system-ui, -apple-system, sans-serif;
-  font-size: 14px;
+  font-family: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   background-color: #022c22; /* Seamless rich dark emerald background */
   color: var(--color-text);
   direction: rtl;
@@ -137,11 +149,203 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
+  min-height: 100vh;
   min-height: 100dvh;
   position: relative;
   display: flex;
   flex-direction: column;
 }
+
+/* ==========================================================================
+   CROSS-BROWSER & LEGACY DEVICE COMPATIBILITY LAYER (POLYFILLS & FALLBACKS)
+   ========================================================================== */
+
+/* 1. Viewport Height Polyfill (--app-height and --vh for older iOS & Android WebViews) */
+html,
+body,
+#root,
+.app-wrapper {
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  min-height: var(--app-height, 100vh);
+  min-height: 100dvh;
+}
+
+@supports not (min-height: 100dvh) {
+  html, body, #root, .app-wrapper {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+.no-dvh html,
+.no-dvh body,
+.no-dvh #root,
+.no-dvh .app-wrapper {
+  min-height: 100vh !important;
+  min-height: calc(var(--vh, 1vh) * 100) !important;
+  min-height: var(--app-height, 100vh) !important;
+}
+
+/* 2. Inset Property Fallback (for engines lacking CSS inset support) */
+.inset-0,
+[class*="inset-0"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.inset-x-0 {
+  right: 0;
+  left: 0;
+}
+
+.inset-y-0 {
+  top: 0;
+  bottom: 0;
+}
+
+/* 3. Backdrop-Filter Fallback for Older Android WebViews & Safari < 15 */
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl,
+.backdrop-blur-2xl,
+[class*="backdrop-blur"] {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.no-backdrop-filter .backdrop-blur-sm,
+.no-backdrop-filter .backdrop-blur-md,
+.no-backdrop-filter .backdrop-blur-lg,
+.no-backdrop-filter .backdrop-blur-xl,
+.no-backdrop-filter .backdrop-blur-2xl,
+.no-backdrop-filter [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: rgba(2, 44, 34, 0.96) !important;
+}
+
+.no-backdrop-filter .bg-white\/10,
+.no-backdrop-filter .bg-white\/15,
+.no-backdrop-filter .bg-white\/20,
+.no-backdrop-filter .bg-white\/5 {
+  background-color: rgba(4, 61, 46, 0.95) !important;
+}
+
+.no-backdrop-filter .bg-black\/40,
+.no-backdrop-filter .bg-black\/50,
+.no-backdrop-filter .bg-black\/60,
+.no-backdrop-filter .bg-black\/70,
+.no-backdrop-filter .bg-black\/80 {
+  background-color: rgba(2, 25, 18, 0.92) !important;
+}
+
+/* 4. Flexbox Gap Polyfill (Safari < 14.1, Chrome < 84, older Android WebViews) */
+.no-flex-gap .flex.gap-1 > * + *,
+.no-flex-gap .inline-flex.gap-1 > * + * {
+  margin-inline-start: 0.25rem !important;
+}
+.no-flex-gap .flex.gap-1\.5 > * + *,
+.no-flex-gap .inline-flex.gap-1\.5 > * + * {
+  margin-inline-start: 0.375rem !important;
+}
+.no-flex-gap .flex.gap-2 > * + *,
+.no-flex-gap .inline-flex.gap-2 > * + * {
+  margin-inline-start: 0.5rem !important;
+}
+.no-flex-gap .flex.gap-2\.5 > * + *,
+.no-flex-gap .inline-flex.gap-2\.5 > * + * {
+  margin-inline-start: 0.625rem !important;
+}
+.no-flex-gap .flex.gap-3 > * + *,
+.no-flex-gap .inline-flex.gap-3 > * + * {
+  margin-inline-start: 0.75rem !important;
+}
+.no-flex-gap .flex.gap-3\.5 > * + *,
+.no-flex-gap .inline-flex.gap-3\.5 > * + * {
+  margin-inline-start: 0.875rem !important;
+}
+.no-flex-gap .flex.gap-4 > * + *,
+.no-flex-gap .inline-flex.gap-4 > * + * {
+  margin-inline-start: 1rem !important;
+}
+.no-flex-gap .flex.gap-5 > * + *,
+.no-flex-gap .inline-flex.gap-5 > * + * {
+  margin-inline-start: 1.25rem !important;
+}
+.no-flex-gap .flex.gap-6 > * + *,
+.no-flex-gap .inline-flex.gap-6 > * + * {
+  margin-inline-start: 1.5rem !important;
+}
+.no-flex-gap .flex.gap-8 > * + *,
+.no-flex-gap .inline-flex.gap-8 > * + * {
+  margin-inline-start: 2rem !important;
+}
+
+/* RTL Directional margin fallbacks for older browsers lacking margin-inline-start */
+[dir="rtl"] .no-flex-gap .flex:not(.flex-col) > * + *,
+[dir="rtl"] .no-flex-gap .inline-flex:not(.flex-col) > * + * {
+  margin-left: 0 !important;
+}
+[dir="rtl"] .no-flex-gap .flex.gap-1:not(.flex-col) > * + * { margin-right: 0.25rem !important; }
+[dir="rtl"] .no-flex-gap .flex.gap-2:not(.flex-col) > * + * { margin-right: 0.5rem !important; }
+[dir="rtl"] .no-flex-gap .flex.gap-3:not(.flex-col) > * + * { margin-right: 0.75rem !important; }
+[dir="rtl"] .no-flex-gap .flex.gap-4:not(.flex-col) > * + * { margin-right: 1rem !important; }
+[dir="rtl"] .no-flex-gap .flex.gap-6:not(.flex-col) > * + * { margin-right: 1.5rem !important; }
+
+/* Vertical Flex Gap fallbacks */
+.no-flex-gap .flex-col > * + *,
+.no-flex-gap .flex.flex-col > * + * {
+  margin-inline-start: 0 !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+.no-flex-gap .flex-col.gap-1 > * + *,
+.no-flex-gap .flex.flex-col.gap-1 > * + * { margin-top: 0.25rem !important; }
+.no-flex-gap .flex-col.gap-1\.5 > * + *,
+.no-flex-gap .flex.flex-col.gap-1\.5 > * + * { margin-top: 0.375rem !important; }
+.no-flex-gap .flex-col.gap-2 > * + *,
+.no-flex-gap .flex.flex-col.gap-2 > * + * { margin-top: 0.5rem !important; }
+.no-flex-gap .flex-col.gap-2\.5 > * + *,
+.no-flex-gap .flex.flex-col.gap-2\.5 > * + * { margin-top: 0.625rem !important; }
+.no-flex-gap .flex-col.gap-3 > * + *,
+.no-flex-gap .flex.flex-col.gap-3 > * + * { margin-top: 0.75rem !important; }
+.no-flex-gap .flex-col.gap-4 > * + *,
+.no-flex-gap .flex.flex-col.gap-4 > * + * { margin-top: 1rem !important; }
+.no-flex-gap .flex-col.gap-5 > * + *,
+.no-flex-gap .flex.flex-col.gap-5 > * + * { margin-top: 1.25rem !important; }
+.no-flex-gap .flex-col.gap-6 > * + *,
+.no-flex-gap .flex.flex-col.gap-6 > * + * { margin-top: 1.5rem !important; }
+
+/* 5. Aspect-Ratio Fallback */
+.no-aspect-ratio .aspect-square {
+  min-height: 2.75rem;
+  height: auto;
+}
+
+.no-aspect-ratio .action-card-icon {
+  width: 3rem !important;
+  height: 3rem !important;
+  min-width: 3rem;
+  min-height: 3rem;
+}
+
+/* 6. Text Clamp & Truncation Compatibility */
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3,
+.line-clamp-4 {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+.line-clamp-1 { -webkit-line-clamp: 1; }
+.line-clamp-2 { -webkit-line-clamp: 2; }
+.line-clamp-3 { -webkit-line-clamp: 3; }
+.line-clamp-4 { -webkit-line-clamp: 4; }
 
 /* Ensure smooth native momentum scrolling and box-sizing */
 *,

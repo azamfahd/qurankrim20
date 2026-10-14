@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { QuranDataService } from '../services/QuranDataService';
 
 type ViewType = 'index' | 'reader' | 'tafsir' | 'info' | 'memorize' | 'stats';
@@ -140,7 +140,30 @@ export const QuranProvider: React.FC<QuranProviderProps> = ({ children, initialS
     if (propsView) setCurrentView(propsView);
   }, [propsSurah, propsAyah, propsView]);
   const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
-  const [reciter, setReciter] = useState<string>(() => localStorage.getItem('quran_reciter') || 'ar.faresabbad');
+  const [reciter, setReciterState] = useState<string>(() => localStorage.getItem('quran_reciter') || 'ar.faresabbad');
+
+  const setReciter = useCallback((newReciter: string) => {
+    setReciterState(newReciter);
+    try {
+      localStorage.setItem('quran_reciter', newReciter);
+      window.dispatchEvent(new CustomEvent('quran_reciter_changed', { detail: newReciter }));
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const handleReciterChange = (e: any) => {
+      const incoming = e?.detail || localStorage.getItem('quran_reciter');
+      if (incoming && incoming !== reciter) {
+        setReciterState(incoming);
+      }
+    };
+    window.addEventListener('quran_reciter_changed', handleReciterChange);
+    window.addEventListener('storage', handleReciterChange);
+    return () => {
+      window.removeEventListener('quran_reciter_changed', handleReciterChange);
+      window.removeEventListener('storage', handleReciterChange);
+    };
+  }, [reciter]);
   const [fontSize, setFontSize] = useState<number>(22);
   const [readingMode, setReadingMode] = useState<'page' | 'scroll'>('page');
   const [mushafTheme, setMushafTheme] = useState<MushafTheme>(localStorage.getItem('quran_mushaf_theme') as MushafTheme || 'royal_green');

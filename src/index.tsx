@@ -1,8 +1,12 @@
+import { initPolyfills } from './utils/polyfills';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './main-styles.css';
 import { initSafeAreaManager } from './utils/safeArea';
+
+// Initialize Cross-Device Compatibility Layer & Polyfills immediately
+initPolyfills();
 
 // Initialize Safe Area & System Insets Management for Android APK, iOS, and Web
 initSafeAreaManager();

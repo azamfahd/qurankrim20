@@ -8,8 +8,74 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <script>
-      // Early Error & Unhandled Rejection Guard to protect against sandbox iframe pings & network timeouts
+      // Early Error Guard & Polyfills for Older Devices and WebViews
       (function() {
+        // Polyfills for legacy engines
+        if (typeof window.globalThis === 'undefined') window.globalThis = window;
+        if (!Object.hasOwn) {
+          Object.hasOwn = function(obj, prop) {
+            return Object.prototype.hasOwnProperty.call(obj, prop);
+          };
+        }
+        if (!Array.prototype.at) {
+          Array.prototype.at = function(n) {
+            n = Math.trunc(n) || 0;
+            if (n < 0) n += this.length;
+            if (n < 0 || n >= this.length) return undefined;
+            return this[n];
+          };
+        }
+        if (!String.prototype.replaceAll) {
+          String.prototype.replaceAll = function(s, r) {
+            if (s instanceof RegExp) {
+              if (!s.global) throw new TypeError('replaceAll called with a non-global RegExp');
+              return this.replace(s, r);
+            }
+            return this.split(s).join(r);
+          };
+        }
+        if (typeof window.structuredClone !== 'function') {
+          window.structuredClone = function(val) {
+            try { return JSON.parse(JSON.stringify(val)); } catch(e) { return val; }
+          };
+        }
+
+        // CSS Feature Detection & Viewport Units Fix
+        try {
+          var docEl = document.documentElement;
+          // Viewport height helper
+          var setVh = function() {
+            var vh = window.innerHeight * 0.01;
+            docEl.style.setProperty('--vh', vh + 'px');
+            docEl.style.setProperty('--app-height', window.innerHeight + 'px');
+          };
+          setVh();
+          window.addEventListener('resize', setVh, { passive: true });
+          window.addEventListener('orientationchange', setVh, { passive: true });
+
+          // Flex gap detection
+          var f = document.createElement('div');
+          f.style.cssText = 'display:flex;gap:1px;position:absolute;top:-9999px;';
+          f.appendChild(document.createElement('div'));
+          f.appendChild(document.createElement('div'));
+          (document.body || docEl).appendChild(f);
+          var supportedGap = f.children[1].getBoundingClientRect().left - f.children[0].getBoundingClientRect().right === 1 || f.scrollHeight === 1;
+          f.remove();
+          if (!supportedGap) docEl.classList.add('no-flex-gap');
+
+          // Backdrop filter detection
+          var hasBackdrop = window.CSS && CSS.supports && (CSS.supports('backdrop-filter', 'blur(1px)') || CSS.supports('-webkit-backdrop-filter', 'blur(1px)'));
+          if (!hasBackdrop) docEl.classList.add('no-backdrop-filter');
+
+          // dvh detection
+          var hasDvh = window.CSS && CSS.supports && CSS.supports('min-height', '100dvh');
+          if (!hasDvh) docEl.classList.add('no-dvh');
+
+          // Aspect ratio detection
+          var hasAspect = window.CSS && CSS.supports && CSS.supports('aspect-ratio', '1 / 1');
+          if (!hasAspect) docEl.classList.add('no-aspect-ratio');
+        } catch(e) {}
+
         window.addEventListener('unhandledrejection', function(event) {
           var reason = event.reason;
           var msg = (typeof reason === 'string' ? reason : (reason && reason.message) || '') + '';
@@ -24,7 +90,10 @@
             msg.indexOf('aborted') !== -1 ||
             msg.indexOf('play() failed') !== -1 ||
             msg.indexOf('ResizeObserver') !== -1 ||
-            msg.indexOf('Failed to fetch') !== -1
+            msg.indexOf('Failed to fetch') !== -1 ||
+            msg.indexOf('no supported source') !== -1 ||
+            msg.indexOf('Audio playback error') !== -1 ||
+            msg.indexOf('NotSupportedError') !== -1
           ) {
             event.preventDefault();
           }
@@ -35,7 +104,10 @@
             msg.indexOf('ResizeObserver') !== -1 ||
             msg.indexOf('Script error.') !== -1 ||
             msg.indexOf('auth/network-request-failed') !== -1 ||
-            msg.indexOf('network-request-failed') !== -1
+            msg.indexOf('network-request-failed') !== -1 ||
+            msg.indexOf('no supported source') !== -1 ||
+            msg.indexOf('Audio playback error') !== -1 ||
+            msg.indexOf('NotSupportedError') !== -1
           ) {
             event.preventDefault();
           }

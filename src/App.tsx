@@ -365,11 +365,31 @@ const App: React.FC = () => {
           ...JSON.parse(savedDhikr),
         };
       }
+      const savedQuranReciter = localStorage.getItem("quran_reciter");
+      if (savedQuranReciter) {
+        base.reciter = savedQuranReciter;
+      }
       return base;
     } catch (e) {
       return DEFAULT_SETTINGS;
     }
   });
+
+  // Listen for global reciter change events from Quran Platform or Settings
+  useEffect(() => {
+    const handleReciterChange = (e: any) => {
+      const incoming = e?.detail || localStorage.getItem("quran_reciter");
+      if (incoming && incoming !== settings.reciter) {
+        setSettings((prev) => ({ ...prev, reciter: incoming }));
+      }
+    };
+    window.addEventListener("quran_reciter_changed", handleReciterChange);
+    window.addEventListener("storage", handleReciterChange);
+    return () => {
+      window.removeEventListener("quran_reciter_changed", handleReciterChange);
+      window.removeEventListener("storage", handleReciterChange);
+    };
+  }, [settings.reciter]);
 
   // Live Adhan monitoring state
   const [liveAdhanPrayer, setLiveAdhanPrayer] = useState<string | null>(null);
@@ -1215,6 +1235,11 @@ const App: React.FC = () => {
   useEffect(() => {
     chatSessionRef.current = null;
     localStorage.setItem("anis_settings", JSON.stringify(settings));
+    if (settings.reciter) {
+      try {
+        localStorage.setItem("quran_reciter", settings.reciter);
+      } catch (e) {}
+    }
     if (settings.adhanSettings) {
       try {
         localStorage.setItem(
@@ -1347,10 +1372,22 @@ const App: React.FC = () => {
     if (!firstUserMsg) return;
 
     let sessionToSave: ChatSession;
+    const now = Date.now();
+    const sessionPreview = firstUserMsg.content.substring(0, 100) || "حوار وتأمل قرآني";
+    const sessionTitle = firstUserMsg.content.length > 50 
+      ? firstUserMsg.content.substring(0, 50) + "..." 
+      : firstUserMsg.content;
+
     if (currentSessionId) {
       const existingSession = sessions.find((s) => s.id === currentSessionId);
       if (existingSession) {
-        sessionToSave = { ...existingSession, messages: msgs };
+        sessionToSave = { 
+          ...existingSession, 
+          messages: msgs,
+          title: existingSession.title || sessionTitle,
+          preview: existingSession.preview || sessionPreview,
+          updatedAt: now
+        };
         setSessions((prev) =>
           prev.map((s) => (s.id === currentSessionId ? sessionToSave : s))
         );
@@ -1359,8 +1396,11 @@ const App: React.FC = () => {
         const newId = currentSessionId;
         sessionToSave = {
           id: newId,
-          date: Date.now(),
-          preview: firstUserMsg.content.substring(0, 100) || "محادثة صوتية",
+          title: sessionTitle,
+          date: now,
+          createdAt: now,
+          updatedAt: now,
+          preview: sessionPreview,
           messages: msgs,
         };
         setSessions((prev) => [sessionToSave, ...prev]);
@@ -1371,24 +1411,27 @@ const App: React.FC = () => {
 
       sessionToSave = {
         id: newId,
-        date: Date.now(),
-        preview: firstUserMsg.content.substring(0, 100) || "محادثة صوتية",
+        title: sessionTitle,
+        date: now,
+        createdAt: now,
+        updatedAt: now,
+        preview: sessionPreview,
         messages: msgs,
       };
 
       setSessions((prev) => [sessionToSave, ...prev]);
     }
 
-    // Save to Backend
-    if (isOnline && userIdRef.current && sessionToSave!) {
+    // Save to Local Database & Cloud Supabase
+    if (userIdRef.current && sessionToSave!) {
       setIsSyncing(true);
       SyncService.saveSession(userIdRef.current, sessionToSave, settings)
         .then(() => {
           setLastSynced(Date.now());
-          setTimeout(() => setIsSyncing(false), 1000);
+          setTimeout(() => setIsSyncing(false), 800);
         })
         .catch((err) => {
-          console.error("Error saving session to Backend:", err);
+          console.error("Error saving session to SyncService:", err);
           setIsSyncing(false);
         });
     }

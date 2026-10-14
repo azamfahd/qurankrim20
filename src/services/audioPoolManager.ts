@@ -8,11 +8,10 @@ export class AudioPoolManager {
     // Create a pool of reusable audio elements
     for (let i = 0; i < this.MAX_POOL_SIZE; i++) {
       const audio = new Audio();
-      audio.crossOrigin = 'anonymous'; // Support external sources
-      
-      // Fix for some iOS devices to keep audio element alive
+      // NOTE: Do not set crossOrigin = 'anonymous' as remote CDNs without CORS headers
+      // will fail with "Failed to load because no supported source was found".
+      // Standard HTML5 <audio> handles audio streams without requiring CORS.
       audio.preload = 'none'; 
-      
       this.pool.push({ audio, inUse: false, id: i });
     }
   }
@@ -126,10 +125,12 @@ export class AudioPoolManager {
       audio.loop = false;
       audio.playbackRate = 1;
       
-      // Release memory
+      // Release memory safely without triggering "Failed to load because no supported source was found"
+      // In WebKit/Blink, calling audio.load() on an empty src fires MEDIA_ERR_SRC_NOT_SUPPORTED!
       audio.removeAttribute('src');
-      audio.src = '';
-      audio.load();
+      while (audio.firstChild) {
+        audio.removeChild(audio.firstChild);
+      }
     } catch (err) {
       console.warn('Failed to clean audio element', err);
     }

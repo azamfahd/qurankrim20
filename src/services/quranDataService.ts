@@ -66,9 +66,9 @@ export class QuranDataService {
       }
     } catch {}
 
-    // 2. Try network fetch with timeout
+    // 2. Try network fetch with quick timeout (2.5 seconds max)
     try {
-      const response = await this.fetchWithTimeout(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`, {}, 5000);
+      const response = await this.fetchWithTimeout(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`, {}, 2500);
       const data = await response.json();
       if (data.code === 200) {
         this.cache.set(cacheKey, data.data.text);

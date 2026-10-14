@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, Copy, Check, Info, Sparkles, BookHeart, Share2, WifiOff, Bookmark as BookmarkIcon, Lightbulb, BookOpen, CheckCircle2, Headphones } from 'lucide-react';
 import { QuranResponse, Verse, Bookmark } from '../types';
-import { getQuranAudioUrl } from '../utils/quranAudio';
+import { getQuranAudioUrl, getQuranAudioFallbackUrl, normalizeReciterId, getReciterName } from '../utils/quranAudio';
 import { AudioCacheService } from '../quran-platform/services/audioCacheService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioPoolManager } from '../services/audioPoolManager';
@@ -115,7 +115,35 @@ const VerseSection: React.FC<{
   const [isCached, setIsCached] = useState(false);
   const [activeTab, setActiveTab] = useState<'tafsir' | 'tadabbur'>('tafsir');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const activeReciter = reciter || 'ar.faresabbad';
+
+  // Dynamically resolve reciter: prefers reciter prop, then storage, with real-time event sync
+  const [currentReciter, setCurrentReciter] = useState<string>(() => {
+    return reciter || localStorage.getItem('quran_reciter') || 'ar.faresabbad';
+  });
+
+  useEffect(() => {
+    if (reciter) {
+      setCurrentReciter(reciter);
+    }
+  }, [reciter]);
+
+  useEffect(() => {
+    const handleReciterChange = (e: any) => {
+      const incoming = e?.detail || localStorage.getItem('quran_reciter');
+      if (incoming) {
+        setCurrentReciter(incoming);
+      }
+    };
+    window.addEventListener('quran_reciter_changed', handleReciterChange);
+    window.addEventListener('storage', handleReciterChange);
+    return () => {
+      window.removeEventListener('quran_reciter_changed', handleReciterChange);
+      window.removeEventListener('storage', handleReciterChange);
+    };
+  }, []);
+
+  const activeReciter = normalizeReciterId(currentReciter);
+  const reciterDisplayName = getReciterName(activeReciter);
 
   useEffect(() => {
     let isMounted = true;
@@ -147,47 +175,103 @@ const VerseSection: React.FC<{
     }
 
     if (!audioRef.current) {
-      const fetchAudioUrl = async (reciterId: string, surah?: number, ayah?: number, useFallback: boolean = false): Promise<string | null> => {
-        if (!useFallback) {
-          return getQuranAudioUrl(reciterId, verse.number, surah, ayah);
-        } else {
-          try {
-            const apiRes = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/${reciterId}`);
-            if (apiRes.ok) {
-              const data = await apiRes.json();
-              return data?.data?.audio || null;
-            }
-          } catch {}
-          return null;
-        }
-      };
+      const primaryUrl = getQuranAudioUrl(activeReciter, verse.number, verse.surahNumber, verse.ayahNumber);
+      const fallbackUrl1 = getQuranAudioFallbackUrl(activeReciter, verse.number, verse.surahNumber, verse.ayahNumber);
+      
+      const candidateUrls: string[] = [];
+      if (primaryUrl) candidateUrls.push(primaryUrl);
+      if (fallbackUrl1 && !candidateUrls.includes(fallbackUrl1)) candidateUrls.push(fallbackUrl1);
+      
+      // Fallback: EveryAyah Alafasy if not already in candidates
+      if (verse.surahNumber && verse.ayahNumber) {
+        const sStr = String(verse.surahNumber).padStart(3, '0');
+        const aStr = String(verse.ayahNumber).padStart(3, '0');
+        const alafasyUrl = `https://everyayah.com/data/Alafasy_128kbps/${sStr}${aStr}.mp3`;
+        if (!candidateUrls.includes(alafasyUrl)) candidateUrls.push(alafasyUrl);
+      }
 
-      try {
-        const audioUrl = await fetchAudioUrl(activeReciter, verse.surahNumber, verse.ayahNumber);
-        if (!audioUrl) {
-          onShowToast('تعذر جلب ملف التلاوة الصوتية', 'error');
+      let candidateIndex = 0;
+
+      const tryPlayCandidate = async (): Promise<void> => {
+        if (candidateIndex >= candidateUrls.length) {
+          // Last resort attempt: fetch dynamic URL from AlQuran Cloud API
+          if (verse.surahNumber && verse.ayahNumber) {
+            try {
+              const apiRes = await fetch(`https://api.alquran.cloud/v1/ayah/${verse.surahNumber}:${verse.ayahNumber}/${activeReciter}`);
+              if (apiRes.ok) {
+                const data = await apiRes.json();
+                if (data?.data?.audio && !candidateUrls.includes(data.data.audio)) {
+                  candidateUrls.push(data.data.audio);
+                  await tryPlayCandidate();
+                  return;
+                }
+              }
+            } catch {}
+          }
+
+          setIsPlaying(false);
+          if (audioRef.current) {
+            AudioPoolManager.release(audioRef.current);
+            audioRef.current = null;
+          }
+          onShowToast('تعذر تشغيل التلاوة الصوتية حالياً', 'error');
           return;
         }
 
-        const audio = AudioPoolManager.acquire();
-        audio.src = audioUrl;
-        audio.onended = () => setIsPlaying(false);
-        audio.onerror = () => {
-          setIsPlaying(false);
-          onShowToast('حدث خطأ أثناء تشغيل التلاوة', 'error');
-        };
+        const rawUrl = candidateUrls[candidateIndex];
+        candidateIndex++;
 
-        audioRef.current = audio;
-        await audio.play();
-        setIsPlaying(true);
-      } catch (err) {
-        console.error('Audio playback error:', err);
-        setIsPlaying(false);
-        onShowToast('تعذر تشغيل الصوت', 'error');
-      }
+        try {
+          const resolvedSrc = await AudioCacheService.getAudioSource(rawUrl);
+          const audio = AudioPoolManager.acquire();
+          audioRef.current = audio;
+          audio.src = resolvedSrc;
+
+          audio.onended = () => {
+            setIsPlaying(false);
+            if (audioRef.current === audio) {
+              AudioPoolManager.release(audio);
+              audioRef.current = null;
+            }
+          };
+
+          audio.onerror = () => {
+            if (audioRef.current === audio) {
+              AudioPoolManager.release(audio);
+              audioRef.current = null;
+            }
+            tryPlayCandidate();
+          };
+
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+          setIsPlaying(true);
+        } catch (err: any) {
+          if (err?.name === 'AbortError' || err?.message?.includes('interrupted')) {
+            return;
+          }
+          console.warn('Audio play attempt notice:', err?.message || err);
+          if (audioRef.current) {
+            AudioPoolManager.release(audioRef.current);
+            audioRef.current = null;
+          }
+          tryPlayCandidate();
+        }
+      };
+
+      await tryPlayCandidate();
     } else {
-      audioRef.current.play();
-      setIsPlaying(true);
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('Audio resume notice:', err?.message || err);
+          setIsPlaying(false);
+        }
+      }
     }
   };
 
@@ -213,12 +297,16 @@ const VerseSection: React.FC<{
     <div className="relative group rounded-2xl p-3.5 sm:p-5 bg-gradient-to-b from-[#fdfbf7] via-white to-[#fbf9f4] border border-amber-200/80 shadow-xs hover:shadow-md transition-all duration-200">
       {/* Verse Header & Compact Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <div className="bg-emerald-950 text-white px-2.5 py-1 rounded-xl font-bold flex items-center gap-1.5 text-xs shadow-2xs border border-emerald-700/40">
              <BookHeart size={13} className="text-amber-300" />
              <span>سورة {verse.surahName}</span>
              <span className="w-1 h-1 rounded-full bg-amber-400"></span>
              <span>آية {verse.ayahNumber}</span>
+          </div>
+          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-950 bg-amber-100/70 px-2 py-0.5 rounded-lg border border-amber-300/80 shadow-2xs" title={`القارئ الحالي: ${reciterDisplayName}`}>
+             <Headphones size={11} className="text-amber-700" />
+             <span className="truncate max-w-[130px] sm:max-w-[200px]">{reciterDisplayName}</span>
           </div>
         </div>
         
@@ -256,8 +344,8 @@ const VerseSection: React.FC<{
                  ? 'bg-amber-500 text-slate-950 shadow-2xs ring-1 ring-amber-400 font-bold' 
                  : 'hover:bg-amber-100/60 text-amber-700'
              }`}
-             title={isCached ? "استماع (محفوظة دون اتصال)" : (isOnline ? "استماع للتلاوة" : "يتطلب اتصالاً بالإنترنت")}
-             aria-label="استماع للتلاوة"
+             title={isCached ? `استماع لتلاوة الآية بصوت ${reciterDisplayName} (محفوظة دون اتصال)` : (isOnline ? `استماع لتلاوة الآية بصوت ${reciterDisplayName}` : "يتطلب اتصالاً بالإنترنت")}
+             aria-label={`استماع لتلاوة الآية بصوت ${reciterDisplayName}`}
            >
              {(!isOnline && !isCached) ? (
                <WifiOff size={13} />
@@ -382,7 +470,7 @@ export const ResultCard: React.FC<{
   useEffect(() => {
     if (!data?.verses || data.verses.length === 0 || !isOnline) return;
 
-    const activeReciter = reciter || 'ar.faresabbad';
+    const activeReciter = normalizeReciterId(reciter || localStorage.getItem('quran_reciter') || 'ar.faresabbad');
     data.verses.forEach(async (v) => {
       try {
         const url = getQuranAudioUrl(activeReciter, v.number, v.surahNumber, v.ayahNumber);

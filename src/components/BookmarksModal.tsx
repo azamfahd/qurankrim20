@@ -1,7 +1,8 @@
 import React from 'react';
 import { X, Bookmark as BookmarkIcon, Trash2, Calendar, Play, Pause, Copy, Share2, WifiOff, BookOpen } from 'lucide-react';
 import { Bookmark } from '../types';
-import { getQuranAudioUrl } from '../utils/quranAudio';
+import { getQuranAudioUrl, normalizeReciterId, getReciterName } from '../utils/quranAudio';
+import { AudioCacheService } from '../quran-platform/services/audioCacheService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioPoolManager } from '../services/audioPoolManager';
 
@@ -28,7 +29,28 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
 }) => {
   const [playingId, setPlayingId] = React.useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const activeReciter = reciter || 'ar.faresabbad';
+  const [currentReciter, setCurrentReciter] = React.useState<string>(() => {
+    return reciter || localStorage.getItem('quran_reciter') || 'ar.faresabbad';
+  });
+
+  React.useEffect(() => {
+    if (reciter) setCurrentReciter(reciter);
+  }, [reciter]);
+
+  React.useEffect(() => {
+    const handleReciterChange = (e: any) => {
+      const incoming = e?.detail || localStorage.getItem('quran_reciter');
+      if (incoming) setCurrentReciter(incoming);
+    };
+    window.addEventListener('quran_reciter_changed', handleReciterChange);
+    window.addEventListener('storage', handleReciterChange);
+    return () => {
+      window.removeEventListener('quran_reciter_changed', handleReciterChange);
+      window.removeEventListener('storage', handleReciterChange);
+    };
+  }, []);
+
+  const activeReciter = normalizeReciterId(currentReciter);
 
   React.useEffect(() => {
     return () => {
@@ -77,8 +99,9 @@ export const BookmarksModal: React.FC<BookmarksModalProps> = ({
       };
 
       const playWithUrl = async (url: string, isRetry: boolean = false) => {
+        const resolvedSrc = await AudioCacheService.getAudioSource(url);
         const audio = AudioPoolManager.acquire();
-        audio.src = url;
+        audio.src = resolvedSrc;
         audioRef.current = audio;
         
         audio.onended = () => {

@@ -909,7 +909,6 @@ export class AdhanAudioEngine {
         this.backgroundKeepAliveAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
         this.backgroundKeepAliveAudio.volume = 0.001;
         this.backgroundKeepAliveAudio.loop = true;
-        this.backgroundKeepAliveAudio.crossOrigin = 'anonymous';
         const playPromise = this.backgroundKeepAliveAudio.play();
         if (playPromise !== undefined) {
           playPromise.then(() => {
@@ -924,7 +923,6 @@ export class AdhanAudioEngine {
         this.preAllocatedAdhanAudio = new Audio();
         this.preAllocatedAdhanAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
         this.preAllocatedAdhanAudio.volume = 0;
-        this.preAllocatedAdhanAudio.crossOrigin = 'anonymous';
         this.preAllocatedAdhanAudio.play().catch(() => {});
       } else if (this.preAllocatedAdhanAudio.paused && this.preAllocatedAdhanAudio.src.includes('data:audio/wav')) {
         this.preAllocatedAdhanAudio.play().catch(() => {});
@@ -1462,10 +1460,6 @@ export class AdhanAudioEngine {
 
       audio.volume = Math.max(0, Math.min(1, volume / 100));
       audio.preload = 'auto';
-      // Only set crossOrigin for remote CDN urls to avoid CORS failures on blob: or local URLs
-      if (url.startsWith('http') && typeof window !== 'undefined' && !url.startsWith(window.location.origin)) {
-        audio.crossOrigin = 'anonymous';
-      }
 
       let isSettled = false;
 
@@ -1483,8 +1477,7 @@ export class AdhanAudioEngine {
         if (sessionId !== this.currentSessionId) {
           try { 
             audio.pause(); 
-            audio.src = '';
-            audio.load();
+            audio.removeAttribute('src');
           } catch {}
           cleanup();
           resolve({ success: false, audio: null, error: 'Session cancelled' });
@@ -1891,8 +1884,7 @@ export class AdhanAudioEngine {
       try {
         audio.pause();
         audio.currentTime = 0;
-        audio.src = '';
-        audio.load();
+        audio.removeAttribute('src');
       } catch {}
     });
     this.pendingAudioInstances.clear();
@@ -1901,10 +1893,9 @@ export class AdhanAudioEngine {
       try {
         this.currentAudio.pause();
         this.currentAudio.currentTime = 0;
-        this.currentAudio.src = '';
-        this.currentAudio.load();
+        this.currentAudio.removeAttribute('src');
       } catch (e) {
-        console.error("Error stopping audio:", e);
+        console.warn("Notice resetting audio:", e);
       }
       this.currentAudio = null;
     }

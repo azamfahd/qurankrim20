@@ -76,15 +76,27 @@ export const QURAN_RECITERS: QuranReciter[] = [
 export function normalizeReciterId(reciterId?: string): string {
   if (!reciterId) return 'ar.faresabbad';
   const r = reciterId.trim();
-  if (r === 'ar.yasseraldosari') return 'ar.yasseraddussary';
-  if (r === 'ar.as-sudais') return 'ar.abdurrahmaansudais';
-  if (r === 'ar.fares') return 'ar.faresabbad';
-  if (r === 'ar.abdulsamad') return 'ar.abdulbasitmurattal';
-  if (r === 'ar.maheralmuaiqly') return 'ar.mahermuaiqly';
-  if (r === 'ar.shuraym') return 'ar.saoodshuraym';
-  if (r === 'ar.alghamdi') return 'ar.saadghamidi';
-  if (r === 'ar.muhammadayyoub') return 'ar.ayyoub';
+  if (r === 'ar.yasseraldosari' || r === 'yasseraldosari' || r === 'yasser') return 'ar.yasseraddussary';
+  if (r === 'ar.as-sudais' || r === 'sudais' || r === 'ar.sudais') return 'ar.abdurrahmaansudais';
+  if (r === 'ar.fares' || r === 'fares') return 'ar.faresabbad';
+  if (r === 'ar.abdulsamad' || r === 'abdulbasit' || r === 'ar.abdulbasit') return 'ar.abdulbasitmurattal';
+  if (r === 'ar.maheralmuaiqly' || r === 'maher' || r === 'ar.maher') return 'ar.mahermuaiqly';
+  if (r === 'ar.shuraym' || r === 'shuraym') return 'ar.saoodshuraym';
+  if (r === 'ar.alghamdi' || r === 'alghamdi' || r === 'ghamidi' || r === 'ar.ghamdi') return 'ar.saadghamidi';
+  if (r === 'ar.muhammadayyoub' || r === 'ayyoub') return 'ar.ayyoub';
+  if (r === 'mishary' || r === 'alafasy' || r === 'ar.mishary') return 'ar.alafasy';
+  if (r === 'ajamy' || r === 'ar.ajamy') return 'ar.ahmedajamy';
+  if (r === 'rifai' || r === 'ar.rifai') return 'ar.hanirifai';
+  if (r === 'basfar' || r === 'ar.basfar') return 'ar.abdullahbasfar';
+  if (r === 'shaatree' || r === 'ar.shatri') return 'ar.shaatree';
+  if (r === 'hudhaify' || r === 'ar.hudhaifi') return 'ar.hudhaify';
   return r;
+}
+
+export function getReciterName(reciterId?: string): string {
+  const norm = normalizeReciterId(reciterId);
+  const found = QURAN_RECITERS.find(r => normalizeReciterId(r.id) === norm);
+  return found?.name || 'فارس عباد';
 }
 
 export const RECITER_BITRATES: Record<string, string> = {
@@ -143,7 +155,8 @@ export const EVERYAYAH_MAP: Record<string, string> = {
 };
 
 /**
- * Get direct, verified Quran Audio URL for a given reciter and verse
+ * Get direct, verified Quran Audio URL for a given reciter and verse.
+ * Prioritizes EveryAyah when surah and ayah are present for 100% reliable, direct CDN playback.
  */
 export function getQuranAudioUrl(
   reciterId: string, 
@@ -153,53 +166,37 @@ export function getQuranAudioUrl(
 ): string {
   const normReciter = normalizeReciterId(reciterId);
 
-  // Compute full coordinates if either side is missing
   let sNum = surahNumber;
   let aNum = ayahNumberInSurah;
   let gNum = globalAyahNumber;
 
-  if ((!sNum || !aNum) && gNum) {
+  // Accurately compute coordinates
+  if (sNum && aNum && sNum >= 1 && sNum <= 114) {
+    gNum = getGlobalAyahFromLocation(sNum, aNum);
+  } else if (gNum && gNum >= 1) {
     const loc = getAyahLocationFromGlobal(gNum);
     sNum = loc.surah;
     aNum = loc.ayahInSurah;
-  } else if ((!gNum || gNum < 1) && sNum && aNum) {
-    gNum = getGlobalAyahFromLocation(sNum, aNum);
   }
 
-  // Reciters that MUST use EveryAyah (not on Islamic Network or forbidden)
-  const mustUseEveryAyah = [
-    'ar.faresabbad', 
-    'ar.fares', 
-    'ar.yasseraddussary', 
-    'ar.yasseraldosari', 
-    'ar.abdulbasitmujawwad',
-    'ar.saadghamidi',
-    'ar.alghamdi',
-    'ar.mustafaismail',
-    'ar.husarymuallim',
-    'ar.ayyoub',
-    'ar.muhammadayyoub'
-  ].includes(normReciter);
-
-  // 1. If reciter requires EveryAyah or if surah & ayah are available
-  if (mustUseEveryAyah && sNum && aNum) {
-    const folder = EVERYAYAH_MAP[normReciter] || 'Fares_Abbad_64kbps';
+  // 1. Primary: EveryAyah by surah and ayah (100% reliable for all 21 reciters, exact match, high speed)
+  if (sNum && aNum && EVERYAYAH_MAP[normReciter]) {
+    const folder = EVERYAYAH_MAP[normReciter];
     const sStr = String(sNum).padStart(3, '0');
     const aStr = String(aNum).padStart(3, '0');
     return `https://everyayah.com/data/${folder}/${sStr}${aStr}.mp3`;
   }
 
-  // 2. Use cdn.islamic.network if reciter has confirmed CDN bitrate
+  // 2. Secondary: cdn.islamic.network if confirmed bitrate and global ayah
   if (gNum && RECITER_BITRATES[normReciter]) {
     const bitrate = RECITER_BITRATES[normReciter];
     return `https://cdn.islamic.network/quran/audio/${bitrate}/${normReciter}/${gNum}.mp3`;
   }
 
-  // 3. Fallback to EveryAyah
-  const folder = EVERYAYAH_MAP[normReciter] || 'Alafasy_128kbps';
+  // 3. Resilient fallback to EveryAyah Alafasy
   const sStr = String(sNum || 1).padStart(3, '0');
   const aStr = String(aNum || 1).padStart(3, '0');
-  return `https://everyayah.com/data/${folder}/${sStr}${aStr}.mp3`;
+  return `https://everyayah.com/data/Alafasy_128kbps/${sStr}${aStr}.mp3`;
 }
 
 /**
@@ -217,23 +214,28 @@ export function getQuranAudioFallbackUrl(
   let aNum = ayahNumberInSurah;
   let gNum = globalAyahNumber;
 
-  if ((!sNum || !aNum) && gNum) {
+  if (sNum && aNum && sNum >= 1 && sNum <= 114) {
+    gNum = getGlobalAyahFromLocation(sNum, aNum);
+  } else if (gNum && gNum >= 1) {
     const loc = getAyahLocationFromGlobal(gNum);
     sNum = loc.surah;
     aNum = loc.ayahInSurah;
-  } else if ((!gNum || gNum < 1) && sNum && aNum) {
-    gNum = getGlobalAyahFromLocation(sNum, aNum);
   }
 
-  // If primary was CDN, fallback to EveryAyah
-  if (RECITER_BITRATES[normReciter] && sNum && aNum && EVERYAYAH_MAP[normReciter]) {
-    const folder = EVERYAYAH_MAP[normReciter];
+  // 1. If CDN is available for this reciter, try CDN as fallback
+  if (gNum && RECITER_BITRATES[normReciter]) {
+    const bitrate = RECITER_BITRATES[normReciter];
+    return `https://cdn.islamic.network/quran/audio/${bitrate}/${normReciter}/${gNum}.mp3`;
+  }
+
+  // 2. If surah and ayah are known, fallback to Alafasy on EveryAyah
+  if (sNum && aNum) {
     const sStr = String(sNum).padStart(3, '0');
     const aStr = String(aNum).padStart(3, '0');
-    return `https://everyayah.com/data/${folder}/${sStr}${aStr}.mp3`;
+    return `https://everyayah.com/data/Alafasy_128kbps/${sStr}${aStr}.mp3`;
   }
 
-  // If primary was EveryAyah, fallback to Alafasy CDN
+  // 3. Fallback to Alafasy on CDN
   if (gNum) {
     return `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${gNum}.mp3`;
   }

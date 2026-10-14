@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, User, Settings, Key, Sliders, Save, Sparkles, Headphones, ChevronDown, ExternalLink, RefreshCw, Globe, CheckCircle2, LogOut, ShieldCheck, Crown } from 'lucide-react';
 import { UserSettings, GeminiModel } from '../types';
+import { normalizeReciterId } from '../utils/quranAudio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupabaseService, PUBLISHED_WEB_URL } from '../services/supabaseService';
 import { AdminService, OWNER_EMAIL } from '../services/adminService';
@@ -39,11 +40,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Sync state when settings prop or modal visibility changes
   React.useEffect(() => {
     if (isOpen) {
-      setLocalSettings({ ...settings });
+      const activeReciter = localStorage.getItem('quran_reciter') || settings.reciter || 'ar.faresabbad';
+      setLocalSettings({ ...settings, reciter: activeReciter });
     }
   }, [settings, isOpen]);
 
   const handleSave = () => {
+    if (localSettings.reciter) {
+      try {
+        localStorage.setItem('quran_reciter', localSettings.reciter);
+        window.dispatchEvent(new CustomEvent('quran_reciter_changed', { detail: localSettings.reciter }));
+      } catch (e) {}
+    }
     onSave(localSettings);
     onClose();
   };
@@ -388,22 +396,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="block text-xs font-bold text-gray-600 mb-2">القارئ المفضل</label>
                   <div className="relative group/select">
                     <select 
-                      value={localSettings.reciter || 'ar.faresabbad'}
-                      onChange={(e) => setLocalSettings({ ...localSettings, reciter: e.target.value })}
+                      value={normalizeReciterId(localSettings.reciter)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLocalSettings({ ...localSettings, reciter: val });
+                        try {
+                          localStorage.setItem('quran_reciter', val);
+                          window.dispatchEvent(new CustomEvent('quran_reciter_changed', { detail: val }));
+                        } catch {}
+                      }}
                       className="w-full bg-gray-50/50 border border-[var(--color-border)] rounded-2xl py-3.5 pl-10 pr-12 text-sm focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] focus:outline-none transition-all shadow-inner appearance-none cursor-pointer"
                     >
                       <optgroup label="⭐ الأكثر شعبية واستماعاً" className="font-bold text-gray-800">
                         <option value="ar.faresabbad">فارس عباد</option>
                         <option value="ar.alafasy">مشاري راشد العفاسي</option>
-                        <option value="ar.yasseraldosari">ياسر الدوسري</option>
-                        <option value="ar.maheralmuaiqly">ماهر المعيقلي</option>
+                        <option value="ar.yasseraddussary">ياسر الدوسري</option>
+                        <option value="ar.mahermuaiqly">ماهر المعيقلي</option>
                         <option value="ar.saadghamidi">سعد الغامدي</option>
                       </optgroup>
                       
                       <optgroup label="📖 مدارس التلاوة الكلاسيكية والمجودين" className="font-bold text-gray-800">
                         <option value="ar.minshawi">محمد صديق المنشاوي (مرتل)</option>
                         <option value="ar.minshawimujawwad">محمد صديق المنشاوي (مجود)</option>
-                        <option value="ar.abdulsamad">عبد الباسط عبد الصمد (مرتل)</option>
+                        <option value="ar.abdulbasitmurattal">عبد الباسط عبد الصمد (مرتل)</option>
                         <option value="ar.abdulbasitmujawwad">عبد الباسط عبد الصمد (مجود)</option>
                         <option value="ar.husary">محمود خليل الحصري (مرتل)</option>
                         <option value="ar.husarymujawwad">محمود خليل الحصري (مجود)</option>
@@ -412,8 +427,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </optgroup>
                       
                       <optgroup label="🕋 أئمة الحرمين الشريفين" className="font-bold text-gray-800">
-                        <option value="ar.as-sudais">عبد الرحمن السديس</option>
-                        <option value="ar.shuraym">سعود الشريم</option>
+                        <option value="ar.abdurrahmaansudais">عبد الرحمن السديس</option>
+                        <option value="ar.saoodshuraym">سعود الشريم</option>
                         <option value="ar.hudhaify">علي عبد الرحمن الحذيفي</option>
                         <option value="ar.ayyoub">محمد أيوب</option>
                       </optgroup>
@@ -422,6 +437,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <option value="ar.ahmedajamy">أحمد بن علي العجمي</option>
                         <option value="ar.shaatree">أبو بكر الشاطري</option>
                         <option value="ar.hanirifai">هاني الرفاعي</option>
+                        <option value="ar.abdullahbasfar">عبد الله بصفر</option>
                       </optgroup>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-hover/select:text-[var(--color-primary)] transition-colors">

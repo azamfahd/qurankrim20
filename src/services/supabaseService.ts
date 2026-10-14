@@ -261,8 +261,8 @@ export class SupabaseService {
           .upsert({
             id: session.id,
             user_id: userId,
-            date: session.date,
-            preview: session.preview,
+            date: session.date || Date.now(),
+            preview: session.preview || session.title || '',
             messages: session.messages, // Pass object directly for JSONB compatibility
           });
         if (error) {
@@ -291,12 +291,21 @@ export class SupabaseService {
 
       if (error) throw error;
 
-      return data.map(item => ({
-        id: item.id,
-        date: item.date,
-        preview: item.preview,
-        messages: typeof item.messages === 'string' ? JSON.parse(item.messages) : item.messages,
-      }));
+      return data.map(item => {
+        const msgs = typeof item.messages === 'string' ? JSON.parse(item.messages) : item.messages;
+        const firstUser = Array.isArray(msgs) ? msgs.find((m: any) => m.type === 'user' || m.role === 'user') : null;
+        const fallbackTitle = firstUser?.content ? (firstUser.content.length > 50 ? firstUser.content.substring(0, 50) + "..." : firstUser.content) : "حوار وتأمل قرآني";
+        
+        return {
+          id: item.id,
+          date: item.date || Date.now(),
+          title: item.title || fallbackTitle,
+          preview: item.preview || fallbackTitle,
+          messages: msgs || [],
+          createdAt: item.created_at ? new Date(item.created_at).getTime() : item.date,
+          updatedAt: item.updated_at ? new Date(item.updated_at).getTime() : item.date,
+        };
+      });
     } catch (error) {
       this.logError('loadSessions', error);
       return null;

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { miraclesData, MiracleCategory, MiracleItem } from '../data/miracles';
 import { getQuranAudioUrl } from '../utils/quranAudio';
+import { AudioCacheService } from '../quran-platform/services/audioCacheService';
 import { NumericalAnalysisViewer } from './NumericalAnalysisViewer';
 import { AudioPoolManager } from '../services/audioPoolManager';
 import { useAppEvent } from '../services/appEventBus';
@@ -135,8 +136,9 @@ const MiraclesModal: React.FC<MiraclesModalProps> = ({ isOpen, onClose, isOnline
     };
 
     const playWithUrl = async (url: string, isRetry: boolean = false) => {
+      const resolvedSrc = await AudioCacheService.getAudioSource(url);
       const audio = AudioPoolManager.acquire();
-      audio.src = url;
+      audio.src = resolvedSrc;
       audioRef.current = audio;
       
       audio.onended = () => {
