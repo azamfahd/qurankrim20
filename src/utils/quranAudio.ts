@@ -242,3 +242,48 @@ export function getQuranAudioFallbackUrl(
 
   return 'https://everyayah.com/data/Alafasy_128kbps/001001.mp3';
 }
+
+export const MP3QURAN_SERVERS: Record<string, string> = {
+  'ar.alafasy': 'https://server8.mp3quran.net/afs',
+  'ar.abdulbasitmurattal': 'https://server11.mp3quran.net/abdulsamad',
+  'ar.abdulsamad': 'https://server11.mp3quran.net/abdulsamad',
+  'ar.abdulbasitmujawwad': 'https://server12.mp3quran.net/bsat',
+  'ar.minshawi': 'https://server10.mp3quran.net/minsh',
+  'ar.minshawimujawwad': 'https://server10.mp3quran.net/minsh_mjw',
+  'ar.husary': 'https://server13.mp3quran.net/husr',
+  'ar.husarymujawwad': 'https://server13.mp3quran.net/husr_mjw',
+  'ar.mahermuaiqly': 'https://server12.mp3quran.net/maher',
+  'ar.maheralmuaiqly': 'https://server12.mp3quran.net/maher',
+  'ar.yasseraddussary': 'https://server11.mp3quran.net/yasser',
+  'ar.yasseraldosari': 'https://server11.mp3quran.net/yasser',
+  'ar.faresabbad': 'https://server6.mp3quran.net/frs_a',
+  'ar.fares': 'https://server6.mp3quran.net/frs_a',
+  'ar.abdurrahmaansudais': 'https://server11.mp3quran.net/sds',
+  'ar.as-sudais': 'https://server11.mp3quran.net/sds',
+  'ar.saoodshuraym': 'https://server7.mp3quran.net/shur',
+  'ar.shuraym': 'https://server7.mp3quran.net/shur',
+  'ar.ahmedajamy': 'https://server10.mp3quran.net/ajm',
+  'ar.hanirifai': 'https://server8.mp3quran.net/hani',
+  'ar.hudhaify': 'https://server9.mp3quran.net/hdf',
+  'ar.shaatree': 'https://server11.mp3quran.net/shatri',
+  'ar.abdullahbasfar': 'https://server6.mp3quran.net/bsfr',
+  'ar.saadghamidi': 'https://server7.mp3quran.net/s_gmd',
+  'ar.alghamdi': 'https://server7.mp3quran.net/s_gmd',
+  'ar.ayyoub': 'https://server16.mp3quran.net/ayy',
+  'ar.muhammadayyoub': 'https://server16.mp3quran.net/ayy'
+};
+
+/**
+ * Get direct full surah audio URL for continuous single-file playback
+ */
+export function getFullSurahAudioUrl(reciterId: string, surahNumber: number): string {
+  const norm = normalizeReciterId(reciterId);
+  const server = MP3QURAN_SERVERS[norm];
+  if (server && surahNumber >= 1 && surahNumber <= 114) {
+    const sStr = String(surahNumber).padStart(3, '0');
+    return `${server}/${sStr}.mp3`;
+  }
+  const sStr = String(surahNumber || 1).padStart(3, '0');
+  return `https://server8.mp3quran.net/afs/${sStr}.mp3`;
+}
+

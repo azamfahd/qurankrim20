@@ -8,7 +8,7 @@ import {
 import { useQuranContext } from '../store/QuranContext';
 import { QuranDataService } from '../services/QuranDataService';
 import { AudioCacheService, CacheProgress } from '../services/audioCacheService';
-import { getQuranAudioUrl } from '../../utils/quranAudio';
+import { getQuranAudioUrl, getFullSurahAudioUrl } from '../../utils/quranAudio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DownloadManager } from '../../services/DownloadManager';
 import { getCleanSurahName } from './AyahMarker';
@@ -283,14 +283,20 @@ const QuranAudioPlayer = () => {
     }
   }, [currentSurah, surahData]);
 
-  // Determine current audio URL
+  // Determine current audio URL (respects starting ayah and custom range settings)
   const getAudioUrl = () => {
     if (!surahData || surahData.number !== currentSurah) return '';
     
-    // Verse-by-verse audio sync mode
-    const activeAyahInSurah = playingAyahNumber || rangeStart;
+    const activeAyahInSurah = playingAyahNumber || rangeStart || 1;
+    
+    // If playing full surah from start with no custom range restrictions
+    if (activeAyahInSurah === 1 && rangeEnd === (surahData.numberOfAyahs || rangeEnd) && repeatMode === 'none') {
+      return getFullSurahAudioUrl(reciter, currentSurah);
+    }
+    
+    // Otherwise play starting from the selected/active ayah (rangeStart or playingAyahNumber)
     const ayahObj = surahData.ayahs?.find((a: any) => a.numberInSurah === activeAyahInSurah);
-    if (!ayahObj) return '';
+    if (!ayahObj) return getFullSurahAudioUrl(reciter, currentSurah);
     return getQuranAudioUrl(reciter, ayahObj.number, currentSurah, activeAyahInSurah);
   };
 
@@ -359,10 +365,16 @@ const QuranAudioPlayer = () => {
     setCurrentRangePlayedTimes(0);
   }, [currentSurah, rangeStart, rangeEnd]);
 
-  // Reset ayah counter when playingAyahNumber changes manually
+  // Automatically sync rangeStart and rangeEnd when user selects/starts playing from a specific ayah
   useEffect(() => {
     setCurrentPlayedTimes(0);
-  }, [playingAyahNumber]);
+    if (playingAyahNumber !== null && repeatMode !== 'range') {
+      setRangeStart(playingAyahNumber);
+      if (surahData && surahData.numberOfAyahs) {
+        setRangeEnd(surahData.numberOfAyahs);
+      }
+    }
+  }, [playingAyahNumber, surahData, repeatMode]);
 
   // Sync playback speed with HTML5 audio
   const applyPlaybackRate = () => {
@@ -409,8 +421,10 @@ const QuranAudioPlayer = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
     const currentAyah = playingAyahNumber || rangeStart;
+    const maxAyahs = surahData?.numberOfAyahs || 7;
+    const targetEnd = repeatMode === 'range' ? rangeEnd : maxAyahs;
 
-    if (currentAyah < rangeEnd) {
+    if (currentAyah < targetEnd) {
       const nextAyah = currentAyah + 1;
       setPlayingAyahNumber(nextAyah);
     } else {
@@ -432,7 +446,7 @@ const QuranAudioPlayer = () => {
           setCurrentRangePlayedTimes(0);
           if (continuousPlay && currentSurah < 114) {
             setCurrentSurah(currentSurah + 1);
-      setPlayingAyahNumber(null);
+            setPlayingAyahNumber(null);
             setIsAudioPlaying(true);
           } else {
             setIsAudioPlaying(false);
@@ -443,7 +457,7 @@ const QuranAudioPlayer = () => {
         // No repeat mode, proceed continuously
         if (continuousPlay && currentSurah < 114) {
           setCurrentSurah(currentSurah + 1);
-      setPlayingAyahNumber(null);
+          setPlayingAyahNumber(null);
           setIsAudioPlaying(true);
         } else {
           setIsAudioPlaying(false);
@@ -477,7 +491,9 @@ const QuranAudioPlayer = () => {
     setCurrentPlayedTimes(0);
 
     // Apply delay if configured and not at the very end of playback
-    const isAtEnd = currentAyah >= rangeEnd && (!continuousPlay || currentSurah === 114);
+    const maxAyahs = surahData?.numberOfAyahs || 7;
+    const targetEnd = repeatMode === 'range' ? rangeEnd : maxAyahs;
+    const isAtEnd = currentAyah >= targetEnd && (!continuousPlay || currentSurah === 114);
     if (verseDelay > 0 && !isAtEnd) {
       setIsWaitingBetweenAyahs(true);
       setWaitingCountdown(verseDelay);
@@ -719,70 +735,6 @@ const QuranAudioPlayer = () => {
                     {/* Column 1: Playback, Speed, Delay & Memorization */}
                     <div className="space-y-4">
                       
-                      {/* Playback & Speed Controls */}
-                      <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/50 space-y-3.5 text-xs">
-                        <div className="font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1.5">
-                          <SlidersHorizontal size={14} className="text-[var(--color-primary)]" />
-                          <span>خصائص وسرعة التلاوة</span>
-                        </div>
-
-                        {/* Continuous Play Switch */}
-                        <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700/50">
-                          <div className="flex flex-col text-right">
-                            <span className="font-bold text-gray-700 dark:text-gray-200">القراءة المستمرة للسور</span>
-                            <span className="text-[10px] text-gray-400 dark:text-gray-400">الانتقال التلقائي بين السور بدون توقف</span>
-                          </div>
-                          <button
-                            onClick={() => setContinuousPlay(!continuousPlay)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${continuousPlay ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${continuousPlay ? '-translate-x-5' : 'translate-x-0'}`}
-                            />
-                          </button>
-                        </div>
-
-                        {/* Playback Rate (Speed) */}
-                        <div className="space-y-1.5">
-                          <span className="font-bold text-gray-700 dark:text-gray-200 block">سرعة التلاوة</span>
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {[0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
-                              <button
-                                key={rate}
-                                onClick={() => setPlaybackRate(rate)}
-                                className={`py-1.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
-                                  playbackRate === rate 
-                                    ? 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-xs' 
-                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 hover:bg-gray-50'
-                                }`}
-                              >
-                                {rate === 1.0 ? 'طبيعي' : `${rate}x`}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Delay between Verses */}
-                        <div className="space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700/50">
-                          <span className="font-bold text-gray-700 dark:text-gray-200 block">فترة الانتظار بين الآيات (للتكرار والترديد)</span>
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {[0, 1, 2, 3, 5].map((delay) => (
-                              <button
-                                key={delay}
-                                onClick={() => setVerseDelay(delay)}
-                                className={`py-1.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
-                                  verseDelay === delay 
-                                    ? 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-xs' 
-                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 hover:bg-gray-50'
-                                }`}
-                              >
-                                {delay === 0 ? 'بدون' : `${delay} ث`}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
                       {/* Verse Range & Repetition Settings */}
                       {surahData && (
                         <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/50 space-y-3.5 text-xs">

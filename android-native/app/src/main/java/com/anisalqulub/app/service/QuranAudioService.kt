@@ -43,6 +43,21 @@ class QuranAudioService : MediaSessionService() {
         }
     }
 
+    /**
+     * Configure ExoPlayer playlist (MediaItems) for all surah ayahs without 7-ayah limit
+     * to ensure seamless gapless playback across the entire surah playlist.
+     */
+    fun setSurahPlaylist(audioUrls: List<String>) {
+        val mediaItems = audioUrls.map { androidx.media3.common.MediaItem.fromUri(it) }
+        player?.apply {
+            stop()
+            clearMediaItems()
+            setMediaItems(mediaItems)
+            prepare()
+            play()
+        }
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
     }

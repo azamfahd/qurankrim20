@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuranDataService } from '../services/QuranDataService';
 import { useQuranContext } from '../store/QuranContext';
-import { Book, Bookmark, ChevronLeft, Layers, Cloud, Check, ArrowUpRight, MoreHorizontal } from 'lucide-react';
+import { Book, Bookmark, ChevronLeft, Layers, Cloud, Check, ArrowUpRight, MoreHorizontal, CheckCircle } from 'lucide-react';
 import { SurahInfoModal } from './SurahInfoModal';
 import { JuzSurahsModal } from './JuzSurahsModal';
 import { getCleanSurahName } from './AyahMarker';
 import { QuranSearchWidget } from '../search/components/QuranSearchWidget';
 import { SURAHS_STATIC_LIST, JUZS_META_STATIC } from '../data/surahsData';
+import { AudioCacheService } from '../services/audioCacheService';
 
 type TypeFilter = 'all' | 'meccan' | 'medinan';
 
@@ -45,6 +46,37 @@ const QuranIndex = () => {
   const [cacheStatus, setCacheStatus] = useState<{ isCached: boolean; count: number; total: number }>({ isCached: false, count: 0, total: 834 });
   const [lastRead, setLastRead] = useState<{ surah: number; ayah: number; page: number } | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [downloadedSurahs, setDownloadedSurahs] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    const checkDownloadedSurahs = async () => {
+      try {
+        const reciterId = localStorage.getItem('quran_reciter') || 'ar.faresabbad';
+        const map: Record<number, boolean> = {};
+        for (const s of SURAHS_STATIC_LIST) {
+          const surahData = await QuranDataService.getSurah(s.number);
+          if (surahData && surahData.ayahs) {
+            const status = await AudioCacheService.getSurahDownloadStatus(s.number, s.numberOfAyahs, reciterId, surahData.ayahs);
+            if (status.isDownloaded) {
+              map[s.number] = true;
+            }
+          }
+        }
+        setDownloadedSurahs(map);
+      } catch (e) {
+        console.warn('Error checking downloaded surahs:', e);
+      }
+    };
+    checkDownloadedSurahs();
+
+    const handleReciterChanged = () => {
+      checkDownloadedSurahs();
+    };
+    window.addEventListener('quran_reciter_changed', handleReciterChanged);
+    return () => {
+      window.removeEventListener('quran_reciter_changed', handleReciterChanged);
+    };
+  }, []);
 
   useEffect(() => {
     // Silent background sync for dynamic updates/cache checking without blocking UI
@@ -429,9 +461,17 @@ const QuranIndex = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <h3 className="font-quran font-bold text-lg sm:text-xl text-gray-900 dark:text-amber-50 transition-colors truncate leading-none">
-                        سورة {getCleanSurahName(surah.name)}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-quran font-bold text-lg sm:text-xl text-gray-900 dark:text-amber-50 transition-colors truncate leading-none">
+                          سورة {getCleanSurahName(surah.name)}
+                        </h3>
+                        {downloadedSurahs[surah.number] && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30" title="محملة بالكامل ومتاحة بدون إنترنت">
+                            <CheckCircle size={10} className="text-emerald-600 dark:text-emerald-400" />
+                            محملة
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 font-semibold">
                         <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
                           {surah.revelationType === 'Meccan' ? 'مكة المكرمة' : 'المدينة المنورة'}
