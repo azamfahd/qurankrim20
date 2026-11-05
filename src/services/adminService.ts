@@ -128,7 +128,7 @@ export class AdminService {
     const client = getSupabase();
     if (client) {
       try {
-        await client
+        const { error } = await client
           .from(this.TABLE_CONFIG)
           .upsert({
             id: 'app_version',
@@ -136,10 +136,14 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
+        if (error) throw error;
         console.log('👑 [Admin] App version config updated successfully in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase version write notice (saved locally):', error);
+        throw error;
       }
+    } else {
+      throw new Error('Supabase client is unavailable; version settings were saved locally only.');
     }
   }
 
@@ -272,7 +276,7 @@ export class AdminService {
     const client = getSupabase();
     if (client) {
       try {
-        await client
+        const { error } = await client
           .from(this.TABLE_CONFIG)
           .upsert({
             id: 'announcement_latest',
@@ -280,10 +284,14 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
+        if (error) throw error;
         console.log('👑 [Admin] System announcement published successfully to Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase announcement write notice (saved locally):', error);
+        throw error;
       }
+    } else {
+      throw new Error('Supabase client is unavailable; announcement was saved locally only.');
     }
   }
 
@@ -406,7 +414,7 @@ export class AdminService {
     const client = getSupabase();
     if (client) {
       try {
-        await client
+        const { error } = await client
           .from(this.TABLE_CONFIG)
           .upsert({
             id: 'maintenance',
@@ -414,10 +422,14 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
+        if (error) throw error;
         console.log('👑 [Admin] Maintenance config updated in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase maintenance write notice:', error);
+        throw error;
       }
+    } else {
+      throw new Error('Supabase client is unavailable; maintenance setting was saved locally only.');
     }
   }
 
@@ -517,7 +529,7 @@ export class AdminService {
     const client = getSupabase();
     if (client) {
       try {
-        await client
+        const { error } = await client
           .from(this.TABLE_CONFIG)
           .upsert({
             id: 'feature_toggles',
@@ -525,10 +537,14 @@ export class AdminService {
             updated_at: new Date().toISOString(),
             updated_by: OWNER_EMAIL
           });
+        if (error) throw error;
         console.log('👑 [Admin] Feature toggles updated in Supabase (Primary)');
       } catch (error) {
         console.warn('👑 [Admin] Supabase feature toggles write notice:', error);
+        throw error;
       }
+    } else {
+      throw new Error('Supabase client is unavailable; feature toggles were saved locally only.');
     }
   }
 

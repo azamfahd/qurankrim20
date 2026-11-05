@@ -152,7 +152,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       });
       onShowToast('تم إيقاف التنويه العام بنجاح', 'info');
     } catch (err: any) {
-      onShowToast('تم إيقاف التنويه', 'info');
+      onShowToast('تعذرت مزامنة إيقاف التنويه مع Supabase؛ التغيير محلي فقط.', 'info');
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +174,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       await AppSync.broadcastVersionUpdate(config);
       onShowToast('تم تحديث إعدادات الإصدار ومزامنتها فورياً على الويب وتطبيق الـ APK بنجاح! 🚀', 'success');
     } catch (err: any) {
-      onShowToast('تم حفظ إعدادات الإصدار وتحديث الرادار 🚀', 'info');
+      onShowToast('تعذرت مزامنة إعداد الإصدار مع Supabase؛ الحفظ المحلي لا يصل إلى بقية المستخدمين.', 'info');
     } finally {
       setIsLoading(false);
     }
@@ -191,7 +191,8 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       });
       onShowToast(newStatus ? 'تم تفعيل وضع الصيانة ⚠️' : 'تم تعطيل وضع الصيانة وعودة التطبيق للعمل 🟢', 'info');
     } catch (err: any) {
-      onShowToast('خطأ في تغيير وضع الصيانة', 'error');
+      setMaintenanceEnabled(maintenanceEnabled);
+      onShowToast('تعذر حفظ وضع الصيانة في Supabase؛ لم يتم اعتماد التغيير للمستخدمين.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -208,7 +209,7 @@ export const OwnerAdminModal: React.FC<OwnerAdminModalProps> = ({
       });
       onShowToast('تم حفظ تحديثات التحكم بالمميزات بنجاح! 🎛️', 'success');
     } catch (err: any) {
-      onShowToast('فشل حفظ مفاتيح التحكم', 'error');
+      onShowToast('تعذر حفظ مفاتيح التحكم في Supabase؛ لم تتم مزامنتها.', 'error');
     } finally {
       setIsLoading(false);
     }
