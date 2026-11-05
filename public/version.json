@@ -4,10 +4,10 @@
   "releaseNotes": "إصلاح آلية اكتشاف تحديث Android. لمستخدمي النسخ السابقة: اختاروا تنزيل APK الكامل من GitHub وأكّدوا التثبيت في Android؛ تنزيل الملف وحده لا يثبت التحديث.",
   "sizeFormatted": "20 MB • تحميل وتثبيت مباشر",
   "downloadUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "versionCode": 10145,
+  "versionCode": 10146,
   "updateUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "timestamp": 1793917343932,
-  "apkUpdated": "2026-11-05T22:22:23.932Z",
+  "timestamp": 1793919681221,
+  "apkUpdated": "2026-11-05T23:01:21.221Z",
   "primaryUrl": "https://qurankrim20.netlify.app/app-release.apk",
   "mirrorUrl": "https://quramkrim20.netlify.app/app-release.apk",
   "features": [
