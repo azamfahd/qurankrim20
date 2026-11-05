@@ -9,6 +9,8 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { AdminService, SystemAnnouncement, AppVersionConfig } from './adminService';
 import { AppUpdateService } from './appUpdateService';
+import { getInstalledBuildNumber } from './appVersioning';
+import { GITHUB_RELEASE_APK_URL } from '../utils/apkConfig';
 
 export const PRIMARY_DOMAIN_URL = 'https://qurankrim20.netlify.app';
 export const MIRROR_DOMAIN_URL = 'https://quramkrim20.netlify.app';
@@ -79,6 +81,7 @@ export class AppSyncService {
    * Unified endpoints to fetch version.json with primary domain prioritized
    */
   public static readonly VERSION_ENDPOINTS = [
+    'https://raw.githubusercontent.com/azamfahd/qurankrim20/main/public/version.json',
     `${PRIMARY_DOMAIN_URL}/version.json`,
     `${MIRROR_DOMAIN_URL}/version.json`,
     '/version.json',
@@ -146,6 +149,11 @@ export class AppSyncService {
     return AppUpdateService.getCurrentVersion();
   }
 
+  /** Return the package build number actually installed on Android. */
+  public static getCurrentBuildNumber(): Promise<number | null> {
+    return getInstalledBuildNumber();
+  }
+
   /**
    * Compare version strings (SemVer)
    */
@@ -183,13 +191,13 @@ export class AppSyncService {
           if (raw && raw.version) {
             const normalized: AppSyncVersionData = {
               version: String(raw.version).trim(),
-              versionCode: raw.versionCode || 1,
+              versionCode: Number(raw.versionCode) || 1,
               title: raw.title || `تحديث جديد متوفر للتطبيق (v${raw.version})`,
               releaseNotes: raw.releaseNotes || 'تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.',
               sizeFormatted: raw.sizeFormatted || raw.apkSize || '20 MB • تحميل وتثبيت مباشر',
               apkSize: raw.apkSize || raw.sizeFormatted || '20 MB',
-              downloadUrl: raw.downloadUrl || raw.updateUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
-              updateUrl: raw.updateUrl || raw.downloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
+              downloadUrl: raw.downloadUrl || raw.updateUrl || GITHUB_RELEASE_APK_URL,
+              updateUrl: raw.updateUrl || raw.downloadUrl || GITHUB_RELEASE_APK_URL,
               mirrorUrl: raw.mirrorUrl || `${MIRROR_DOMAIN_URL}/app-release.apk`,
               timestamp: raw.timestamp || Date.now(),
               apkUpdated: raw.apkUpdated || new Date().toISOString(),
@@ -221,13 +229,12 @@ export class AppSyncService {
       if (remoteConfig?.latestVersion) {
         const fromSupabase: AppSyncVersionData = {
           version: remoteConfig.latestVersion,
-          versionCode: 2,
           title: `تحديث من إدارة التطبيق (v${remoteConfig.latestVersion})`,
           releaseNotes: remoteConfig.releaseNotes || 'تحديث جديد يتضمن تحسينات فورية للأداء والتنبيهات.',
           sizeFormatted: '20 MB • تحميل وتثبيت مباشر',
           apkSize: '20 MB',
-          downloadUrl: remoteConfig.apkDownloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
-          updateUrl: remoteConfig.apkDownloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
+          downloadUrl: remoteConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
+          updateUrl: remoteConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
           mirrorUrl: `${MIRROR_DOMAIN_URL}/app-release.apk`,
           timestamp: remoteConfig.updatedAt ? new Date(remoteConfig.updatedAt).getTime() : Date.now(),
           updateType: remoteConfig.forceUpdate ? 'both' : 'smart',
@@ -257,6 +264,7 @@ export class AppSyncService {
    */
   public static async checkForUpdates(forceFresh = false): Promise<AppSyncCheckResult> {
     const currentVersion = this.getCurrentVersion();
+    const currentBuildNumber = await this.getCurrentBuildNumber();
     const { data: remoteData, source } = await this.fetchVersionJson(forceFresh);
 
     const checkTimestamp = Date.now();
@@ -280,14 +288,18 @@ export class AppSyncService {
     }
 
     const hasNewerVersion = this.isNewer(currentVersion, remoteData.version);
-    const lastInstalledTs = parseInt(localStorage.getItem('anis_last_update_ts') || '0', 10);
-    const hasNewerTimestamp = remoteData.timestamp && remoteData.timestamp > lastInstalledTs && lastInstalledTs > 0;
-    const hasUpdate = hasNewerVersion || Boolean(hasNewerTimestamp);
-
+    const remoteBuildNumber = Number(remoteData.versionCode);
+    const hasNewerBuild = currentBuildNumber !== null &&
+      Number.isSafeInteger(remoteBuildNumber) &&
+      remoteBuildNumber > currentBuildNumber;
     const isNative = Capacitor.isNativePlatform();
+    const lastInstalledTs = parseInt(localStorage.getItem('anis_last_update_ts') || '0', 10);
+    const hasNewerTimestamp = !isNative && remoteData.timestamp && remoteData.timestamp > lastInstalledTs && lastInstalledTs > 0;
+    const hasUpdate = hasNewerVersion || hasNewerBuild || Boolean(hasNewerTimestamp);
+
     const updateResult: AppSyncCheckResult = {
       hasUpdate,
-      isHotUpdate: remoteData.updateType !== 'apk',
+      isHotUpdate: !isNative && remoteData.updateType !== 'apk',
       isApkUpdate: isNative || Boolean(remoteData.downloadUrl || remoteData.updateUrl),
       currentVersion,
       remoteVersion: remoteData.version,
@@ -474,7 +486,7 @@ export class AppSyncService {
    * Download APK directly
    */
   public static downloadApk(customUrl?: string): void {
-    const url = customUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`;
+    const url = customUrl || GITHUB_RELEASE_APK_URL;
     AppUpdateService.downloadApk(url);
   }
 
@@ -497,7 +509,7 @@ export class AppSyncService {
       if (isNewer || versionConfig.forceUpdate) {
         const updateResult: AppSyncCheckResult = {
           hasUpdate: true,
-          isHotUpdate: true,
+          isHotUpdate: !Capacitor.isNativePlatform(),
           isApkUpdate: true,
           currentVersion: currentVer,
           remoteVersion: versionConfig.latestVersion,
@@ -506,8 +518,8 @@ export class AppSyncService {
             version: versionConfig.latestVersion,
             title: `تحديث جديد متوفر للتطبيق (v${versionConfig.latestVersion})`,
             releaseNotes: versionConfig.releaseNotes,
-            downloadUrl: versionConfig.apkDownloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
-            updateUrl: versionConfig.apkDownloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
+            downloadUrl: versionConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
+            updateUrl: versionConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
             timestamp: versionConfig.updatedAt ? new Date(versionConfig.updatedAt).getTime() : Date.now()
           },
           checkedAt: Date.now()

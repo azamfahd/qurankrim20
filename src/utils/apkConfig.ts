@@ -1,5 +1,7 @@
 // Centralized configuration and helpers for external APK downloading
-export const APP_VERSION = "1.1.0";
+import { Capacitor } from '@capacitor/core';
+
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.1';
 
 export const GITHUB_RELEASE_APK_URL = 'https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk';
 export const NETLIFY_MIRROR_APK_URL = 'https://quramkrim20.netlify.app/app-release.apk';
@@ -47,18 +49,15 @@ export function setCustomApkUrl(url: string): void {
  */
 export function triggerApkDownload(
   onShowToast?: (message: string, type?: 'success' | 'info' | 'error') => void,
-  version: string = '1.1.0',
+  version: string = APP_VERSION,
   overrideUrl?: string
 ): void {
   const apkUrl = (overrideUrl && overrideUrl.trim().length > 0) ? overrideUrl.trim() : getApkDownloadUrl();
   
   if (typeof window !== 'undefined') {
-    localStorage.setItem('anis_apk_installed_version', version);
-    localStorage.setItem('anis_pwa_installed', 'true');
-
     if (apkUrl.startsWith('http://') || apkUrl.startsWith('https://')) {
       // External link (GitHub Releases, Netlify CDN, Mirror)
-      window.open(apkUrl, '_blank', 'noopener,noreferrer');
+      window.open(apkUrl, Capacitor.isNativePlatform() ? '_system' : '_blank', 'noopener,noreferrer');
       if (onShowToast) {
         onShowToast(`جاري فتح رابط تحميل حزمة الـ APK المعتمدة (v${version})...`, 'success');
       }

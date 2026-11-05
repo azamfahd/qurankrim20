@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { triggerApkDownload } from "./utils/apkConfig";
+import { APP_VERSION, triggerApkDownload } from "./utils/apkConfig";
 import { ApkVersionInfo } from "./components/ApkUpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Suspense } from "react";
@@ -2689,7 +2689,7 @@ const App: React.FC = () => {
               setIsApkUpdateBannerOpen(false);
               triggerApkDownload(
                 showToast,
-                apkUpdateInfo?.version || "1.1.0",
+                apkUpdateInfo?.version || APP_VERSION,
                 apkUpdateInfo?.updateUrl
               );
             }}

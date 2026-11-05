@@ -8,6 +8,8 @@
 
 import { Capacitor } from '@capacitor/core';
 import { AdminService } from './adminService';
+import { getInstalledBuildNumber } from './appVersioning';
+import { GITHUB_RELEASE_APK_URL } from '../utils/apkConfig';
 
 export const PUBLISHED_DOMAIN_URL = 'https://qurankrim20.netlify.app';
 export const FALLBACK_DOMAIN_URL = 'https://quramkrim20.netlify.app';
@@ -38,6 +40,7 @@ export interface UpdateCheckResult {
 
 export class AppUpdateService {
   private static readonly VERSION_ENDPOINTS = [
+    'https://raw.githubusercontent.com/azamfahd/qurankrim20/main/public/version.json',
     `${PUBLISHED_DOMAIN_URL}/version.json`,
     `${FALLBACK_DOMAIN_URL}/version.json`,
     'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json'
@@ -47,18 +50,20 @@ export class AppUpdateService {
    * Get the current running application version
    */
   public static getCurrentVersion(): string {
-    const localHotVersion = localStorage.getItem('anis_hot_updated_version');
-    if (localHotVersion) {
-      return localHotVersion;
-    }
-    const localApkVersion = localStorage.getItem('anis_apk_installed_version');
-    if (localApkVersion) {
-      return localApkVersion;
+    if (!Capacitor.isNativePlatform()) {
+      const localHotVersion = localStorage.getItem('anis_hot_updated_version');
+      if (localHotVersion) {
+        return localHotVersion;
+      }
+      const localApkVersion = localStorage.getItem('anis_apk_installed_version');
+      if (localApkVersion) {
+        return localApkVersion;
+      }
     }
     if (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) {
       return __APP_VERSION__;
     }
-    return '1.1.0';
+    return '1.1.1';
   }
 
   /**
@@ -114,8 +119,8 @@ export class AppUpdateService {
                 'تحسين استقرار تنبيهات الأذكار والأذان للعمل بدقة',
                 'تسريع التصفح والاستجابة الفورية للمصحف الشريف'
               ],
-              updateUrl: data.updateUrl || data.downloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
-              downloadUrl: data.downloadUrl || data.updateUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+              updateUrl: data.updateUrl || data.downloadUrl || GITHUB_RELEASE_APK_URL,
+              downloadUrl: data.downloadUrl || data.updateUrl || GITHUB_RELEASE_APK_URL,
               apkSize: data.apkSize || data.sizeFormatted || '20 MB',
               sizeFormatted: data.sizeFormatted || data.apkSize || '20 MB',
               timestamp: data.timestamp || Date.now()
@@ -135,7 +140,6 @@ export class AppUpdateService {
       if (remoteConfig && remoteConfig.latestVersion) {
         supabaseVersionInfo = {
           version: remoteConfig.latestVersion,
-          versionCode: 2,
           releaseDate: remoteConfig.updatedAt ? remoteConfig.updatedAt.split('T')[0] : new Date().toISOString().split('T')[0],
           updateType: remoteConfig.forceUpdate ? 'both' : 'smart',
           title: `تحديث متوفر من إدارة التطبيق (v${remoteConfig.latestVersion})`,
@@ -169,6 +173,9 @@ export class AppUpdateService {
         return {
           ...jsonVersionInfo,
           ...supabaseVersionInfo,
+          versionCode: jsonVersionInfo.versionCode,
+          updateUrl: jsonVersionInfo.updateUrl,
+          downloadUrl: jsonVersionInfo.downloadUrl,
           features: jsonVersionInfo.features || supabaseVersionInfo.features
         };
       }
@@ -197,20 +204,25 @@ export class AppUpdateService {
     }
 
     const hasNewerVersion = this.isNewer(currentVer, remoteInfo.version);
+    const currentBuildNumber = await getInstalledBuildNumber();
+    const remoteBuildNumber = Number(remoteInfo.versionCode);
+    const hasNewerBuild = currentBuildNumber !== null &&
+      Number.isSafeInteger(remoteBuildNumber) &&
+      remoteBuildNumber > currentBuildNumber;
+    const isNative = Capacitor.isNativePlatform();
     
     // Check if there is a newer timestamp for features update even on same version
     const lastInstalledTimestamp = parseInt(localStorage.getItem('anis_last_update_ts') || '0', 10);
-    const hasNewerTimestamp = remoteInfo.timestamp && remoteInfo.timestamp > lastInstalledTimestamp && lastInstalledTimestamp > 0;
+    const hasNewerTimestamp = !isNative && remoteInfo.timestamp && remoteInfo.timestamp > lastInstalledTimestamp && lastInstalledTimestamp > 0;
 
-    const hasUpdate = hasNewerVersion || Boolean(hasNewerTimestamp);
+    const hasUpdate = hasNewerVersion || hasNewerBuild || Boolean(hasNewerTimestamp);
     
     // Determine update nature
     const updateType = remoteInfo.updateType || 'smart';
-    const isNative = Capacitor.isNativePlatform();
 
     return {
       hasUpdate,
-      isHotUpdate: updateType !== 'apk', // In-app feature update is available for web, PWA and native hybrid
+      isHotUpdate: !isNative && updateType !== 'apk',
       isApkUpdate: isNative || Boolean(remoteInfo.updateUrl || remoteInfo.downloadUrl),
       currentVersion: currentVer,
       remoteVersion: remoteInfo.version,
@@ -290,7 +302,6 @@ export class AppUpdateService {
       const remoteInfo = await this.fetchLatestVersionInfo();
       if (remoteInfo?.version) {
         localStorage.setItem('anis_hot_updated_version', remoteInfo.version);
-        localStorage.setItem('anis_apk_installed_version', remoteInfo.version);
         if (remoteInfo.timestamp) {
           localStorage.setItem('anis_last_update_ts', remoteInfo.timestamp.toString());
         }
@@ -309,7 +320,7 @@ export class AppUpdateService {
    * Direct APK Download & Install linked to the published domain (quramkrim20.netlify.app)
    */
   public static downloadApk(customUrl?: string): void {
-    const targetUrl = customUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`;
+    const targetUrl = customUrl || GITHUB_RELEASE_APK_URL;
     try {
       if (Capacitor.isNativePlatform()) {
         window.open(targetUrl, '_system');
@@ -340,4 +351,3 @@ export class AppUpdateService {
     }
   }
 }
-

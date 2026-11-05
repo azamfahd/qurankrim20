@@ -11,6 +11,8 @@ interface InAppUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
   updateInfo: AppVersionInfo | null;
+  isHotUpdate: boolean;
+  isApkUpdate: boolean;
   currentVersion: string;
   onShowToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -19,6 +21,8 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
   isOpen,
   onClose,
   updateInfo,
+  isHotUpdate,
+  isApkUpdate,
   currentVersion,
   onShowToast
 }) => {
@@ -42,7 +46,6 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
     if (success) {
       const newVer = updateInfo.version || '1.1.1';
       localStorage.setItem('anis_hot_updated_version', newVer);
-      localStorage.setItem('anis_apk_installed_version', newVer);
       window.dispatchEvent(new CustomEvent('app-update-completed', { detail: { version: newVer } }));
       setIsHotUpdateCompleted(true);
       onShowToast?.('تم تثبيت التحديث والميزات الجديدة بنجاح!', 'success');
@@ -117,7 +120,9 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
             <div className="flex-1 min-w-0 pr-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black shadow-xs">
-                  {updateInfo.version ? `الإصدار ${updateInfo.version}` : 'تحديث جديد'}
+                  {updateInfo.version
+                    ? `الإصدار ${updateInfo.version}${updateInfo.versionCode ? ` • البناء ${updateInfo.versionCode}` : ''}`
+                    : 'تحديث جديد'}
                 </span>
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-900/80 text-emerald-200 border border-emerald-500/30 font-bold">
                   الحالي: v{currentVersion}
@@ -184,7 +189,7 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
 
           {/* Action Buttons */}
           <div className="mt-5 pt-3 border-t border-emerald-500/30 flex flex-col gap-2.5">
-            {isHotUpdateCompleted ? (
+            {isHotUpdateCompleted && isHotUpdate ? (
               <button
                 onClick={handleFinishAndReload}
                 className="w-full flex items-center justify-center gap-2.5 py-3 px-5 rounded-2xl text-slate-950 font-black text-sm shadow-xl cursor-pointer hover:brightness-110 active:scale-98 transition-all"
@@ -193,36 +198,37 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
                 }}
               >
                 <Rocket size={18} className="stroke-[2.5]" />
-                <span>إعادة التشغيل وتفعيل التحديث الآن 🚀</span>
+                <span>إعادة التشغيل وتفعيل التحديث الآن</span>
               </button>
             ) : !isUpdatingHot ? (
               <>
-                {/* 1. Hot In-App Feature Update Button */}
-                <button
-                  onClick={handleApplyHotUpdate}
-                  className="w-full flex items-center justify-center gap-2.5 py-3 px-5 rounded-2xl text-slate-950 font-black text-sm shadow-xl cursor-pointer hover:brightness-110 active:scale-98 transition-all border border-amber-200"
-                  style={{
-                    background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)'
-                  }}
-                >
-                  <Zap size={18} className="stroke-[2.5] text-slate-950" />
-                  <div className="flex flex-col items-start leading-tight">
-                    <span>تحديث الميزات فورياً (بدون تحميل APK)</span>
-                    <span className="text-[10px] font-bold text-slate-800 opacity-90">سريع جداً • يثبت الميزات الجديدة مباشرة داخل البرنامج</span>
-                  </div>
-                </button>
+                {isHotUpdate && (
+                  <button
+                    onClick={handleApplyHotUpdate}
+                    className="w-full flex items-center justify-center gap-2.5 py-3 px-5 rounded-2xl text-slate-950 font-black text-sm shadow-xl cursor-pointer hover:brightness-110 active:scale-98 transition-all border border-amber-200"
+                    style={{
+                      background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)'
+                    }}
+                  >
+                    <Zap size={18} className="stroke-[2.5] text-slate-950" />
+                    <div className="flex flex-col items-start leading-tight">
+                      <span>تحديث موارد الموقع الآن</span>
+                      <span className="text-[10px] font-bold text-slate-800 opacity-90">لا يستبدل تطبيق Android ولا يغير الحزمة المثبتة</span>
+                    </div>
+                  </button>
+                )}
 
-                {/* 2. Download Full APK Button */}
-                <button
-                  onClick={handleDownloadApk}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-emerald-100 bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-500/30 hover:border-amber-400/50 transition-all cursor-pointer"
-                >
-                  <Smartphone size={15} />
-                  <span>أو تحميل وتثبيت حزمة الـ APK الكاملة ({updateInfo.apkSize || '1.6 MB'})</span>
-                  <Download size={14} className="mr-1" />
-                </button>
+                {isApkUpdate && (
+                  <button
+                    onClick={handleDownloadApk}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-emerald-100 bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-500/30 hover:border-amber-400/50 transition-all cursor-pointer"
+                  >
+                    <Smartphone size={15} />
+                    <span>تنزيل APK للتحديث ({updateInfo.apkSize || '20 MB'})</span>
+                    <Download size={14} className="mr-1" />
+                  </button>
+                )}
 
-                {/* Dismiss button */}
                 <button
                   onClick={onClose}
                   className="w-full py-2 text-center text-xs text-emerald-300/70 hover:text-emerald-100 transition-colors cursor-pointer"
@@ -231,6 +237,9 @@ export const InAppUpdateModal: React.FC<InAppUpdateModalProps> = ({
                 </button>
               </>
             ) : null}
+            {!isUpdatingHot && !isHotUpdate && !isApkUpdate && (
+              <p className="text-xs text-amber-200 text-center">لا يتوفر رابط تثبيت لهذا التحديث حاليًا.</p>
+            )}
           </div>
         </motion.div>
       </motion.div>

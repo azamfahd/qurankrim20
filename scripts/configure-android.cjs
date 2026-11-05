@@ -212,18 +212,18 @@ function configureAndroid() {
       }
 
       // Calculate versionCode and versionName from package.json & GITHUB_RUN_NUMBER
-      let pkg = { version: '1.1.0' };
+      let pkg = { version: '1.1.1' };
       try {
         pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
       } catch (e) {}
 
       const runNumber = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
-      const versionParts = (pkg.version || '1.1.0').split('.').map(n => parseInt(n || '0', 10));
+      const versionParts = (pkg.version || '1.1.1').split('.').map(n => parseInt(n || '0', 10));
       const major = versionParts[0] || 1;
       const minor = versionParts[1] || 1;
       const patch = versionParts[2] || 0;
       const versionCode = (major * 10000) + (minor * 100) + (patch * 10) + runNumber;
-      const versionName = pkg.version || '1.1.0';
+      const versionName = pkg.version || '1.1.1';
 
       console.log(`ℹ️ Setting Android App versionCode=${versionCode}, versionName="${versionName}"`);
 

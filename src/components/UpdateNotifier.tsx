@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppUpdateService, UpdateCheckResult, AppVersionInfo, PUBLISHED_DOMAIN_URL } from '../services/appUpdateService';
+import { Capacitor } from '@capacitor/core';
+import { AppUpdateService, UpdateCheckResult, AppVersionInfo } from '../services/appUpdateService';
 import { AdminService, AppVersionConfig } from '../services/adminService';
-import { AppSync, PRIMARY_DOMAIN_URL } from '../services/appSyncService';
+import { AppSync } from '../services/appSyncService';
+import { GITHUB_RELEASE_APK_URL } from '../utils/apkConfig';
 import { InAppUpdateModal } from './InAppUpdateModal';
 
 interface UpdateNotifierProps {
@@ -25,11 +27,11 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
           title: syncResult.data.title || `تحديث جديد متوفر للتطبيق (v${syncResult.remoteVersion})`,
           releaseNotes: syncResult.data.releaseNotes || 'تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.',
           features: syncResult.data.features || [
-            'مزامنة فورية ودائمة بين تطبيق الهاتف والموقع الرسمي (qurankrim20.netlify.app)',
+            'مزامنة فورية ودائمة بين التطبيق والموقع الرسمي (qurankrim20.netlify.app)',
             'استقرار عالي في الأداء ودقة متناهية للبوصلة والتنبيهات'
           ],
-          updateUrl: syncResult.data.updateUrl || syncResult.data.downloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
-          downloadUrl: syncResult.data.downloadUrl || syncResult.data.updateUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
+          updateUrl: syncResult.data.updateUrl || syncResult.data.downloadUrl || GITHUB_RELEASE_APK_URL,
+          downloadUrl: syncResult.data.downloadUrl || syncResult.data.updateUrl || GITHUB_RELEASE_APK_URL,
           apkSize: syncResult.data.apkSize || '20 MB',
           sizeFormatted: syncResult.data.sizeFormatted || '20 MB • تحميل وتثبيت مباشر',
           timestamp: syncResult.data.timestamp || Date.now()
@@ -67,11 +69,11 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
           title: syncResult.data.title || `تحديث جديد متوفر للتطبيق (v${syncResult.remoteVersion})`,
           releaseNotes: syncResult.data.releaseNotes || 'تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.',
           features: syncResult.data.features || [
-            'مزامنة فورية كاملة بين تطبيق الهاتف والموقع الرسمي',
+            'مزامنة فورية كاملة بين التطبيق والموقع الرسمي',
             'استقرار عالي بدون أي فقدان للبيانات والمصاحف المحملة'
           ],
-          updateUrl: syncResult.data.updateUrl || syncResult.data.downloadUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
-          downloadUrl: syncResult.data.downloadUrl || syncResult.data.updateUrl || `${PRIMARY_DOMAIN_URL}/app-release.apk`,
+          updateUrl: syncResult.data.updateUrl || syncResult.data.downloadUrl || GITHUB_RELEASE_APK_URL,
+          downloadUrl: syncResult.data.downloadUrl || syncResult.data.updateUrl || GITHUB_RELEASE_APK_URL,
           apkSize: syncResult.data.apkSize || '20 MB',
           sizeFormatted: syncResult.data.sizeFormatted || '20 MB • تحميل وتثبيت مباشر',
           timestamp: syncResult.data.timestamp || Date.now()
@@ -103,7 +105,6 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
       if (isNewer || versionConfig.forceUpdate) {
         const details: AppVersionInfo = {
           version: versionConfig.latestVersion,
-          versionCode: 2,
           releaseDate: versionConfig.updatedAt ? versionConfig.updatedAt.split('T')[0] : new Date().toISOString().split('T')[0],
           updateType: versionConfig.forceUpdate ? 'both' : 'smart',
           title: `تحديث جديد متوفر للتطبيق (v${versionConfig.latestVersion})`,
@@ -113,8 +114,8 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
             'تحسين دقة البوصلة وأوقات الصلاة والتنبيهات',
             'استقرار عالي بدون أي فقدان للبيانات والمصاحف المحملة'
           ],
-          updateUrl: versionConfig.apkDownloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
-          downloadUrl: versionConfig.apkDownloadUrl || `${PUBLISHED_DOMAIN_URL}/app-release.apk`,
+          updateUrl: versionConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
+          downloadUrl: versionConfig.apkDownloadUrl || GITHUB_RELEASE_APK_URL,
           apkSize: '20 MB',
           sizeFormatted: '20 MB • تحميل وتثبيت مباشر',
           timestamp: versionConfig.updatedAt ? new Date(versionConfig.updatedAt).getTime() : Date.now()
@@ -122,7 +123,7 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
 
         setUpdateResult({
           hasUpdate: true,
-          isHotUpdate: true,
+          isHotUpdate: !Capacitor.isNativePlatform(),
           isApkUpdate: true,
           currentVersion: currentVer,
           remoteVersion: versionConfig.latestVersion,
@@ -153,6 +154,8 @@ export const UpdateNotifier: React.FC<UpdateNotifierProps> = ({ onShowToast }) =
       isOpen={isModalOpen}
       onClose={() => setIsModalOpen(false)}
       updateInfo={updateResult.details}
+      isHotUpdate={updateResult.isHotUpdate}
+      isApkUpdate={updateResult.isApkUpdate}
       currentVersion={updateResult.currentVersion}
       onShowToast={onShowToast}
     />

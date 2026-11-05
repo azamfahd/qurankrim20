@@ -14,28 +14,30 @@ try {
   }
 } catch {}
 
-let pkg = { version: '1.1.0' };
+let pkg = { version: '1.1.1' };
 try {
   pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
 } catch {}
 
 const runNumber = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
-const [major, minor, patch] = (pkg.version || '1.1.0').split('.').map(n => parseInt(n || '0', 10));
+const [major, minor, patch] = (pkg.version || '1.1.1').split('.').map(n => parseInt(n || '0', 10));
 const versionCode = (major * 10000) + (minor * 100) + (patch * 10) + runNumber;
 
 const versionData = {
   ...existingData,
-  version: pkg.version || "1.1.0",
+  version: pkg.version || "1.1.1",
   versionCode: versionCode,
   updateUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
   downloadUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
   mirrorUrl: "https://quramkrim20.netlify.app/app-release.apk",
-  releaseNotes: "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
+  releaseNotes: "إصلاح آلية اكتشاف تحديث Android. لمستخدمي النسخ السابقة: اختاروا تنزيل APK الكامل من GitHub وأكّدوا التثبيت في Android؛ تنزيل الملف وحده لا يثبت التحديث.",
+  features: [
+    "يقارن التطبيق رقم البناء المثبت فعليًا برقم بناء الإصدار المنشور.",
+    "لمستخدمي النسخ السابقة: استخدموا تنزيل APK الكامل وأكّدوا التثبيت عبر Android؛ لا تختاروا التحديث الهوائي القديم على Android."
+  ],
   timestamp: Date.now(),
   apkUpdated: new Date().toISOString()
 };
 
 fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
 console.log(`Generated public/version.json (v${versionData.version} - Code ${versionCode})`);
-
-
