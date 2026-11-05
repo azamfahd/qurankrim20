@@ -11,6 +11,11 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: ${{ vars.ANDROID_HOME || '/usr/local/lib/android/sdk' }}
+      ANDROID_SDK_ROOT: ${{ vars.ANDROID_HOME || '/usr/local/lib/android/sdk' }}
+      ANIS_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANIS_RELEASE_KEYSTORE_BASE64 }}
+      ANIS_RELEASE_STORE_PASSWORD: ${{ secrets.ANIS_RELEASE_STORE_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -29,7 +34,7 @@ jobs:
           java-version: '21'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Build Web Application
         run: npm run build
@@ -44,14 +49,25 @@ jobs:
           cp public/icons/icon-512.png assets/splash-dark.png
           npx @capacitor/assets generate --android || true
 
-      - name: Initialize & Sync Capacitor Android
+      - name: Initialize and sync Capacitor Android
         run: |
           npx cap init "أنيس القلوب" "com.anisalqulub.app" --web-dir dist || true
           npx cap add android || true
           npx @capacitor/assets generate --android || true
           npx cap sync android
 
-      - name: Configure Android Project & AndroidManifest.xml
+      - name: Restore and validate permanent release keystore
+        run: |
+          set -euo pipefail
+          test -n "$ANIS_RELEASE_KEYSTORE_BASE64" || { echo 'Missing ANIS_RELEASE_KEYSTORE_BASE64 repository secret.'; exit 1; }
+          test -n "$ANIS_RELEASE_STORE_PASSWORD" || { echo 'Missing ANIS_RELEASE_STORE_PASSWORD repository secret.'; exit 1; }
+          mkdir -p android/app
+          printf '%s' "$ANIS_RELEASE_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          chmod 600 android/app/release.keystore
+          keytool -list -keystore android/app/release.keystore -storetype JKS \
+            -storepass:env ANIS_RELEASE_STORE_PASSWORD -alias anis_alqulub_release >/dev/null
+
+      - name: Configure Android project and manifest
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: node scripts/configure-android.cjs
@@ -62,66 +78,61 @@ jobs:
           cp public/audio/adhan/*.mp3 android/app/src/main/res/raw/ 2>/dev/null || true
           cp public/audio/adhkar/*.mp3 android/app/src/main/res/raw/ 2>/dev/null || true
 
-      - name: Build Android APK (Signed Release & Debug)
-        env:
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+      - name: Build signed Release APK (no Debug fallback)
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
+          ./gradlew clean assembleRelease --stacktrace
 
-      - name: Copy & Update Built APK to public/app-release.apk
+      - name: Verify APK signature and prepare release files
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK" || { echo "Expected signed APK not found: $APK"; exit 1; }
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          test -x "$APKSIGNER" || { echo 'Android apksigner was not found.'; exit 1; }
+          "$APKSIGNER" verify --verbose "$APK"
+          EXPECTED_CERT=$(keytool -exportcert -keystore android/app/release.keystore -storetype JKS \
+            -alias anis_alqulub_release -storepass:env ANIS_RELEASE_STORE_PASSWORD | sha256sum | cut -d' ' -f1 | tr '[:upper:]' '[:lower:]')
+          APK_CERT=$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{gsub(":", "", $2); print tolower($2); exit}')
+          test -n "$APK_CERT" && test "$APK_CERT" = "$EXPECTED_CERT" || {
+            echo 'APK signing certificate does not match the permanent release keystore.'; exit 1;
+          }
           mkdir -p public
-          FOUND_APK=$(find android/app/build/outputs/apk -name "*.apk" 2>/dev/null | grep -E 'release\.apk|unsigned\.apk|debug\.apk|\.apk' | head -n 1)
-          if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
-            cp "$FOUND_APK" public/app-release.apk
-            echo "✅ Successfully copied APK from $FOUND_APK to public/app-release.apk"
-          elif [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk public/app-release.apk
-            echo "✅ Successfully copied Signed Release APK to public/app-release.apk"
-          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release-unsigned.apk public/app-release.apk
-            echo "⚠️ Copied Release Unsigned APK"
-          elif [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp android/app/build/outputs/apk/debug/app-debug.apk public/app-release.apk
-            echo "⚠️ Fallback to Debug APK"
-          else
-            echo "ℹ️ Retaining existing public/app-release.apk"
-          fi
-          
-          # Update version metadata with dynamic versionCode
+          cp "$APK" public/app-release.apk
           node generate-version.cjs
+          echo "Verified Release APK certificate SHA-256: $APK_CERT"
 
-      - name: Upload APK Artifact
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: AnisAlQulub-Android-APK
           path: public/app-release.apk
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      - name: Create or Update GitHub Release
+      - name: Create or update public GitHub Release
+        if: success() && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
-        if: success()
         with:
           tag_name: latest
           name: "أنيس القلوب - أحدث إصدار APK"
           body: |
-            تحديث تلقائي لحزمة تطبيق أندرويد المستقل (APK) المعتمدة من بناء GitHub Actions.
+            نسخة Android Release موقّعة بالمفتاح الدائم. حدّث التطبيق من داخل التطبيق أو نزّل APK من الأصول أدناه.
           draft: false
           prerelease: false
           files: public/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit and Push Updated Metadata to Repository
+      - name: Commit updated version metadata to main
+        if: success() && github.ref == 'refs/heads/main'
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/version.json
-          git diff --staged --quiet || git commit -m "chore(release): update version metadata [skip ci]"
-          git push origin HEAD:${{ github.ref }} || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(release): update version metadata [skip ci]"
+            git push origin HEAD:main
+          fi

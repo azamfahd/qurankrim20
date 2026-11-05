@@ -197,18 +197,18 @@ function configureAndroid() {
     console.warn('MainActivity configuration notice:', mainActErr);
   }
 
-  // 8. Configure build.gradle with permanent signing and incremented versionCode
+  // 8. Configure build.gradle with CI-provided release signing and incremented versionCode
   try {
     const buildGradlePath = path.join(__dirname, '..', 'android', 'app', 'build.gradle');
     if (fs.existsSync(buildGradlePath)) {
       let gradleContent = fs.readFileSync(buildGradlePath, 'utf8');
 
-      // Copy release.keystore to android/app/release.keystore if available
-      const srcKeystore = path.join(__dirname, '..', 'scripts', 'release.keystore');
-      const targetKeystore = path.join(__dirname, '..', 'android', 'app', 'release.keystore');
-      if (fs.existsSync(srcKeystore)) {
-        fs.copyFileSync(srcKeystore, targetKeystore);
-        console.log('✅ Copied persistent release.keystore to android/app/release.keystore');
+      const releaseKeystore = path.join(__dirname, '..', 'android', 'app', 'release.keystore');
+      if (!fs.existsSync(releaseKeystore)) {
+        throw new Error('Release keystore was not restored from GitHub Actions secrets.');
+      }
+      if (!process.env.ANIS_RELEASE_STORE_PASSWORD) {
+        throw new Error('ANIS_RELEASE_STORE_PASSWORD is not available in the build environment.');
       }
 
       // Calculate versionCode and versionName from package.json & GITHUB_RUN_NUMBER
@@ -236,10 +236,10 @@ function configureAndroid() {
       if (!gradleContent.includes('signingConfigs {')) {
         const signingBlock = `    signingConfigs {
         release {
-            storeFile file('release.keystore')
-            storePassword 'anisalqulub123'
-            keyAlias 'anisalqulub'
-            keyPassword 'anisalqulub123'
+            storeFile file("release.keystore")
+            storePassword System.getenv("ANIS_RELEASE_STORE_PASSWORD")
+            keyAlias "anis_alqulub_release"
+            keyPassword System.getenv("ANIS_RELEASE_STORE_PASSWORD")
         }
     }\n\n`;
         gradleContent = gradleContent.replace('buildTypes {', signingBlock + 'buildTypes {');
@@ -257,10 +257,11 @@ function configureAndroid() {
       }
 
       fs.writeFileSync(buildGradlePath, gradleContent, 'utf8');
-      console.log('✅ Successfully configured android/app/build.gradle with permanent signing and dynamic versionCode.');
+      console.log('✅ Configured release signing from protected CI environment and dynamic versionCode.');
     }
   } catch (gradleErr) {
-    console.warn('build.gradle configuration notice:', gradleErr);
+    console.error('Android release signing configuration failed:', gradleErr.message);
+    process.exitCode = 1;
   }
 }
 

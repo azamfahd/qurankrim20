@@ -8,3 +8,8 @@ coverage
 *.apk
 public/*.apk
 
+# Android signing material must never be committed.
+*.keystore
+*.jks
+/android/app/release.keystore
+.signing/
