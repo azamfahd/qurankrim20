@@ -96,7 +96,19 @@ jobs:
           "$APKSIGNER" verify --verbose "$APK"
           EXPECTED_CERT=$(keytool -exportcert -keystore android/app/release.keystore -storetype JKS \
             -alias anis_alqulub_release -storepass:env ANIS_RELEASE_STORE_PASSWORD | sha256sum | cut -d' ' -f1 | tr '[:upper:]' '[:lower:]')
-          APK_CERT=$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{gsub(":", "", $2); print tolower($2); exit}')
+          CERT_OUTPUT="$RUNNER_TEMP/apksigner-cert-output.txt"
+          "$APKSIGNER" verify --print-certs "$APK" > "$CERT_OUTPUT" 2>&1
+          echo 'apksigner certificate metadata (public certificate only):'
+          cat "$CERT_OUTPUT"
+          APK_CERT=$(python3 - "$CERT_OUTPUT" <<'PY'
+          import re, sys
+          text = open(sys.argv[1], encoding='utf-8', errors='replace').read()
+          match = re.search(r'(?i)SHA[- ]?256 digest\s*:\s*([0-9a-f:]{64,95})', text)
+          if not match:
+              raise SystemExit('Could not parse the APK signing certificate SHA-256 digest.')
+          print(match.group(1).replace(':', '').lower())
+          PY
+          )
           test -n "$APK_CERT" && test "$APK_CERT" = "$EXPECTED_CERT" || {
             echo 'APK signing certificate does not match the permanent release keystore.'; exit 1;
           }
