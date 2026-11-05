@@ -40,7 +40,6 @@ export class AppUpdateService {
   private static readonly VERSION_ENDPOINTS = [
     `${PUBLISHED_DOMAIN_URL}/version.json`,
     `${FALLBACK_DOMAIN_URL}/version.json`,
-    '/version.json',
     'https://ais-pre-imufz5jbfygi72mp53f7ga-119789279212.europe-west2.run.app/version.json'
   ];
 

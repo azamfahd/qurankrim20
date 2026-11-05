@@ -272,35 +272,55 @@ const QuranAudioPlayer = () => {
   // Set default start/end ayah when surah changes
   useEffect(() => {
     if (surahData && surahData.number === currentSurah) {
-      setRangeStart(1);
+      if (playingAyahNumber && playingAyahNumber <= (surahData.numberOfAyahs || 0)) {
+        setRangeStart(playingAyahNumber);
+      } else {
+        setRangeStart(1);
+      }
       setRangeEnd(surahData.numberOfAyahs || 7);
       
-      // If playingAyahNumber is explicitly out of bounds for the new surah (e.g. from a previous state), reset it.
-      // But if it was manually set just before the surahData arrived, it should be respected.
+      // If playingAyahNumber is explicitly out of bounds for the new surah, reset it.
       if (playingAyahNumber !== null && playingAyahNumber > (surahData.numberOfAyahs || 0)) {
         setPlayingAyahNumber(null);
       }
     }
   }, [currentSurah, surahData]);
 
-  // Determine current audio URL (respects starting ayah and custom range settings)
+  // Determine current audio URL (accurately respects selected ayah, range, and continuous playback)
   const getAudioUrl = () => {
     if (!surahData || surahData.number !== currentSurah) return '';
     
     const activeAyahInSurah = playingAyahNumber || rangeStart || 1;
-    
-    // If playing full surah from start with no custom range restrictions
-    if (activeAyahInSurah === 1 && rangeEnd === (surahData.numberOfAyahs || rangeEnd) && repeatMode === 'none') {
-      return getFullSurahAudioUrl(reciter, currentSurah);
-    }
-    
-    // Otherwise play starting from the selected/active ayah (rangeStart or playingAyahNumber)
     const ayahObj = surahData.ayahs?.find((a: any) => a.numberInSurah === activeAyahInSurah);
-    if (!ayahObj) return getFullSurahAudioUrl(reciter, currentSurah);
+    if (!ayahObj) return '';
     return getQuranAudioUrl(reciter, ayahObj.number, currentSurah, activeAyahInSurah);
   };
 
   const currentAudioSrc = getAudioUrl();
+
+  // Gapless Audio Preloader: Pre-buffers next 2 ayahs in browser memory & cache while current ayah plays
+  useEffect(() => {
+    if (!isAudioPlaying || !surahData || !surahData.ayahs) return;
+    
+    const current = playingAyahNumber || rangeStart || 1;
+    const maxEnd = repeatMode === 'range' ? rangeEnd : (surahData.numberOfAyahs || 7);
+    
+    for (let offset = 1; offset <= 2; offset++) {
+      const nextNum = current + offset;
+      if (nextNum <= maxEnd) {
+        const nextAyahObj = surahData.ayahs.find((a: any) => a.numberInSurah === nextNum);
+        if (nextAyahObj) {
+          const nextUrl = getQuranAudioUrl(reciter, nextAyahObj.number, currentSurah, nextNum);
+          if (nextUrl) {
+            const p = new Audio();
+            p.preload = 'auto';
+            p.src = nextUrl;
+            AudioCacheService.cacheAudioUrl(nextUrl).catch(() => {});
+          }
+        }
+      }
+    }
+  }, [playingAyahNumber, rangeStart, rangeEnd, repeatMode, currentSurah, reciter, isAudioPlaying, surahData]);
 
   // Handle async Cache Storage source mapping
   useEffect(() => {
