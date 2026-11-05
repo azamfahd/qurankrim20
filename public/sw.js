@@ -325,11 +325,17 @@ async function checkPwaVersionAndNotify() {
 async function checkApkVersionAndNotify(currentInstalledVersion) {
   try {
     const res = await fetch('/api/version', { cache: 'no-cache' });
-    if (!res.ok) return;
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (!res.ok || !contentType.includes('application/json')) return;
     const data = await res.json();
-    
-    if (data && data.apk && data.apk.available) {
-      const serverVersion = data.apk.version || data.version;
+
+    const apkData = data && data.apk ? data.apk : {};
+    const serverVersion = apkData.version || data.version;
+    const updateAvailable = apkData.available === undefined
+      ? Boolean(serverVersion)
+      : Boolean(apkData.available);
+
+    if (updateAvailable && serverVersion) {
       const isNewer = isVersionNewer(serverVersion, currentInstalledVersion);
 
       if (isNewer) {
@@ -339,9 +345,9 @@ async function checkApkVersionAndNotify(currentInstalledVersion) {
             type: 'APK_UPDATE_AVAILABLE',
             versionInfo: {
               version: serverVersion,
-              releaseNotes: data.apk.releaseNotes,
-              sizeFormatted: data.apk.sizeFormatted,
-              downloadUrl: data.apk.downloadUrl || '/app-release.apk'
+              releaseNotes: apkData.releaseNotes || data.releaseNotes || '',
+              sizeFormatted: apkData.sizeFormatted || data.sizeFormatted || data.apkSize || '',
+              downloadUrl: apkData.downloadUrl || data.downloadUrl || data.updateUrl || '/app-release.apk'
             }
           });
         });
