@@ -1,13 +1,17 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "title": "تحديث جديد متوفر للتطبيق",
-  "releaseNotes": "تحديث تراكمي يتضمن تحسينات في الأداء والتنبيهات وإصلاحات مستمرة.",
+  "releaseNotes": "إصلاح آلية اكتشاف تحديث Android. لمستخدمي النسخ السابقة: اختاروا تنزيل APK الكامل من GitHub وأكّدوا التثبيت في Android؛ تنزيل الملف وحده لا يثبت التحديث.",
   "sizeFormatted": "20 MB • تحميل وتثبيت مباشر",
   "downloadUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "versionCode": 10134,
+  "versionCode": 10145,
   "updateUrl": "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
-  "timestamp": 1793910603113,
-  "apkUpdated": "2026-11-05T20:30:03.113Z",
+  "timestamp": 1793917343932,
+  "apkUpdated": "2026-11-05T22:22:23.932Z",
   "primaryUrl": "https://qurankrim20.netlify.app/app-release.apk",
-  "mirrorUrl": "https://quramkrim20.netlify.app/app-release.apk"
+  "mirrorUrl": "https://quramkrim20.netlify.app/app-release.apk",
+  "features": [
+    "يقارن التطبيق رقم البناء المثبت فعليًا برقم بناء الإصدار المنشور.",
+    "لمستخدمي النسخ السابقة: استخدموا تنزيل APK الكامل وأكّدوا التثبيت عبر Android؛ لا تختاروا التحديث الهوائي القديم على Android."
+  ]
 }
