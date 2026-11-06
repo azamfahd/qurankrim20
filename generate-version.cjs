@@ -23,9 +23,17 @@ const runNumber = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
 const [major, minor, patch] = (pkg.version || '1.1.1').split('.').map(n => parseInt(n || '0', 10));
 const versionCode = (major * 10000) + (minor * 100) + (patch * 10) + runNumber;
 
+const apkPath = path.join(publicDir, 'app-release.apk');
+let sizeFormatted = existingData.sizeFormatted || '';
+if (fs.existsSync(apkPath)) {
+  const sizeBytes = fs.statSync(apkPath).size;
+  sizeFormatted = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB • تحميل وتثبيت مباشر`;
+}
+
 const versionData = {
   ...existingData,
   version: pkg.version || "1.1.1",
+  sizeFormatted,
   versionCode: versionCode,
   updateUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
   downloadUrl: process.env.VITE_APK_DOWNLOAD_URL || "https://github.com/azamfahd/qurankrim20/releases/download/latest/app-release.apk",
